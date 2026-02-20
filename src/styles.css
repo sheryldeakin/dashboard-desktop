@@ -47,7 +47,7 @@ body {
   height: 100%;
   display: grid;
   place-items: center;
-  padding: 0 18px;
+  padding: 18px;
 }
 
 .cs-wrap {
