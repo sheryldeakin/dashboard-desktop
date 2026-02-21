@@ -2,3 +2,6 @@ node_modules/
 dist/
 .DS_Store
 .vite/
+.env
+.env.local
+.env.*.local

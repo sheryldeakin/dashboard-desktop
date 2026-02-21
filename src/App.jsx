@@ -5,6 +5,7 @@ const START_ISO = "2026-02-12T00:00:00";
 const DEADLINE_ISO = "2026-03-16T23:59:00";
 
 const STORAGE_KEY = "arr_dashboard_content_v1";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");
 const dayMs = 1000 * 60 * 60 * 24;
 const hourMs = 1000 * 60 * 60;
 const minuteMs = 1000 * 60;
@@ -252,19 +253,26 @@ function mergeTasksFromText(text, previousTasks) {
   });
 }
 
+function normalizeContentRecord(record) {
+  if (!record || typeof record !== "object") {
+    return cloneContent(DEFAULT_CONTENT);
+  }
+
+  return {
+    phase: typeof record.phase === "string" && record.phase.trim() ? record.phase : DEFAULT_CONTENT.phase,
+    todaysTasks: normalizeTasks(record.todaysTasks ?? record.todaysTask),
+    todaysTasksDate:
+      typeof record.todaysTasksDate === "string" && record.todaysTasksDate ? record.todaysTasksDate : getTodayKey(),
+    taskHistory: normalizeHistory(record.taskHistory),
+  };
+}
+
 function loadContent() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return cloneContent(DEFAULT_CONTENT);
 
-    const parsed = JSON.parse(raw);
-    return {
-      phase: typeof parsed.phase === "string" && parsed.phase.trim() ? parsed.phase : DEFAULT_CONTENT.phase,
-      todaysTasks: normalizeTasks(parsed.todaysTasks ?? parsed.todaysTask),
-      todaysTasksDate:
-        typeof parsed.todaysTasksDate === "string" && parsed.todaysTasksDate ? parsed.todaysTasksDate : getTodayKey(),
-      taskHistory: normalizeHistory(parsed.taskHistory),
-    };
+    return normalizeContentRecord(JSON.parse(raw));
   } catch {
     return cloneContent(DEFAULT_CONTENT);
   }
@@ -272,6 +280,49 @@ function loadContent() {
 
 function saveContent(nextContent) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextContent));
+}
+
+function getApiUrl(path) {
+  return `${API_BASE_URL}${path}`;
+}
+
+async function fetchRemoteContent() {
+  if (!API_BASE_URL) return null;
+
+  const response = await fetch(getApiUrl("/api/content"));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch content (${response.status})`);
+  }
+
+  const payload = await response.json();
+  if (!payload || typeof payload !== "object") return null;
+  return payload.content ?? null;
+}
+
+async function saveRemoteContent(nextContent) {
+  if (!API_BASE_URL) return;
+
+  const response = await fetch(getApiUrl("/api/content"), {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(nextContent),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to save content (${response.status})`);
+  }
+}
+
+function persistContent(nextContent) {
+  saveContent(nextContent);
+
+  if (!API_BASE_URL) return;
+
+  saveRemoteContent(nextContent).catch((error) => {
+    console.error("Failed to sync content to API:", error);
+  });
 }
 
 function appendWorkSession(timer, nowIso, nowMs) {
@@ -489,6 +540,36 @@ function loadAndHydrateContent() {
   return content;
 }
 
+async function loadAndHydratePreferredContent() {
+  const local = loadAndHydrateContent();
+  if (!API_BASE_URL) return local;
+
+  try {
+    const remote = await fetchRemoteContent();
+    if (!remote) {
+      saveRemoteContent(local).catch((error) => {
+        console.error("Failed to seed API content:", error);
+      });
+      return local;
+    }
+
+    const normalizedRemote = normalizeContentRecord(remote);
+    const { content: rolledRemote, changed } = applyDailyRollover(normalizedRemote);
+    saveContent(rolledRemote);
+
+    if (changed) {
+      saveRemoteContent(rolledRemote).catch((error) => {
+        console.error("Failed to update API after rollover:", error);
+      });
+    }
+
+    return rolledRemote;
+  } catch (error) {
+    console.error("Failed to load remote content, using local content:", error);
+    return local;
+  }
+}
+
 function formatDeadlineLocal(deadlineMs) {
   return new Date(deadlineMs).toLocaleString(undefined, {
     weekday: "short",
@@ -594,7 +675,15 @@ function DashboardPage() {
   const countdown = useCountdown();
 
   useEffect(() => {
-    setContent(loadAndHydrateContent());
+    let isMounted = true;
+
+    loadAndHydratePreferredContent().then((loaded) => {
+      if (isMounted) setContent(loaded);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -602,7 +691,7 @@ function DashboardPage() {
       setContent((previous) => {
         const { content: rolled, changed } = applyDailyRollover(previous);
         if (changed) {
-          saveContent(rolled);
+          persistContent(rolled);
           return rolled;
         }
         return previous;
@@ -633,7 +722,7 @@ function DashboardPage() {
         todaysTasks: nextTasks,
       };
 
-      saveContent(next);
+      persistContent(next);
       return next;
     });
   }
@@ -677,7 +766,7 @@ function DashboardPage() {
         taskHistory: historyToUse,
       };
 
-      saveContent(next);
+      persistContent(next);
       return next;
     });
   }
@@ -880,12 +969,20 @@ function AdminPage() {
   );
 
   useEffect(() => {
-    const saved = loadAndHydrateContent();
-    setPhase(saved.phase);
-    setExistingTasks(saved.todaysTasks);
-    setTodaysTasksText(tasksToText(saved.todaysTasks));
-    setTaskHistory(saved.taskHistory);
-    setTodaysTasksDate(saved.todaysTasksDate);
+    let isMounted = true;
+
+    loadAndHydratePreferredContent().then((saved) => {
+      if (!isMounted) return;
+      setPhase(saved.phase);
+      setExistingTasks(saved.todaysTasks);
+      setTodaysTasksText(tasksToText(saved.todaysTasks));
+      setTaskHistory(saved.taskHistory);
+      setTodaysTasksDate(saved.todaysTasksDate);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   function handleSave(event) {
@@ -899,7 +996,7 @@ function AdminPage() {
       taskHistory,
     };
 
-    saveContent(next);
+    persistContent(next);
     setPhase(next.phase);
     setExistingTasks(next.todaysTasks);
     setTodaysTasksText(tasksToText(next.todaysTasks));
@@ -983,8 +1080,15 @@ function HistoryPage() {
   );
 
   useEffect(() => {
-    const content = loadAndHydrateContent();
-    setTaskHistory(content.taskHistory);
+    let isMounted = true;
+
+    loadAndHydratePreferredContent().then((content) => {
+      if (isMounted) setTaskHistory(content.taskHistory);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
