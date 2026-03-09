@@ -34,6 +34,7 @@ This repo is now split:
 `web/vercel.json` is included and rewrites:
 - `/admin/*` -> `/`
 - `/history/*` -> `/`
+- `/todo/*` -> `/`
 
 This fixes direct-load 404s on those pages.
 
@@ -43,6 +44,7 @@ This fixes direct-load 404s on those pages.
    - copy `backend/.env.example` to `backend/.env`
    - run `npm install` (inside `backend/`)
    - run `npm run dev`
+   - optional migration: `npm run migrate:content`
 2. Frontend:
    - copy `web/.env.example` to `web/.env` and set `VITE_API_URL`
    - run `npm install` (inside `web/`)

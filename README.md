@@ -15,12 +15,23 @@ dashboard-display/
 
 ## What Was Added
 
-- Backend API with MongoDB persistence:
+- Backend API with MongoDB persistence and schema migration:
   - `GET /api/health`
+  - `GET /api/content/schema`
   - `GET /api/content`
   - `PUT /api/content`
+- `POST /api/content/migrate`
 - Frontend sync to API via `VITE_API_URL` with localStorage fallback/cache
-- Vercel SPA rewrites for direct routes (`/admin`, `/history`) in `web/vercel.json`
+- Full-screen mobile todo workspace (`/todo`) with:
+  - projects
+  - tags
+  - priorities
+  - due dates
+  - recurring tasks
+  - search/filter/sort
+  - quick actions
+  - Pomodoro + session history
+- Vercel SPA rewrites for direct routes (`/admin`, `/history`, `/todo`) in `web/vercel.json`
 - Monorepo split so Railway deploys only `backend/` and Vercel deploys only `web/`
 
 ## Prerequisites
@@ -39,6 +50,8 @@ cp .env.example .env
 # Fill in MONGODB_URI and other values
 npm install
 npm run dev
+# Optional one-off migration:
+# npm run migrate:content
 ```
 
 Backend runs on `http://localhost:4000` by default.
@@ -118,6 +131,7 @@ VITE_API_URL=http://localhost:4000
 `web/vercel.json` rewrites:
 - `/admin/:path*` -> `/`
 - `/history/:path*` -> `/`
+- `/todo/:path*` -> `/`
 
 This prevents direct-load `404: NOT_FOUND` on these SPA routes.
 
@@ -125,7 +139,7 @@ This prevents direct-load `404: NOT_FOUND` on these SPA routes.
 
 1. In browser DevTools Network tab, confirm:
    - `GET <VITE_API_URL>/api/content` on load
-   - `PUT <VITE_API_URL>/api/content` on save/admin actions
+   - `PUT <VITE_API_URL>/api/content` on save/admin/todo actions
 2. In Atlas Data Explorer, confirm document changes in:
    - DB: `dashboard_display`
    - Collection: `dashboard_content`
@@ -147,7 +161,9 @@ Response:
 ```json
 {
   "content": { "...": "..." } | null,
-  "updatedAt": "ISO_DATE" | null
+  "updatedAt": "ISO_DATE" | null,
+  "schemaVersion": 2,
+  "migrated": true | false
 }
 ```
 
@@ -164,9 +180,18 @@ Response:
 ```json
 {
   "ok": true,
-  "updatedAt": "ISO_DATE"
+  "updatedAt": "ISO_DATE",
+  "schemaVersion": 2
 }
 ```
+
+### `GET /api/content/schema`
+
+Returns schema version and whether migration is recommended.
+
+### `POST /api/content/migrate`
+
+Normalizes stored content to the current schema and persists it.
 
 ## Notes
 
