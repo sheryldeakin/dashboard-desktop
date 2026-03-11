@@ -2634,6 +2634,16 @@ button:focus-visible {
   transform: translateY(-25%);
 }
 
+/* Animal characters — lower to the ground, smaller, faster gait */
+.focus-hiker-animal {
+  bottom: 11%;
+  width: 90px;
+  height: 80px;
+}
+.focus-hiker-animal.is-walking .hiker-sprite-sheet {
+  animation-duration: 0.5s;
+}
+
 /* Resting: softer */
 .focus-hiker.is-resting {
   opacity: 0.7;
@@ -3335,6 +3345,12 @@ button:focus-visible {
     width: 72px;
     height: 94px;
     bottom: 12%;
+  }
+
+  .focus-hiker-animal {
+    width: 64px;
+    height: 58px;
+    bottom: 10%;
   }
 
   .focus-task-name {

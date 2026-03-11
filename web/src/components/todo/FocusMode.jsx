@@ -8,6 +8,7 @@ const COLOR_SCHEMES = [
     sky: ["#0e0e2a","#1a1a3e","#2d2b5e","#3f3570","#5a4888","#7b5e99","#a0776e","#c08b6e","#d8a474","#e6b87a","#f0d4a0"],
     restSky: ["#080f1a","#0d1b2a","#152535","#1b2838","#1f3448","#234058","#2a5070","#326070","#3a6a80","#5a8a8a","#7aaa9a"],
     ground: { fill: "#3d2f52", edge: "#4d3d68", grass: "#5a4870", restFill: "#243840", restEdge: "#2e4e56", restGrass: "#2a4a50" },
+    desertGround: { fill: "#c8a070", edge: "#d8b080", grass: "#b89060", restFill: "#5a6870", restEdge: "#687880", restGrass: "#506068" },
     mtns: ["#5a4a78","#3a2a50","#4a3560","#352848"], restMtns: ["#2a3a50","#1a3040","#223848","#162838"],
     trees: ["60,45,80","50,38,65","45,32,60"], restTrees: ["30,50,60","28,48,55","25,45,50"],
     flowerWarm: "232,128,96", flowerCool: "160,128,208", restFlowerWarm: "128,160,192", restFlowerCool: "96,144,168" },
@@ -15,6 +16,7 @@ const COLOR_SCHEMES = [
     sky: ["#050818","#0a1228","#10203a","#163050","#1a4a5a","#1e6060","#4a8060","#90886a","#c8a070","#e0be80","#f0d8a0"],
     restSky: ["#04060e","#080e1a","#0e1828","#142238","#1a2c48","#1e3650","#224058","#284a60","#305468","#3a6070","#4a7080"],
     ground: { fill: "#1a3828", edge: "#285038", grass: "#2a5a38", restFill: "#182830", restEdge: "#203840", restGrass: "#1e3838" },
+    desertGround: { fill: "#b8a878", edge: "#c8b888", grass: "#a89868", restFill: "#485860", restEdge: "#586868", restGrass: "#405058" },
     mtns: ["#2a5848","#1a4030","#205038","#183828"], restMtns: ["#1a3040","#142838","#182e38","#122430"],
     trees: ["20,60,40","25,55,45","30,50,40"], restTrees: ["20,40,50","22,42,48","18,38,44"],
     flowerWarm: "160,220,120", flowerCool: "100,200,180", restFlowerWarm: "100,150,140", restFlowerCool: "80,130,120" },
@@ -22,6 +24,7 @@ const COLOR_SCHEMES = [
     sky: ["#1a0a2e","#2a1040","#3a1850","#501e58","#6a2858","#883858","#a85860","#c07868","#d8a070","#e6bc7a","#f0d4a0"],
     restSky: ["#0a0810","#10101e","#181828","#1e1e34","#262840","#2e3050","#343a58","#3c4460","#444e68","#505a70","#606878"],
     ground: { fill: "#4a2838", edge: "#5c3848", grass: "#6a3850", restFill: "#282030", restEdge: "#342840", restGrass: "#302838" },
+    desertGround: { fill: "#c89880", edge: "#d8a890", grass: "#b88870", restFill: "#584858", restEdge: "#685868", restGrass: "#504050" },
     mtns: ["#6a3858","#4a2040","#5a2850","#3a1838"], restMtns: ["#302040","#281838","#2c1c3c","#201430"],
     trees: ["80,40,60","70,35,55","60,30,50"], restTrees: ["40,30,50","36,28,48","32,26,44"],
     flowerWarm: "240,160,140", flowerCool: "200,140,180", restFlowerWarm: "140,120,160", restFlowerCool: "120,100,140" },
@@ -29,9 +32,18 @@ const COLOR_SCHEMES = [
     sky: ["#020a18","#041428","#082038","#0e3050","#184060","#225068","#48706e","#88806c","#c09870","#e0b87a","#f0d4a0"],
     restSky: ["#020608","#040c14","#081420","#0e1c2c","#142438","#1a2c44","#203450","#283c58","#304460","#384c68","#405470"],
     ground: { fill: "#1a3048", edge: "#244058", grass: "#2a4860", restFill: "#141e2c", restEdge: "#1c2838", restGrass: "#182430" },
+    desertGround: { fill: "#b0a080", edge: "#c0b090", grass: "#a09070", restFill: "#404858", restEdge: "#505868", restGrass: "#384050" },
     mtns: ["#284868","#183858","#204060","#143050"], restMtns: ["#142030","#101828","#121c2c","#0e1620"],
     trees: ["25,50,70","22,45,65","20,40,60"], restTrees: ["18,30,45","16,28,42","14,24,38"],
     flowerWarm: "120,180,200", flowerCool: "100,160,210", restFlowerWarm: "80,120,150", restFlowerCool: "70,100,140" },
+  { id: "sand", label: "Sand",
+    sky: ["#2a1c10","#3e2c1c","#4b2f1c","#6a4a2c","#7f5a3a","#9a7451","#b66e35","#d9a165","#e8c9a0","#f0e5d3","#f8f3ea"],
+    restSky: ["#1a1410","#28201a","#362a22","#44362c","#524236","#604e40","#705c4a","#806a56","#907a64","#a08a74","#b09a84"],
+    ground: { fill: "#4b2f1c", edge: "#6a4a2c", grass: "#7f5a3a", restFill: "#362a1c", restEdge: "#443824", restGrass: "#40341e" },
+    desertGround: { fill: "#d9a165", edge: "#e0b87a", grass: "#c89050", restFill: "#6a5a44", restEdge: "#7a6a54", restGrass: "#5a4a38" },
+    mtns: ["#9a7451","#7f5a3a","#8a6444","#6a4a2c"], restMtns: ["#4a3c2c","#403424","#44382a","#382e20"],
+    trees: ["120,90,60","107,78,50","90,66,42"], restTrees: ["64,52,42","56,46,36","48,38,30"],
+    flowerWarm: "217,161,101", flowerCool: "182,110,53", restFlowerWarm: "160,130,100", restFlowerCool: "140,110,80" },
 ];
 
 const CHARACTERS = [
@@ -44,7 +56,6 @@ const CHARACTERS = [
 const ENVIRONMENTS = [
   { id: "mountains", label: "Mountains" },
   { id: "desert", label: "Desert" },
-  { id: "space", label: "Space" },
 ];
 
 const FOCUS_SETTINGS_KEY = "focus_mode_settings";
@@ -550,6 +561,230 @@ function Hiker({ isWalking, isResting }) {
   );
 }
 
+/* ── Quadruped walk frames ──
+   Hand-tuned 8-frame diagonal gait. Feet stay on ground (footY constant),
+   only x shifts for stride. Minimal body bounce (0-1px).
+   frontX/backX are offsets from the base leg position.
+*/
+/* Each leg: [footDx, footLift, kneeDx, kneeLift]
+   footDx = horizontal offset from base, footLift = how high foot lifts (0=ground),
+   kneeDx/kneeLift = knee position relative to hip.
+   Diagonal gait: nearFront+farBack swing together, farFront+nearBack together. */
+const QUAD_FRAMES = [
+  // 1: NF reaching, FF planted back, NB reaching, FB planted back
+  { nf: [7, -4, 5, -3], ff: [-5, 0, -3, -2], nb: [-5, 0, -3, -2], fb: [7, -4, 5, -3], dy: 0, tail: 0.3 },
+  // 2: NF landing, FF pushing, NB pushing, FB landing
+  { nf: [6, -1, 4, -3], ff: [-3, 0, -2, -2], nb: [-3, 0, -2, -2], fb: [6, -1, 4, -3], dy: 1, tail: 0.15 },
+  // 3: NF planted, FF mid-swing up, NB mid-swing up, FB planted
+  { nf: [3, 0, 2, -2], ff: [0, -3, 0, -3], nb: [0, -3, 0, -3], fb: [3, 0, 2, -2], dy: 0, tail: 0 },
+  // 4: NF pushing back, FF reaching, NB reaching, FB pushing back
+  { nf: [-3, 0, -2, -2], ff: [6, -4, 4, -3], nb: [6, -4, 4, -3], fb: [-3, 0, -2, -2], dy: -1, tail: -0.15 },
+  // 5: mirror of 1
+  { nf: [-5, 0, -3, -2], ff: [7, -4, 5, -3], nb: [7, -4, 5, -3], fb: [-5, 0, -3, -2], dy: 0, tail: -0.3 },
+  // 6: mirror of 2
+  { nf: [-3, 0, -2, -2], ff: [6, -1, 4, -3], nb: [6, -1, 4, -3], fb: [-3, 0, -2, -2], dy: 1, tail: -0.15 },
+  // 7: mirror of 3
+  { nf: [0, -3, 0, -3], ff: [3, 0, 2, -2], nb: [3, 0, 2, -2], fb: [0, -3, 0, -3], dy: 0, tail: 0 },
+  // 8: mirror of 4
+  { nf: [6, -4, 4, -3], ff: [-3, 0, -2, -2], nb: [-3, 0, -2, -2], fb: [6, -4, 4, -3], dy: -1, tail: 0.15 },
+];
+
+/* Renders a two-segment quadruped leg with knee bend */
+function quadLeg(baseX, hipY, footY, leg, yo, stroke, sw) {
+  const [fdx, flift, kdx, klift] = leg;
+  const fx = baseX + fdx;
+  const fy = footY + flift + yo;
+  const kx = baseX + kdx;
+  const ky = hipY + (footY - hipY) * 0.5 + klift + yo;
+  return (
+    <>
+      <line x1={baseX} y1={hipY + yo} x2={kx} y2={ky} stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
+      <line x1={kx} y1={ky} x2={fx} y2={fy} stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
+    </>
+  );
+}
+
+/* ── Cat character ── */
+function Cat({ isWalking, isResting }) {
+  const F = 50; const W = 60;
+  const FX = 42; const BKX = 18; const FY = 38;
+  const FRAME_COUNT = QUAD_FRAMES.length;
+
+  return (
+    <div className={`focus-hiker focus-hiker-animal ${isWalking ? "is-walking" : ""} ${isResting ? "is-resting" : ""}`}>
+      <div className="hiker-sprite">
+        <svg viewBox={`0 0 ${W} ${F * FRAME_COUNT}`} className="hiker-sprite-sheet"
+          preserveAspectRatio="none" aria-hidden="true" style={{ "--hiker-frames": FRAME_COUNT }}>
+          {QUAD_FRAMES.map((f, i) => {
+            const yo = i * F;
+            const bodyY = 24 + f.dy;
+            const hipY = bodyY + 5;
+            const tw = f.tail * 8;
+            return (
+              <g key={i}>
+                {/* Tail */}
+                <path d={`M${14},${bodyY + 2 + yo} Q${6},${bodyY - 4 + tw + yo} ${4},${bodyY - 10 + tw + yo}`}
+                  fill="none" stroke="#4a4048" strokeWidth="2.5" strokeLinecap="round" />
+                {/* Far legs */}
+                {quadLeg(BKX, hipY, FY, f.fb, yo, "#3a3538", 2.5)}
+                {quadLeg(FX, hipY, FY, f.ff, yo, "#3a3538", 2.5)}
+                {/* Body */}
+                <ellipse cx={30} cy={bodyY + yo} rx="16" ry="8" fill="#4a4048" />
+                {/* Near legs */}
+                {quadLeg(BKX, hipY, FY, f.nb, yo, "#4a4048", 3)}
+                {quadLeg(FX, hipY, FY, f.nf, yo, "#4a4048", 3)}
+                {/* Head */}
+                <circle cx={46} cy={bodyY - 5 + yo} r="6" fill="#4a4048" />
+                {/* Ears */}
+                <path d={`M${42},${bodyY - 10 + yo} L${40},${bodyY - 17 + yo} L${44},${bodyY - 12 + yo}`} fill="#4a4048" />
+                <path d={`M${46},${bodyY - 10 + yo} L${48},${bodyY - 17 + yo} L${50},${bodyY - 12 + yo}`} fill="#4a4048" />
+                <path d={`M${42},${bodyY - 11 + yo} L${41},${bodyY - 15 + yo} L${44},${bodyY - 12 + yo}`} fill="#6a5a60" />
+                <path d={`M${47},${bodyY - 11 + yo} L${48},${bodyY - 15 + yo} L${50},${bodyY - 12 + yo}`} fill="#6a5a60" />
+                {/* Eye */}
+                <circle cx={49} cy={bodyY - 6 + yo} r="1" fill="#a0e8a0" />
+                {/* Nose */}
+                <circle cx={51} cy={bodyY - 4 + yo} r="0.8" fill="#e8a0a0" />
+                {/* Whiskers */}
+                <line x1={51} y1={bodyY - 3.5 + yo} x2={56} y2={bodyY - 5 + yo} stroke="#6a6068" strokeWidth="0.4" />
+                <line x1={51} y1={bodyY - 3 + yo} x2={56} y2={bodyY - 3 + yo} stroke="#6a6068" strokeWidth="0.4" />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/* ── Dog character ── */
+function Dog({ isWalking, isResting }) {
+  const F = 55; const W = 65;
+  const FX = 46; const BKX = 18; const FY = 42;
+  const FRAME_COUNT = QUAD_FRAMES.length;
+
+  return (
+    <div className={`focus-hiker focus-hiker-animal ${isWalking ? "is-walking" : ""} ${isResting ? "is-resting" : ""}`}>
+      <div className="hiker-sprite">
+        <svg viewBox={`0 0 ${W} ${F * FRAME_COUNT}`} className="hiker-sprite-sheet"
+          preserveAspectRatio="none" aria-hidden="true" style={{ "--hiker-frames": FRAME_COUNT }}>
+          {QUAD_FRAMES.map((f, i) => {
+            const yo = i * F;
+            const bodyY = 26 + f.dy;
+            const hipY = bodyY + 7;
+            const tw = f.tail * 10;
+            return (
+              <g key={i}>
+                {/* Tail - curved up */}
+                <path d={`M${12},${bodyY + yo} Q${6},${bodyY - 8 + tw + yo} ${8},${bodyY - 16 + tw + yo}`}
+                  fill="none" stroke="#b08040" strokeWidth="3" strokeLinecap="round" />
+                {/* Far legs */}
+                {quadLeg(BKX, hipY, FY, f.fb, yo, "#8a6830", 3)}
+                {quadLeg(FX, hipY, FY, f.ff, yo, "#8a6830", 3)}
+                {/* Body */}
+                <ellipse cx={32} cy={bodyY + yo} rx="18" ry="9" fill="#b08040" />
+                {/* Chest lighter patch */}
+                <ellipse cx={44} cy={bodyY + 2 + yo} rx="6" ry="5" fill="#c8a050" />
+                {/* Near legs */}
+                {quadLeg(BKX, hipY, FY, f.nb, yo, "#b08040", 3.5)}
+                {quadLeg(FX, hipY, FY, f.nf, yo, "#b08040", 3.5)}
+                {/* Paws */}
+                <ellipse cx={BKX + f.nb[0]} cy={FY + f.nb[1] + 1 + yo} rx="2.5" ry="1.5" fill="#8a6830" />
+                <ellipse cx={FX + f.nf[0]} cy={FY + f.nf[1] + 1 + yo} rx="2.5" ry="1.5" fill="#8a6830" />
+                {/* Head */}
+                <ellipse cx={50} cy={bodyY - 4 + yo} rx="7" ry="6.5" fill="#b08040" />
+                {/* Snout */}
+                <ellipse cx={55} cy={bodyY - 2 + yo} rx="4.5" ry="3.5" fill="#c8a050" />
+                {/* Ear - floppy */}
+                <path d={`M${46},${bodyY - 8 + yo} Q${42},${bodyY - 6 + yo} ${44},${bodyY - 1 + yo}`}
+                  fill="#8a6830" stroke="#8a6830" strokeWidth="1" />
+                {/* Eye */}
+                <circle cx={51} cy={bodyY - 6 + yo} r="1.2" fill="#2a1a10" />
+                {/* Nose */}
+                <ellipse cx={57} cy={bodyY - 2.5 + yo} rx="1.5" ry="1.2" fill="#2a1a10" />
+                {/* Tongue (some frames) */}
+                {i % 3 === 0 && <path d={`M${56},${bodyY + yo} Q${57},${bodyY + 3 + yo} ${55},${bodyY + 4 + yo}`}
+                  fill="#e07070" stroke="none" />}
+                {/* Collar */}
+                <path d={`M${44},${bodyY - 1 + yo} Q${48},${bodyY + 1 + yo} ${52},${bodyY - 1 + yo}`}
+                  fill="none" stroke="#c04040" strokeWidth="1.5" />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/* ── Fox character ── */
+function Fox({ isWalking, isResting }) {
+  const F = 50; const W = 65;
+  const FX = 44; const BKX = 16; const FY = 38;
+  const FRAME_COUNT = QUAD_FRAMES.length;
+
+  return (
+    <div className={`focus-hiker focus-hiker-animal ${isWalking ? "is-walking" : ""} ${isResting ? "is-resting" : ""}`}>
+      <div className="hiker-sprite">
+        <svg viewBox={`0 0 ${W} ${F * FRAME_COUNT}`} className="hiker-sprite-sheet"
+          preserveAspectRatio="none" aria-hidden="true" style={{ "--hiker-frames": FRAME_COUNT }}>
+          {QUAD_FRAMES.map((f, i) => {
+            const yo = i * F;
+            const bodyY = 24 + f.dy;
+            const hipY = bodyY + 6;
+            const tw = f.tail * 6;
+            return (
+              <g key={i}>
+                {/* Bushy tail */}
+                <path d={`M${12},${bodyY + 2 + yo} Q${2},${bodyY - 6 + tw + yo} ${4},${bodyY - 14 + tw + yo} Q${8},${bodyY - 16 + tw + yo} ${10},${bodyY - 12 + tw + yo}`}
+                  fill="#d87030" stroke="none" />
+                {/* White tail tip */}
+                <path d={`M${4},${bodyY - 14 + tw + yo} Q${7},${bodyY - 16 + tw + yo} ${10},${bodyY - 12 + tw + yo}`}
+                  fill="#f0e0d0" stroke="none" />
+                {/* Far legs — dark socks */}
+                {quadLeg(BKX, hipY, FY, f.fb, yo, "#1a1210", 2.5)}
+                {quadLeg(FX, hipY, FY, f.ff, yo, "#1a1210", 2.5)}
+                {/* Body */}
+                <ellipse cx={30} cy={bodyY + yo} rx="17" ry="8" fill="#d87030" />
+                {/* Belly */}
+                <ellipse cx={32} cy={bodyY + 3 + yo} rx="10" ry="4" fill="#f0d0a0" />
+                {/* Near legs — dark socks */}
+                {quadLeg(BKX, hipY, FY, f.nb, yo, "#1a1210", 3)}
+                {quadLeg(FX, hipY, FY, f.nf, yo, "#1a1210", 3)}
+                {/* Head */}
+                <ellipse cx={48} cy={bodyY - 4 + yo} rx="7" ry="6" fill="#d87030" />
+                {/* Face/cheek white */}
+                <ellipse cx={50} cy={bodyY - 2 + yo} rx="4" ry="3.5" fill="#f0d0a0" />
+                {/* Snout */}
+                <path d={`M${52},${bodyY - 3 + yo} L${58},${bodyY - 2 + yo} L${52},${bodyY + yo} Z`} fill="#f0d0a0" />
+                {/* Ears */}
+                <path d={`M${43},${bodyY - 8 + yo} L${41},${bodyY - 18 + yo} L${46},${bodyY - 10 + yo}`} fill="#d87030" />
+                <path d={`M${48},${bodyY - 9 + yo} L${50},${bodyY - 18 + yo} L${52},${bodyY - 10 + yo}`} fill="#d87030" />
+                <path d={`M${43},${bodyY - 9 + yo} L${42},${bodyY - 16 + yo} L${45},${bodyY - 10 + yo}`} fill="#1a1210" />
+                <path d={`M${49},${bodyY - 10 + yo} L${50},${bodyY - 16 + yo} L${51},${bodyY - 10 + yo}`} fill="#1a1210" />
+                {/* Eye */}
+                <ellipse cx={50} cy={bodyY - 5 + yo} rx="1.2" ry="1.5" fill="#e8a830" />
+                <circle cx={50} cy={bodyY - 5 + yo} r="0.6" fill="#1a1210" />
+                {/* Nose */}
+                <circle cx={57} cy={bodyY - 2 + yo} r="1.2" fill="#1a1210" />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/* ── Character switcher ── */
+function Character({ type, isWalking, isResting }) {
+  switch (type) {
+    case "cat": return <Cat isWalking={isWalking} isResting={isResting} />;
+    case "dog": return <Dog isWalking={isWalking} isResting={isResting} />;
+    case "fox": return <Fox isWalking={isWalking} isResting={isResting} />;
+    default: return <Hiker isWalking={isWalking} isResting={isResting} />;
+  }
+}
+
 /* ── Scenery layers — trees, rocks, flowers at multiple depths ── */
 function SceneryLayer({ isWalking, layer }) {
   // layer 0 = distant (small, faint, slow), 1 = mid, 2 = near (large, vivid, fast)
@@ -660,6 +895,190 @@ function SceneryLayer({ isWalking, layer }) {
   );
 }
 
+/* ── Desert environment ── */
+
+/* Smooth rolling sand dunes — 4 layers like mountains but with softer curves */
+function DuneFar() {
+  return (
+    <div className="focus-parallax focus-parallax-far">
+      <svg className="focus-parallax-svg" viewBox="0 0 2880 320" preserveAspectRatio="none">
+        <path d="M0,320 L0,200 Q360,140 720,180 Q1080,220 1440,170 Q1800,140 2160,180 Q2520,220 2880,200 L2880,320 Z" />
+      </svg>
+    </div>
+  );
+}
+
+function DuneBack() {
+  return (
+    <div className="focus-parallax focus-parallax-back">
+      <svg className="focus-parallax-svg" viewBox="0 0 2880 320" preserveAspectRatio="none">
+        <path d="M0,320 L0,220 Q300,170 660,200 Q900,230 1200,190 Q1440,210 1800,175 Q2100,200 2400,220 Q2700,240 2880,220 L2880,320 Z" />
+      </svg>
+    </div>
+  );
+}
+
+function DuneMid() {
+  return (
+    <div className="focus-parallax focus-parallax-mid">
+      <svg className="focus-parallax-svg" viewBox="0 0 2880 320" preserveAspectRatio="none">
+        <path d="M0,320 L0,240 Q400,200 800,230 Q1100,250 1440,220 Q1700,200 2040,230 Q2400,250 2880,240 L2880,320 Z" />
+      </svg>
+    </div>
+  );
+}
+
+function DuneFront() {
+  return (
+    <div className="focus-parallax focus-parallax-front">
+      <svg className="focus-parallax-svg" viewBox="0 0 2880 320" preserveAspectRatio="none">
+        <path d="M0,320 L0,260 Q360,240 720,255 Q1080,270 1440,250 Q1800,240 2160,255 Q2520,270 2880,260 L2880,320 Z" />
+      </svg>
+    </div>
+  );
+}
+
+/* Desert ground — flat sandy terrain with pebble texture */
+function DesertGround({ isWalking }) {
+  const pebbles = useMemo(() => {
+    let seed = 99;
+    function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+    const p = [];
+    for (let i = 0; i < 40; i++) {
+      p.push({ id: i, x: rand() * 400, y: 60 + rand() * 38, rx: 1 + rand() * 2.5, ry: 0.6 + rand() * 1.2, op: 0.15 + rand() * 0.2 });
+    }
+    return p;
+  }, []);
+
+  return (
+    <div className="focus-layer focus-layer-ground">
+      <div className={`focus-hill ${isWalking ? "is-scrolling" : ""}`}>
+        <svg className="focus-hill-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
+          <path d="M0,100 L0,55 Q100,50 200,48 Q300,46 400,44 L400,100 Z" />
+          <path d="M0,55 Q100,50 200,48 Q300,46 400,44 L400,47 Q300,49 200,51 Q100,53 0,58 Z" className="hill-edge" />
+        </svg>
+      </div>
+      <div className={`focus-hill-texture ${isWalking ? "is-scrolling" : ""}`}>
+        <svg className="focus-hill-texture-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
+          {pebbles.map((p) => (
+            <ellipse key={p.id} cx={p.x} cy={p.y} rx={p.rx} ry={p.ry} fill="currentColor" opacity={p.op} />
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/* Desert scenery — cacti, rocks, tumbleweeds */
+function DesertSceneryLayer({ isWalking, layer }) {
+  const items = useMemo(() => {
+    let seed = 200 + layer * 77;
+    function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+
+    const arr = [];
+    let id = 0;
+
+    // Cacti
+    const cactusCount = layer === 0 ? 3 : layer === 1 ? 4 : 3;
+    const spacing = 500 / cactusCount;
+    for (let i = 0; i < cactusCount; i++) {
+      const x = spacing * i + rand() * spacing * 0.6;
+      const type = Math.floor(rand() * 3); // 0=saguaro, 1=barrel, 2=prickly pear
+      const scale = layer === 0 ? 0.4 + rand() * 0.2
+        : layer === 1 ? 0.6 + rand() * 0.3
+        : 0.8 + rand() * 0.4;
+      const groundY = 100 - rand() * (layer === 0 ? 6 : layer === 1 ? 4 : 2);
+      arr.push({ id: id++, x, type, scale, groundY, kind: "cactus" });
+    }
+
+    // Desert rocks
+    const rockCount = layer === 0 ? 2 : 4;
+    for (let i = 0; i < rockCount; i++) {
+      const x = rand() * 490;
+      const w = 6 + rand() * 12;
+      const h = 4 + rand() * 6;
+      arr.push({ id: id++, x, w, h, kind: "rock" });
+    }
+
+    // Tumbleweeds (near layer only)
+    if (layer === 2) {
+      for (let i = 0; i < 3; i++) {
+        const x = rand() * 490;
+        const r = 2 + rand() * 2;
+        arr.push({ id: id++, x, r, kind: "tumbleweed" });
+      }
+    }
+
+    return arr;
+  }, [layer]);
+
+  const cls = `focus-scenery focus-scenery-${layer}`;
+
+  return (
+    <div className={`${cls} ${isWalking ? "is-scrolling" : ""}`}>
+      <svg viewBox="0 0 500 100" preserveAspectRatio="xMidYMax slice" className="focus-scenery-svg">
+        {items.map((item) => {
+          if (item.kind === "rock") {
+            return (
+              <path key={item.id} className="gd-rock" fill="currentColor"
+                d={`M${item.x},100 Q${item.x - item.w * 0.3},${100 - item.h} ${item.x + item.w * 0.3},${100 - item.h * 0.9} Q${item.x + item.w * 0.7},${100 - item.h * 0.6} ${item.x + item.w},100 Z`} />
+            );
+          }
+          if (item.kind === "tumbleweed") {
+            return (
+              <circle key={item.id} cx={item.x} cy={98 - item.r} r={item.r}
+                fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.4" />
+            );
+          }
+          const { x, type, scale, groundY } = item;
+          if (type === 0) {
+            // Saguaro cactus — tall trunk with curved arms
+            const h = 35 * scale;
+            const w = 3 * scale;
+            const armY1 = groundY - h * 0.6;
+            const armY2 = groundY - h * 0.45;
+            return (
+              <g key={item.id}>
+                <line x1={x} y1={groundY} x2={x} y2={groundY - h} stroke="currentColor" strokeWidth={w} strokeLinecap="round" />
+                {/* Left arm — curves up */}
+                <path d={`M${x},${armY1} Q${x - 7 * scale},${armY1} ${x - 7 * scale},${armY1 - 8 * scale}`}
+                  fill="none" stroke="currentColor" strokeWidth={w * 0.65} strokeLinecap="round" />
+                {/* Right arm — curves up, slightly lower */}
+                <path d={`M${x},${armY2} Q${x + 6 * scale},${armY2} ${x + 6 * scale},${armY2 - 6 * scale}`}
+                  fill="none" stroke="currentColor" strokeWidth={w * 0.65} strokeLinecap="round" />
+              </g>
+            );
+          }
+          if (type === 1) {
+            // Barrel/columnar cactus — short, slightly tapered
+            const h = 14 * scale;
+            const w = 2.5 * scale;
+            return (
+              <g key={item.id}>
+                <path d={`M${x - w},${groundY} L${x - w * 0.8},${groundY - h} Q${x},${groundY - h - 2 * scale} ${x + w * 0.8},${groundY - h} L${x + w},${groundY} Z`}
+                  fill="currentColor" />
+                {/* Vertical rib lines */}
+                <line x1={x} y1={groundY - h} x2={x} y2={groundY} stroke="currentColor" strokeWidth="0.3" opacity="0.25" />
+              </g>
+            );
+          }
+          // Thin columnar cactus — simple tall and slim, no arms
+          const h = 28 * scale;
+          const w = 2 * scale;
+          return (
+            <g key={item.id}>
+              <line x1={x} y1={groundY} x2={x} y2={groundY - h} stroke="currentColor" strokeWidth={w} strokeLinecap="round" />
+              {/* Small branch nub */}
+              <line x1={x} y1={groundY - h * 0.65} x2={x + 3 * scale} y2={groundY - h * 0.72}
+                stroke="currentColor" strokeWidth={w * 0.6} strokeLinecap="round" />
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 /* ── Path progress indicator ── */
 function PathProgress({ progress }) {
   return (
@@ -747,7 +1166,7 @@ export default function FocusMode({
 
   const scheme = COLOR_SCHEMES.find((s) => s.id === settings.colorScheme) || COLOR_SCHEMES[0];
   const skyColors = isResting ? scheme.restSky : scheme.sky;
-  const g = scheme.ground;
+  const g = settings.environment === "desert" && scheme.desertGround ? scheme.desertGround : scheme.ground;
   const trees = isResting ? scheme.restTrees : scheme.trees;
   const mtns = isResting ? scheme.restMtns : scheme.mtns;
   const skyStyle = {
@@ -770,18 +1189,34 @@ export default function FocusMode({
     <div className={`focus-immersive ${isResting ? "focus-rest" : "focus-work"} ${hikerWalking ? "is-moving" : ""}`} style={skyStyle}>
       <Stars />
       <Clouds />
-      <MountainFar />
-      <MountainBack />
-      <MountainMid />
-      <MountainFront />
-      <Particles />
-      <Ground isWalking={hikerWalking} />
-      <SceneryLayer isWalking={hikerWalking} layer={0} />
-      <SceneryLayer isWalking={hikerWalking} layer={1} />
-      <SceneryLayer isWalking={hikerWalking} layer={2} />
+      {settings.environment === "desert" ? (
+        <>
+          <DuneFar />
+          <DuneBack />
+          <DuneMid />
+          <DuneFront />
+          <Particles />
+          <DesertGround isWalking={hikerWalking} />
+          <DesertSceneryLayer isWalking={hikerWalking} layer={0} />
+          <DesertSceneryLayer isWalking={hikerWalking} layer={1} />
+          <DesertSceneryLayer isWalking={hikerWalking} layer={2} />
+        </>
+      ) : (
+        <>
+          <MountainFar />
+          <MountainBack />
+          <MountainMid />
+          <MountainFront />
+          <Particles />
+          <Ground isWalking={hikerWalking} />
+          <SceneryLayer isWalking={hikerWalking} layer={0} />
+          <SceneryLayer isWalking={hikerWalking} layer={1} />
+          <SceneryLayer isWalking={hikerWalking} layer={2} />
+        </>
+      )}
 
-      {/* Hiker stays centered, world moves around them */}
-      <Hiker isWalking={hikerWalking} isResting={isResting} />
+      {/* Character stays centered, world moves around them */}
+      <Character type={settings.character} isWalking={hikerWalking} isResting={isResting} />
 
       {/* Top bar */}
       <div className="focus-top-bar">

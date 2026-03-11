@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   SCHEMA_VERSION,
   DEFAULT_PROJECT,
@@ -53,6 +53,9 @@ export function useTasks(setStatus) {
 
   const defaultProjectId = projects[0]?.id || DEFAULT_PROJECT.id;
 
+  const isHydrated = useRef(false);
+  const saveTimerRef = useRef(null);
+
   // Load content on mount
   useEffect(() => {
     let isMounted = true;
@@ -66,12 +69,34 @@ export function useTasks(setStatus) {
       setPomodoro(saved.pomodoro);
       setTodaysTasksDate(saved.todaysTasksDate);
       setSelectedTaskId(saved.todaysTasks[0]?.id || "");
+      // Mark hydration complete after React batches these state updates
+      setTimeout(() => { isHydrated.current = true; }, 0);
     });
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  // Auto-save: debounced persist on any meaningful state change
+  useEffect(() => {
+    if (!isHydrated.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      persistContent(normalizeContentRecord({
+        schemaVersion: SCHEMA_VERSION,
+        phase,
+        projects,
+        todaysTasks: tasks,
+        todaysTasksDate,
+        taskHistory,
+        pomodoro,
+      }));
+    }, 800);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [tasks, taskHistory, phase, projects, pomodoro, todaysTasksDate]);
 
   // Sync selected task
   useEffect(() => {
@@ -124,6 +149,8 @@ export function useTasks(setStatus) {
   function normalizeAndPersist(next) {
     const normalized = normalizeContentRecord(next);
     persistContent(normalized);
+    // Cancel pending auto-save — we just persisted
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setPhase(normalized.phase);
     setProjects(normalized.projects);
     setTasks(normalized.todaysTasks);
