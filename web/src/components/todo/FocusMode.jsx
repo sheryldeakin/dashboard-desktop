@@ -1141,10 +1141,13 @@ export default function FocusMode({
     };
   }, [open]);
 
+  // These must be above early return to satisfy Rules of Hooks
+  const timerRunning = task?.timer?.status === "running";
+
   if (!open || !task) return null;
 
   const runtime = getLiveDurations(task, Date.now());
-  const isRunning = task.timer.status === "running";
+  const isRunning = timerRunning;
   const isPaused = task.timer.status === "paused";
   const timerMs = isRunning ? runtime.workMs : isPaused ? runtime.restMs : runtime.workMs + runtime.restMs;
   const isPomodoroActive = pomodoroRun.status === "running" || pomodoroRun.status === "paused";

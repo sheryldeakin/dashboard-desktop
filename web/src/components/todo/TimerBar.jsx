@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { formatDuration, formatClock, getLiveDurations } from "../../utils/taskUtils.js";
 
 export default function TimerBar({
@@ -9,14 +10,20 @@ export default function TimerBar({
   onPausePomodoro,
   onStartPomodoro,
 }) {
-  if (!task) return null;
+  const [tick, setTick] = useState(0);
 
-  const isRunning = task.timer.status === "running";
-  const isPaused = task.timer.status === "paused";
+  const isRunning = task?.timer?.status === "running";
+  const isPaused = task?.timer?.status === "paused";
   const isTimerActive = isRunning || isPaused;
   const isPomodoroActive = pomodoroRun.status === "running" || pomodoroRun.status === "paused";
 
-  if (!isTimerActive && !isPomodoroActive) return null;
+  useEffect(() => {
+    if (!isRunning && !isPaused && !isPomodoroActive) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [isRunning, isPaused, isPomodoroActive]);
+
+  if (!task || (!isTimerActive && !isPomodoroActive)) return null;
 
   const runtime = getLiveDurations(task, Date.now());
   const timerDisplay = isRunning

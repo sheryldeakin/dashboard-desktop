@@ -458,7 +458,7 @@ export function createDefaultContent() {
     schemaVersion: SCHEMA_VERSION,
     title: "ARR Submission",
     startDate: "2026-02-12T00:00:00",
-    deadlineDate: "2026-03-16T23:59:00",
+    deadlineDate: "2026-05-25T23:59:00",
     phase: "Phase 2 - Revision",
     projects: [{ ...DEFAULT_PROJECT }],
     todaysTasks: [

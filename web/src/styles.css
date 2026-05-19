@@ -253,6 +253,48 @@ body {
   line-height: 1.35;
 }
 
+/* Inline editing on dashboard */
+.cs-editable {
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.2s;
+}
+.cs-editable:hover {
+  border-bottom-color: var(--ink-soft, rgba(255,255,255,0.35));
+}
+
+.cs-inline-edit {
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--accent, #bf7a40);
+  outline: none;
+  color: inherit;
+  font-family: inherit;
+  padding: 0;
+  width: 100%;
+}
+input.cs-inline-edit.cs-title {
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+input.cs-inline-edit.cs-meta-value {
+  font-size: 15px;
+  line-height: 1.35;
+}
+.cs-inline-edit-date {
+  font-size: 13px;
+  color: var(--ink);
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1.5px solid var(--accent, #bf7a40);
+  background: rgba(0,0,0,0.15);
+}
+.cs-inline-edit-date::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+}
+
 .cs-task-list {
   margin: 2px 0 0;
   padding: 0;
@@ -2357,8 +2399,11 @@ button:focus-visible {
 .focus-rest .focus-parallax-far::after {
   background: linear-gradient(to bottom, rgba(120, 180, 220, 0.06) 0%, transparent 30%);
 }
+.focus-parallax-far {
+  animation: parallax-scroll 160s linear infinite paused;
+}
 .is-moving .focus-parallax-far {
-  animation: parallax-scroll 160s linear infinite;
+  animation-play-state: running;
 }
 
 /* Back mountains — distant, large ridges */
@@ -2373,8 +2418,11 @@ button:focus-visible {
 .focus-rest .focus-parallax-back::after {
   background: linear-gradient(to bottom, rgba(100, 180, 220, 0.05) 0%, transparent 30%);
 }
+.focus-parallax-back {
+  animation: parallax-scroll 110s linear infinite paused;
+}
 .is-moving .focus-parallax-back {
-  animation: parallax-scroll 110s linear infinite;
+  animation-play-state: running;
 }
 
 /* Mid mountains — medium distance, defined peaks */
@@ -2389,8 +2437,11 @@ button:focus-visible {
 .focus-rest .focus-parallax-mid::after {
   background: linear-gradient(to bottom, rgba(80, 160, 200, 0.06) 0%, transparent 25%);
 }
+.focus-parallax-mid {
+  animation: parallax-scroll 75s linear infinite paused;
+}
 .is-moving .focus-parallax-mid {
-  animation: parallax-scroll 75s linear infinite;
+  animation-play-state: running;
 }
 
 /* Front mountains — closest foothills, darkest, fastest */
@@ -2405,8 +2456,11 @@ button:focus-visible {
 .focus-rest .focus-parallax-front::after {
   background: linear-gradient(to bottom, rgba(60, 140, 180, 0.05) 0%, transparent 20%);
 }
+.focus-parallax-front {
+  animation: parallax-scroll 50s linear infinite paused;
+}
 .is-moving .focus-parallax-front {
-  animation: parallax-scroll 50s linear infinite;
+  animation-play-state: running;
 }
 
 @keyframes parallax-scroll {
@@ -2443,8 +2497,11 @@ button:focus-visible {
   opacity: 0.5;
 }
 
+.focus-hill {
+  animation: parallax-scroll 45s linear infinite paused;
+}
 .focus-hill.is-scrolling {
-  animation: parallax-scroll 45s linear infinite;
+  animation-play-state: running;
 }
 
 /* Grass texture on the slope */
@@ -2463,8 +2520,11 @@ button:focus-visible {
   display: block;
 }
 
+.focus-hill-texture {
+  animation: parallax-scroll 45s linear infinite paused;
+}
 .focus-hill-texture.is-scrolling {
-  animation: parallax-scroll 45s linear infinite;
+  animation-play-state: running;
 }
 
 /* ── Stars ── */
@@ -2584,26 +2644,16 @@ button:focus-visible {
   100% { opacity: 0; transform: translate(var(--drift-x, 20px), var(--drift-y, -30px)); }
 }
 
-/* ── SVG Hiker (8-frame sprite, centered, tilted uphill) ── */
+/* ── SVG Hiker (8-frame sprite, centered) ── */
 .focus-hiker {
   position: absolute;
-  bottom: 14%;
+  bottom: 11%;
   left: 50%;
-  transform: translateX(-50%) rotate(-6deg);
+  transform: translateX(-50%);
   width: 100px;
   height: 130px;
   z-index: 12;
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
-}
-
-/* Idle: gentle bob, keep the tilt */
-.focus-hiker:not(.is-walking) {
-  animation: hiker-idle-bob 3s ease-in-out infinite;
-}
-
-@keyframes hiker-idle-bob {
-  0%, 100% { transform: translateX(-50%) rotate(-6deg) translateY(0); }
-  50%      { transform: translateX(-50%) rotate(-6deg) translateY(-3px); }
 }
 
 /* Sprite container — clips to one frame */
@@ -2619,19 +2669,17 @@ button:focus-visible {
   display: block;
 }
 
-/* Walk cycle: 0.8s for 8 frames = 10fps */
+/* Walk cycle: always applied, play-state controlled */
+.hiker-sprite-sheet {
+  animation: hiker-walk-cycle 0.8s steps(var(--hiker-frames, 8)) infinite paused;
+}
 .focus-hiker.is-walking .hiker-sprite-sheet {
-  animation: hiker-walk-cycle 0.8s steps(var(--hiker-frames, 8)) infinite;
+  animation-play-state: running;
 }
 
 @keyframes hiker-walk-cycle {
   from { transform: translateY(0); }
   to   { transform: translateY(-100%); }
-}
-
-/* Idle: show frame 3 (standing pose) */
-.focus-hiker:not(.is-walking) .hiker-sprite-sheet {
-  transform: translateY(-25%);
 }
 
 /* Animal characters — lower to the ground, smaller, faster gait */
@@ -2640,7 +2688,7 @@ button:focus-visible {
   width: 90px;
   height: 80px;
 }
-.focus-hiker-animal.is-walking .hiker-sprite-sheet {
+.focus-hiker-animal .hiker-sprite-sheet {
   animation-duration: 0.5s;
 }
 
@@ -2671,7 +2719,8 @@ button:focus-visible {
   z-index: 3;
   color: rgba(var(--tree-0, 60,45,80), 0.25);
 }
-.focus-scenery-0.is-scrolling { animation: parallax-scroll 100s linear infinite; }
+.focus-scenery-0 { animation: parallax-scroll 100s linear infinite paused; }
+.focus-scenery-0.is-scrolling { animation-play-state: running; }
 
 /* Layer 1 — mid: medium, moderate */
 .focus-scenery-1 {
@@ -2680,7 +2729,8 @@ button:focus-visible {
   z-index: 6;
   color: rgba(var(--tree-1, 50,38,65), 0.4);
 }
-.focus-scenery-1.is-scrolling { animation: parallax-scroll 60s linear infinite; }
+.focus-scenery-1 { animation: parallax-scroll 60s linear infinite paused; }
+.focus-scenery-1.is-scrolling { animation-play-state: running; }
 
 /* Layer 2 — near: large, vivid, fast */
 .focus-scenery-2 {
@@ -2689,12 +2739,14 @@ button:focus-visible {
   z-index: 9;
   color: rgba(var(--tree-2, 45,32,60), 0.6);
 }
-.focus-scenery-2.is-scrolling { animation: parallax-scroll 40s linear infinite; }
+.focus-scenery-2 { animation: parallax-scroll 40s linear infinite paused; }
+.focus-scenery-2.is-scrolling { animation-play-state: running; }
 
 /* Scenery detail styles */
 .focus-scenery .gd-rock { opacity: 0.5; }
 .focus-scenery .flower-warm { fill: rgba(var(--flower-warm, 232,128,96), 0.4); }
 .focus-scenery .flower-cool { fill: rgba(var(--flower-cool, 160,128,208), 0.4); }
+
 
 /* ── Top bar ── */
 .focus-top-bar {

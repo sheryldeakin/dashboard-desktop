@@ -103,6 +103,51 @@ function DashboardPage() {
   const [queueDropActive, setQueueDropActive] = useState(false);
   const [backlogDropActive, setBacklogDropActive] = useState(false);
   const [status, setStatus] = useState("");
+
+  // Inline-editing state
+  const [editingField, setEditingField] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editPhase, setEditPhase] = useState("");
+  const [editDeadline, setEditDeadline] = useState("");
+  const editRef = useRef(null);
+
+  useEffect(() => {
+    if (editingField && editRef.current) editRef.current.focus();
+  }, [editingField]);
+
+  function startEditing(field) {
+    if (field === "title") setEditTitle(content.title || TITLE);
+    else if (field === "phase") setEditPhase(content.phase || "");
+    else if (field === "deadline") setEditDeadline((content.deadlineDate || DEADLINE_ISO).slice(0, 16));
+    setEditingField(field);
+  }
+
+  function commitEdit(field) {
+    setEditingField(null);
+    updateDashboardContent((prev) => {
+      if (field === "title") {
+        const val = editTitle.trim() || TITLE;
+        if (val === prev.title) return prev;
+        return normalizeContentRecord({ ...prev, title: val });
+      }
+      if (field === "phase") {
+        const val = editPhase.trim() || prev.phase;
+        if (val === prev.phase) return prev;
+        return normalizeContentRecord({ ...prev, phase: val });
+      }
+      if (field === "deadline") {
+        const val = editDeadline ? `${editDeadline}:00` : prev.deadlineDate;
+        if (val === prev.deadlineDate) return prev;
+        return normalizeContentRecord({ ...prev, deadlineDate: val });
+      }
+      return prev;
+    });
+  }
+
+  function handleEditKeyDown(e, field) {
+    if (e.key === "Enter") { e.preventDefault(); commitEdit(field); }
+    if (e.key === "Escape") setEditingField(null);
+  }
   const defaultProjectId = content.projects[0]?.id || DEFAULT_PROJECT.id;
   const todayKey = getTodayKey(new Date(countdown.nowMs));
 
@@ -345,17 +390,51 @@ function DashboardPage() {
           <div className="cs-content">
             <section className="cs-left">
               <p className="cs-kicker">Deadline</p>
-              <h1 className="cs-title">{content.title}</h1>
+              {editingField === "title" ? (
+                <input
+                  ref={editRef}
+                  className="cs-title cs-inline-edit"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onBlur={() => commitEdit("title")}
+                  onKeyDown={(e) => handleEditKeyDown(e, "title")}
+                />
+              ) : (
+                <h1 className="cs-title cs-editable" onClick={() => startEditing("title")} title="Click to edit">{content.title}</h1>
+              )}
               <div className="cs-meta">
-                <span className="cs-pill">
-                  <span className="cs-dot" />
-                  <span>{countdown.deadlineText}</span>
-                </span>
+                {editingField === "deadline" ? (
+                  <input
+                    ref={editRef}
+                    type="datetime-local"
+                    className="cs-inline-edit cs-inline-edit-date"
+                    value={editDeadline}
+                    onChange={(e) => setEditDeadline(e.target.value)}
+                    onBlur={() => commitEdit("deadline")}
+                    onKeyDown={(e) => handleEditKeyDown(e, "deadline")}
+                  />
+                ) : (
+                  <span className="cs-pill cs-editable" onClick={() => startEditing("deadline")} title="Click to edit deadline">
+                    <span className="cs-dot" />
+                    <span>{countdown.deadlineText}</span>
+                  </span>
+                )}
               </div>
               <div className="cs-left-divider" />
               <div className="cs-meta-block">
                 <span className="cs-meta-key">Phase</span>
-                <span className="cs-meta-value">{content.phase}</span>
+                {editingField === "phase" ? (
+                  <input
+                    ref={editRef}
+                    className="cs-meta-value cs-inline-edit"
+                    value={editPhase}
+                    onChange={(e) => setEditPhase(e.target.value)}
+                    onBlur={() => commitEdit("phase")}
+                    onKeyDown={(e) => handleEditKeyDown(e, "phase")}
+                  />
+                ) : (
+                  <span className="cs-meta-value cs-editable" onClick={() => startEditing("phase")} title="Click to edit">{content.phase}</span>
+                )}
               </div>
               <div className="cs-small">
                 <span>Timeline Elapsed</span>

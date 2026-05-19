@@ -1,6 +1,6 @@
 export const TITLE = "ARR Submission";
 export const START_ISO = "2026-02-12T00:00:00";
-export const DEADLINE_ISO = "2026-03-16T23:59:00";
+export const DEADLINE_ISO = "2026-05-25T23:59:00";
 
 export const STORAGE_KEY = "arr_dashboard_content_v1";
 export const API_BASE_URL = (import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");
@@ -698,7 +698,7 @@ function loadContent() {
   }
 }
 
-function saveContent(nextContent) {
+export function saveContent(nextContent) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextContent));
 }
 
@@ -736,12 +736,13 @@ async function saveRemoteContent(nextContent) {
 }
 
 export function persistContent(nextContent) {
+  // Cache locally for offline fallback
   saveContent(nextContent);
 
+  // Save to database (primary source of truth)
   if (!API_BASE_URL) return;
-
   saveRemoteContent(nextContent).catch((error) => {
-    console.error("Failed to sync content to API:", error);
+    console.error("Failed to save to database:", error);
   });
 }
 
@@ -989,6 +990,11 @@ function loadAndHydrateContent() {
   return content;
 }
 
+function getLatestTaskTimestamp(content) {
+  if (!content?.todaysTasks?.length) return 0;
+  return Math.max(0, ...content.todaysTasks.map((t) => parseIsoMs(t.updatedAt) ?? 0));
+}
+
 export async function loadAndHydratePreferredContent() {
   const local = loadAndHydrateContent();
   if (!API_BASE_URL) return local;
@@ -996,8 +1002,9 @@ export async function loadAndHydratePreferredContent() {
   try {
     const remote = await fetchRemoteContent();
     if (!remote) {
+      // Database is empty — seed it with local data
       saveRemoteContent(local).catch((error) => {
-        console.error("Failed to seed API content:", error);
+        console.error("Failed to seed database:", error);
       });
       return local;
     }
@@ -1005,17 +1012,30 @@ export async function loadAndHydratePreferredContent() {
     const normalizedRemote = normalizeContentRecord(remote);
     const { content: rolledRemote, changed } = applyDailyRollover(normalizedRemote);
 
+    // Compare: use whichever has more recent data
+    const localTs = getLatestTaskTimestamp(local);
+    const remoteTs = getLatestTaskTimestamp(rolledRemote);
+
+    if (localTs > remoteTs) {
+      // Local is newer — API save was likely still in-flight, push local to DB
+      saveRemoteContent(local).catch((error) => {
+        console.error("Failed to push local content to database:", error);
+      });
+      return local;
+    }
+
+    // Remote is current — cache it locally
     saveContent(rolledRemote);
 
     if (changed) {
       saveRemoteContent(rolledRemote).catch((error) => {
-        console.error("Failed to update API after rollover:", error);
+        console.error("Failed to save rollover to database:", error);
       });
     }
 
     return rolledRemote;
   } catch (error) {
-    console.error("Failed to load remote content, using local content:", error);
+    console.error("Database unreachable, using local cache:", error);
     return local;
   }
 }

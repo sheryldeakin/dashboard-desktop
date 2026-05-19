@@ -22,6 +22,7 @@ import {
   taskMatchesSidebarSection,
   createRecurringTaskFromCompleted,
   persistContent,
+  saveContent,
   completeTask,
   createHistoryEntry,
   removeLatestHistoryEntry,
@@ -78,25 +79,39 @@ export function useTasks(setStatus) {
     };
   }, []);
 
-  // Auto-save: debounced persist on any meaningful state change
+  // Auto-save: localStorage immediately, database debounced
   useEffect(() => {
     if (!isHydrated.current) return;
+    const content = normalizeContentRecord({
+      schemaVersion: SCHEMA_VERSION,
+      phase,
+      projects,
+      todaysTasks: tasks,
+      todaysTasksDate,
+      taskHistory,
+      pomodoro,
+    });
+    // localStorage is synchronous — survives page refresh/navigation
+    saveContent(content);
+    // Debounce API call to avoid flooding during rapid edits
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      persistContent(normalizeContentRecord({
-        schemaVersion: SCHEMA_VERSION,
-        phase,
-        projects,
-        todaysTasks: tasks,
-        todaysTasksDate,
-        taskHistory,
-        pomodoro,
-      }));
-    }, 800);
+      persistContent(content);
+    }, 500);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, [tasks, taskHistory, phase, projects, pomodoro, todaysTasksDate]);
+
+  // Re-render at midnight so overdue status updates
+  const [dayKey, setDayKey] = useState(getTodayKey);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = getTodayKey();
+      if (now !== dayKey) setDayKey(now);
+    }, 60000);
+    return () => clearInterval(id);
+  }, [dayKey]);
 
   // Sync selected task
   useEffect(() => {
@@ -110,7 +125,7 @@ export function useTasks(setStatus) {
   }, [tasks, selectedTaskId]);
 
   function taskMatchesCurrentFilters(task, query, todayKey) {
-    if (!taskMatchesSidebarSection(task, activeSectionId, todayKey, defaultProjectId)) return false;
+    if (!taskMatchesSidebarSection(task, activeSectionId || "all", todayKey, defaultProjectId)) return false;
     if (filterProjectId !== "all" && task.projectId !== filterProjectId) return false;
     if (filterPriority !== "all" && task.priority !== filterPriority) return false;
     if (filterStatus === "active" && task.done) return false;
@@ -384,7 +399,7 @@ export function useTasks(setStatus) {
   }
 
   function handleSelectProjectFilter(projectId) {
-    setActiveSectionId("all");
+    setActiveSectionId("");
     setFilterProjectId(projectId);
     setFilterStatus("all");
   }

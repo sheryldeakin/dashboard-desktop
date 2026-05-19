@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1280, initial-scale=1.0" />
+<title>Deadline Strip</title>
+<style>
+  :root{
+    --bg0:#070A12;
+    --bg1:#0B1022;
+    --ink:#F5F7FF;
+    --muted:rgba(245,247,255,.68);
+    --hair:rgba(255,255,255,.12);
+    --glass:rgba(255,255,255,.08);
+    --glass2:rgba(255,255,255,.12);
+    --shadow: 0 18px 50px rgba(0,0,0,.45);
+  }
+
+  html,body{
+    margin:0;
+    width:1280px;
+    height:400px;
+    overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(900px 420px at 15% 35%, rgba(120,160,255,.22), transparent 60%),
+      radial-gradient(760px 420px at 85% 65%, rgba(160,120,255,.18), transparent 60%),
+      radial-gradient(420px 240px at 55% 15%, rgba(255,255,255,.10), transparent 60%),
+      linear-gradient(135deg, var(--bg0), var(--bg1));
+  }
+
+  /* subtle “glass dust” */
+  body:before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      radial-gradient(rgba(255,255,255,.06) 1px, transparent 1px);
+    background-size: 26px 26px;
+    opacity:.18;
+    pointer-events:none;
+    mix-blend-mode: overlay;
+  }
+
+  .wrap{
+    position:relative;
+    width:1280px;
+    height:400px;
+    padding:26px 30px;
+    box-sizing:border-box;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .card{
+    width: calc(100% - 0px);
+    height: calc(100% - 0px);
+    border-radius:26px;
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+    border: 1px solid rgba(255,255,255,.18);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    position:relative;
+    overflow:hidden;
+  }
+
+  /* edge highlight */
+  .card:before{
+    content:"";
+    position:absolute; inset:-1px;
+    background:
+      radial-gradient(900px 240px at 30% 0%, rgba(255,255,255,.20), transparent 55%),
+      radial-gradient(900px 240px at 70% 100%, rgba(255,255,255,.14), transparent 55%);
+    pointer-events:none;
+  }
+
+  .content{
+    position:relative;
+    height:100%;
+    padding:26px 30px;
+    box-sizing:border-box;
+    display:grid;
+    grid-template-columns: 1.2fr 1.6fr 1.2fr;
+    gap:22px;
+    align-items:center;
+  }
+
+  .kicker{
+    font-size:12px;
+    letter-spacing: .22em;
+    text-transform:uppercase;
+    color: rgba(245,247,255,.70);
+  }
+
+  .title{
+    margin-top:8px;
+    font-size:22px;
+    font-weight:600;
+    letter-spacing:.02em;
+  }
+
+  .meta{
+    margin-top:10px;
+    font-size:14px;
+    color: var(--muted);
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    border-radius:999px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.14);
+  }
+
+  .dot{
+    width:8px;height:8px;border-radius:99px;
+    background: rgba(255,255,255,.70);
+    box-shadow: 0 0 0 4px rgba(255,255,255,.10);
+  }
+
+  .center{
+    text-align:center;
+  }
+
+  .days{
+    font-size:132px;
+    font-weight:650;
+    line-height: .90;
+    letter-spacing:-.03em;
+  }
+
+  .days-label{
+    margin-top:6px;
+    font-size:14px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color: rgba(245,247,255,.72);
+  }
+
+  .right{
+    justify-self:end;
+    width:100%;
+    max-width:360px;
+  }
+
+  .small{
+    font-size:12px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color: rgba(245,247,255,.62);
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+  }
+
+  .bar{
+    margin-top:10px;
+    height:10px;
+    border-radius:999px;
+    background: rgba(0,0,0,.20);
+    border: 1px solid rgba(255,255,255,.14);
+    overflow:hidden;
+    position:relative;
+  }
+
+  .fill{
+    height:100%;
+    width:0%;
+    border-radius:999px;
+    background: linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,.55));
+  }
+
+  .bar:after{
+    content:"";
+    position:absolute; inset:0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+    transform: translateX(-40%);
+    animation: sheen 7s linear infinite;
+    pointer-events:none;
+  }
+
+  @keyframes sheen{
+    0%{ transform: translateX(-40%); }
+    100%{ transform: translateX(140%); }
+  }
+
+  .hint{
+    margin-top:12px;
+    font-size:13px;
+    color: rgba(245,247,255,.62);
+    line-height:1.25;
+  }
+
+  /* keep it crisp on small screens */
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="content">
+        <!-- LEFT -->
+        <div>
+          <div class="kicker">Deadline</div>
+          <div class="title" id="eventTitle">ARR Submission</div>
+
+          <div class="meta">
+            <span class="pill"><span class="dot"></span><span id="deadlineText">—</span></span>
+            <span class="pill">Local time</span>
+          </div>
+        </div>
+
+        <!-- CENTER -->
+        <div class="center">
+          <div class="days" id="days">--</div>
+          <div class="days-label">Days Remaining</div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="right">
+          <div class="small">
+            <span>Runway used</span>
+            <span id="pct">--%</span>
+          </div>
+          <div class="bar">
+            <div class="fill" id="fill"></div>
+          </div>
+          <div class="hint" id="hint">
+            Keep it simple: one meaningful task today.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ====== EDIT THESE ======
+  const CONFIG = {
+    title: "ARR Submission",
+    // Use a specific local deadline. Example: "2026-03-15T23:59:59"
+    deadlineISO: "2026-03-15T23:59:59",
+    // Start date for the runway bar (set to when you "started the sprint")
+    startISO: "2026-02-01T00:00:00",
+    hintText: "Keep it simple: one meaningful task today."
+  };
+  // ========================
+
+  const deadline = new Date(CONFIG.deadlineISO);
+  const start = new Date(CONFIG.startISO);
+
+  const $ = (id)=>document.getElementById(id);
+
+  $("eventTitle").textContent = CONFIG.title;
+  $("hint").textContent = CONFIG.hintText;
+
+  function fmtDate(d){
+    return d.toLocaleString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }
+
+  function update(){
+    const now = new Date();
+
+    // Days remaining (ceil so you feel the runway)
+    const ms = deadline - now;
+    const days = Math.max(0, Math.ceil(ms / (1000*60*60*24)));
+    $("days").textContent = String(days);
+
+    $("deadlineText").textContent = fmtDate(deadline);
+
+    // Runway used %
+    const total = Math.max(1, deadline - start);
+    const used = Math.min(total, Math.max(0, now - start));
+    const pct = Math.round((used / total) * 100);
+    $("pct").textContent = pct + "%";
+    $("fill").style.width = pct + "%";
+  }
+
+  update();
+  // Update once a minute; keep it calm (no seconds)
+  setInterval(update, 60_000);
+</script>
+</body>
+</html>
