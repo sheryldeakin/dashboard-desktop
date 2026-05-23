@@ -1019,6 +1019,12 @@ button:focus-visible {
     width: min(560px, 100%);
   }
 
+  /* Cap task list more aggressively on small screens so title + countdown
+     stay visible above the fold. Internal scroll handles overflow. */
+  .cs-task-list {
+    max-height: 180px;
+  }
+
   .cs-task-controls {
     justify-content: flex-start;
     flex-wrap: wrap;
