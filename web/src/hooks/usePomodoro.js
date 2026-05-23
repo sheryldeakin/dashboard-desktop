@@ -93,6 +93,30 @@ export function usePomodoro(pomodoro, setPomodoro, tasks, setTasks, setStatus) {
     const durationMs = pomodoroRun.segmentSeconds * 1000;
     const entryType = pomodoroRun.mode;
 
+    // Audio cue on completion
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const playTone = (freq, startAt, dur, peak = 0.18) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0, ctx.currentTime + startAt);
+        gain.gain.linearRampToValueAtTime(peak, ctx.currentTime + startAt + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startAt + dur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(ctx.currentTime + startAt);
+        osc.stop(ctx.currentTime + startAt + dur);
+      };
+      if (entryType === "focus") {
+        playTone(660, 0, 0.4);
+        playTone(880, 0.18, 0.5);
+      } else {
+        playTone(523, 0, 0.6, 0.12);
+      }
+      setTimeout(() => ctx.close(), 1200);
+    } catch {}
+
     setPomodoro((previous) => ({
       ...previous,
       history: [

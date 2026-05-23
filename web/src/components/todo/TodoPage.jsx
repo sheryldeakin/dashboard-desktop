@@ -84,7 +84,12 @@ export default function TodoPage() {
   }
 
   const handleCloseDrawer = useCallback(() => setDrawerOpen(false), []);
-  const handleExitFocus = useCallback(() => setFocusMode(false), []);
+  const handleExitFocus = useCallback(() => {
+    setFocusMode(false);
+    if (window.location.search.includes("focus=1")) {
+      window.history.replaceState({}, "", "/todo");
+    }
+  }, []);
 
   function handleRemoveTaskFull(taskId) {
     handleRemoveTask(taskId);
@@ -118,6 +123,12 @@ export default function TodoPage() {
     handle(mq);
     mq.addEventListener("change", handle);
     return () => mq.removeEventListener("change", handle);
+  }, []);
+
+  // Auto-open focus mode from ?focus=1 query (TopNav Focus link)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("focus") === "1") setFocusMode(true);
   }, []);
 
   const drawerProps = {

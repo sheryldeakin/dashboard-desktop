@@ -183,47 +183,39 @@ function MountainFront() {
 }
 
 function Ground({ isWalking }) {
-  // Compute exact y on the hill bezier slope at any x (0–400)
+  // Flat tile-able terrain. Blades generated in a 200-unit tile then duplicated
+  // at x+200 so the SVG content tiles seamlessly at the translateX(-50%) wrap.
   const grassBlades = useMemo(() => {
-    function slopeY(x) {
-      const segs = [
-        [0, 60, 55, 100, 48],
-        [100, 48, 42, 200, 35],
-        [200, 35, 30, 300, 24],
-        [300, 24, 20, 400, 16],
-      ];
-      const s = segs.find(s => x >= s[0] && x <= s[3]) || segs[segs.length - 1];
-      const t = (x - s[0]) / (s[3] - s[0]);
-      return (1 - t) * (1 - t) * s[1] + 2 * (1 - t) * t * s[2] + t * t * s[4];
-    }
-    // Seeded PRNG for deterministic placement
     let seed = 42;
     function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
 
-    const blades = [];
-    let id = 0;
-    const lift = -1; // nestle bases into the slope surface
-    function blade(x, y, h, sw, layer) {
+    const FLAT_Y = 55;
+    const tileBlades = [];
+    function tileBlade(x, h, sw, layer) {
       const lean = (rand() - 0.5) * (layer === 0 ? 2 : 3);
-      const curve = (rand() - 0.5) * h * 0.6; // arc control offset
-      blades.push({ id: id++, x, y, h, lean, curve, sw, layer });
+      const curve = (rand() - 0.5) * h * 0.6;
+      tileBlades.push({ x, y: FLAT_Y, h, lean, curve, sw, layer });
     }
-    // Background: thin, faint
-    for (let x = 6; x < 398; x += 16 + rand() * 10) {
-      blade(x, slopeY(x) - lift, 4 + rand() * 3, 0.7, 0);
+
+    for (let x = 6; x < 198; x += 16 + rand() * 10) {
+      tileBlade(x, 4 + rand() * 3, 0.7, 0);
     }
-    // Midground: taller, varied
-    for (let x = 3; x < 398; x += 10 + rand() * 8) {
-      blade(x, slopeY(x) - lift, 6 + rand() * 4, 0.9 + rand() * 0.2, 1);
+    for (let x = 3; x < 198; x += 10 + rand() * 8) {
+      tileBlade(x, 6 + rand() * 4, 0.9 + rand() * 0.2, 1);
     }
-    // Foreground: tall tufts in clusters of 2–3
-    for (let x = 8; x < 396; x += 20 + rand() * 18) {
-      const y = slopeY(x) - lift;
+    for (let x = 8; x < 196; x += 20 + rand() * 18) {
       const count = 2 + Math.floor(rand() * 2);
       for (let j = 0; j < count; j++) {
         const dx = (j - (count - 1) / 2) * 2;
-        blade(x + dx, slopeY(x + dx) - lift, 9 + rand() * 5, 1 + rand() * 0.4, 2);
+        tileBlade(x + dx, 9 + rand() * 5, 1 + rand() * 0.4, 2);
       }
+    }
+
+    const blades = [];
+    let id = 0;
+    for (const b of tileBlades) {
+      blades.push({ id: id++, ...b });
+      blades.push({ id: id++, ...b, x: b.x + 200 });
     }
     return blades;
   }, []);
@@ -234,8 +226,8 @@ function Ground({ isWalking }) {
     <div className="focus-layer focus-layer-ground">
       <div className={`focus-hill ${isWalking ? "is-scrolling" : ""}`}>
         <svg className="focus-hill-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
-          <path d="M0,100 L0,60 Q50,55 100,48 Q150,42 200,35 Q250,30 300,24 Q350,20 400,16 L400,100 Z" />
-          <path d="M0,60 Q50,55 100,48 Q150,42 200,35 Q250,30 300,24 Q350,20 400,16 L400,19 Q350,23 300,27 Q250,33 200,38 Q150,45 100,51 Q50,58 0,63 Z" className="hill-edge" />
+          <path d="M0,100 L0,55 L400,55 L400,100 Z" />
+          <path d="M0,55 L400,55 L400,57 L0,57 Z" className="hill-edge" />
         </svg>
       </div>
       <div className={`focus-hill-texture ${isWalking ? "is-scrolling" : ""}`}>
@@ -792,42 +784,46 @@ function SceneryLayer({ isWalking, layer }) {
     let seed = 100 + layer * 77;
     function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
 
-    const trees = [];
-    let id = 0;
-    const count = layer === 0 ? 6 : layer === 1 ? 8 : 5;
-    const spacing = 500 / count;
+    // Generate items in one 250-unit tile, then duplicate at x+250 so SVG content
+    // tiles seamlessly at the translateX(-50%) wrap point (viewBox is 500 wide).
+    const tileItems = [];
+    const tileWidth = 250;
+    const count = layer === 0 ? 3 : layer === 1 ? 4 : 3;
+    const spacing = tileWidth / count;
 
     for (let i = 0; i < count; i++) {
       const x = spacing * i + rand() * spacing * 0.6;
-      // type: 0 = round canopy, 1 = pointed conifer, 2 = bushy/wide
       const type = Math.floor(rand() * 3);
       const scale = layer === 0 ? 0.5 + rand() * 0.3
         : layer === 1 ? 0.7 + rand() * 0.4
         : 0.9 + rand() * 0.5;
-      // vertical offset — scatter trees at different ground levels
       const groundY = 100 - rand() * (layer === 0 ? 8 : layer === 1 ? 5 : 3);
-      trees.push({ id: id++, x, type, scale, groundY, kind: "tree" });
+      tileItems.push({ x, type, scale, groundY, kind: "tree" });
     }
 
-    // Rocks (mid and near layers only)
     if (layer >= 1) {
-      const rockCount = 3 + Math.floor(rand() * 2);
+      const rockCount = 2 + Math.floor(rand() * 2);
       for (let i = 0; i < rockCount; i++) {
-        const x = rand() * 490;
+        const x = rand() * (tileWidth - 20);
         const w = 8 + rand() * 10;
         const h = 6 + rand() * 8;
-        trees.push({ id: id++, x, w, h, kind: "rock" });
+        tileItems.push({ x, w, h, kind: "rock" });
       }
     }
 
-    // Wildflowers (near layer only)
     if (layer === 2) {
-      for (let i = 0; i < 8; i++) {
-        const x = rand() * 490;
-        trees.push({ id: id++, x, warm: rand() > 0.5, r: 0.7 + rand() * 0.6, kind: "flower" });
+      for (let i = 0; i < 4; i++) {
+        const x = rand() * (tileWidth - 5);
+        tileItems.push({ x, warm: rand() > 0.5, r: 0.7 + rand() * 0.6, kind: "flower" });
       }
     }
 
+    const trees = [];
+    let id = 0;
+    for (const t of tileItems) {
+      trees.push({ id: id++, ...t });
+      trees.push({ id: id++, ...t, x: t.x + tileWidth });
+    }
     return trees;
   }, [layer]);
 
@@ -940,12 +936,26 @@ function DuneFront() {
 
 /* Desert ground — flat sandy terrain with pebble texture */
 function DesertGround({ isWalking }) {
+  // Flat tile-able terrain. Pebbles generated in a 200-unit tile then duplicated
+  // at x+200 so the SVG content tiles seamlessly at the translateX(-50%) wrap.
   const pebbles = useMemo(() => {
     let seed = 99;
     function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+    const tilePebbles = [];
+    for (let i = 0; i < 20; i++) {
+      tilePebbles.push({
+        x: rand() * 200,
+        y: 60 + rand() * 38,
+        rx: 1 + rand() * 2.5,
+        ry: 0.6 + rand() * 1.2,
+        op: 0.15 + rand() * 0.2,
+      });
+    }
     const p = [];
-    for (let i = 0; i < 40; i++) {
-      p.push({ id: i, x: rand() * 400, y: 60 + rand() * 38, rx: 1 + rand() * 2.5, ry: 0.6 + rand() * 1.2, op: 0.15 + rand() * 0.2 });
+    let id = 0;
+    for (const t of tilePebbles) {
+      p.push({ id: id++, ...t });
+      p.push({ id: id++, ...t, x: t.x + 200 });
     }
     return p;
   }, []);
@@ -954,8 +964,8 @@ function DesertGround({ isWalking }) {
     <div className="focus-layer focus-layer-ground">
       <div className={`focus-hill ${isWalking ? "is-scrolling" : ""}`}>
         <svg className="focus-hill-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
-          <path d="M0,100 L0,55 Q100,50 200,48 Q300,46 400,44 L400,100 Z" />
-          <path d="M0,55 Q100,50 200,48 Q300,46 400,44 L400,47 Q300,49 200,51 Q100,53 0,58 Z" className="hill-edge" />
+          <path d="M0,100 L0,55 L400,55 L400,100 Z" />
+          <path d="M0,55 L400,55 L400,57 L0,57 Z" className="hill-edge" />
         </svg>
       </div>
       <div className={`focus-hill-texture ${isWalking ? "is-scrolling" : ""}`}>
@@ -975,40 +985,45 @@ function DesertSceneryLayer({ isWalking, layer }) {
     let seed = 200 + layer * 77;
     function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
 
-    const arr = [];
-    let id = 0;
+    // Generate items in one 250-unit tile, then duplicate at x+250 so SVG content
+    // tiles seamlessly at the translateX(-50%) wrap point (viewBox is 500 wide).
+    const tileItems = [];
+    const tileWidth = 250;
 
-    // Cacti
-    const cactusCount = layer === 0 ? 3 : layer === 1 ? 4 : 3;
-    const spacing = 500 / cactusCount;
+    const cactusCount = layer === 0 ? 2 : layer === 1 ? 2 : 2;
+    const spacing = tileWidth / cactusCount;
     for (let i = 0; i < cactusCount; i++) {
       const x = spacing * i + rand() * spacing * 0.6;
-      const type = Math.floor(rand() * 3); // 0=saguaro, 1=barrel, 2=prickly pear
+      const type = Math.floor(rand() * 3);
       const scale = layer === 0 ? 0.4 + rand() * 0.2
         : layer === 1 ? 0.6 + rand() * 0.3
         : 0.8 + rand() * 0.4;
       const groundY = 100 - rand() * (layer === 0 ? 6 : layer === 1 ? 4 : 2);
-      arr.push({ id: id++, x, type, scale, groundY, kind: "cactus" });
+      tileItems.push({ x, type, scale, groundY, kind: "cactus" });
     }
 
-    // Desert rocks
-    const rockCount = layer === 0 ? 2 : 4;
+    const rockCount = layer === 0 ? 1 : 2;
     for (let i = 0; i < rockCount; i++) {
-      const x = rand() * 490;
+      const x = rand() * (tileWidth - 20);
       const w = 6 + rand() * 12;
       const h = 4 + rand() * 6;
-      arr.push({ id: id++, x, w, h, kind: "rock" });
+      tileItems.push({ x, w, h, kind: "rock" });
     }
 
-    // Tumbleweeds (near layer only)
     if (layer === 2) {
-      for (let i = 0; i < 3; i++) {
-        const x = rand() * 490;
+      for (let i = 0; i < 2; i++) {
+        const x = rand() * (tileWidth - 5);
         const r = 2 + rand() * 2;
-        arr.push({ id: id++, x, r, kind: "tumbleweed" });
+        tileItems.push({ x, r, kind: "tumbleweed" });
       }
     }
 
+    const arr = [];
+    let id = 0;
+    for (const t of tileItems) {
+      arr.push({ id: id++, ...t });
+      arr.push({ id: id++, ...t, x: t.x + tileWidth });
+    }
     return arr;
   }, [layer]);
 
