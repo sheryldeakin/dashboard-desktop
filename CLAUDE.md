@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Countdown + task dashboard for an academic submission (ARR Submission). Monorepo with an Express/MongoDB backend and a React/Vite frontend, deployed split across Railway (backend) and Vercel (frontend).
+Countdown + task dashboard for an academic submission (AAAI 2027, full-paper deadline 2026-07-28; originally built for ARR/EMNLP, pivoted 2026-05-22). Monorepo with an Express/MongoDB backend and a React/Vite frontend, deployed split across Railway (backend) and Vercel (frontend).
 
 ## Development Commands
 
@@ -53,11 +53,17 @@ npm run build:web            # builds web via --prefix
 All content is stored as a single MongoDB document keyed by `CONTENT_KEY` (default `"main"`).
 
 ### Frontend structure
-- `web/src/App.jsx` (~3500 lines) — **single-file application**. Contains all components, state, helpers, and rendering. No component files or separate modules.
-- Routing: `window.location.pathname` checked directly — `/todo`, `/admin`, `/history`, or `/` (dashboard).
-- Pages/components defined as functions within App.jsx: `DashboardPage`, `AdminPage`, `TodoComposerPage`, `HistoryPage`
+- `web/src/App.jsx` — routing shell + page definitions (`DashboardPage`, `AdminPage`, `TodoComposerPage`, `HistoryPage`). Routing is a `window.location.pathname` switch — `/`, `/todo`, `/admin`, `/history`. The `?focus=1` query on `/todo` auto-opens FocusMode.
+- `web/src/components/` — extracted UI:
+  - `TopNav.jsx` — top nav (Dashboard / Tasks / Focus / Edit / History)
+  - `WalkingFigure.jsx` — react-three-fiber 3D walker shown on the dashboard
+  - `todo/TodoPage.jsx` — task page composition (renders Sidebar / SummaryBar / TaskList / DetailDrawer / TimerBar / FocusMode)
+  - `todo/FocusMode.jsx` — full-screen focus overlay with themed parallax scenery (5 color schemes, 4 characters, 2 environments; settings persist to `localStorage`)
+  - `todo/{Sidebar,SummaryBar,TaskList,TaskRow,DetailDrawer,TimerBar,InsightsPanel}.jsx`
+- `web/src/hooks/` — `useTasks`, `usePomodoro`, `useTimer` (state + side-effect logic for the todo page)
+- `web/src/utils/taskUtils.js` — shared task helpers, priority/recurrence constants, duration formatting
+- `web/src/styles.css` — all styles in one file (large; refactor candidate)
 - Data sync: fetches from API via `VITE_API_URL`, falls back to `localStorage` (`arr_dashboard_content_v1` key) as cache.
-- `web/src/styles.css` (~36k lines) — all styles in one file.
 
 ### Data model
 Content schema (v2) has these top-level fields: `phase`, `projects`, `todaysTasks`, `todaysTasksDate`, `taskHistory`, `pomodoro`. Tasks have rich fields: priority, tags, due dates, recurrence, timer with sessions, pomodoro tracking. The normalization logic in `content-schema.js` (backend) is partially duplicated in `App.jsx` (frontend).
@@ -83,6 +89,6 @@ Content schema (v2) has these top-level fields: `phase`, `projects`, `todaysTask
 ## Key Patterns
 
 - No test framework, linter, or formatter is configured
-- No router library — routing is a simple `window.location.pathname` switch in `App()`
+- No router library — routing is a simple `window.location.pathname` switch in `App()`; query params (e.g., `?focus=1`) are read by destination components on mount
 - Backend uses ES modules (`"type": "module"` in package.json)
 - Content normalization logic exists in both backend (`lib/content-schema.js`) and frontend (`App.jsx`) — keep them in sync when modifying the data schema

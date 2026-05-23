@@ -96,6 +96,9 @@ export function usePomodoro(pomodoro, setPomodoro, tasks, setTasks, setStatus) {
     // Audio cue on completion
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Modern browsers create AudioContext in "suspended" state — must resume
+      // before scheduling oscillators. resume() returns a promise; fire-and-forget.
+      if (ctx.state === "suspended") ctx.resume();
       const playTone = (freq, startAt, dur, peak = 0.18) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -115,7 +118,9 @@ export function usePomodoro(pomodoro, setPomodoro, tasks, setTasks, setStatus) {
         playTone(523, 0, 0.6, 0.12);
       }
       setTimeout(() => ctx.close(), 1200);
-    } catch {}
+    } catch (e) {
+      console.warn("audio cue failed", e);
+    }
 
     setPomodoro((previous) => ({
       ...previous,

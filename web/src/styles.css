@@ -2426,6 +2426,7 @@ button:focus-visible {
 }
 .focus-parallax-back {
   animation: parallax-scroll 110s linear infinite paused;
+  animation-delay: -27s; /* start ~25% into cycle so layers aren't aligned */
 }
 .is-moving .focus-parallax-back {
   animation-play-state: running;
@@ -2445,6 +2446,7 @@ button:focus-visible {
 }
 .focus-parallax-mid {
   animation: parallax-scroll 75s linear infinite paused;
+  animation-delay: -37s; /* start ~50% into cycle */
 }
 .is-moving .focus-parallax-mid {
   animation-play-state: running;
@@ -2464,6 +2466,7 @@ button:focus-visible {
 }
 .focus-parallax-front {
   animation: parallax-scroll 50s linear infinite paused;
+  animation-delay: -38s; /* start ~75% into cycle */
 }
 .is-moving .focus-parallax-front {
   animation-play-state: running;

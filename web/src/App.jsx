@@ -525,6 +525,26 @@ function DashboardPage() {
                         </label>
 
                         <div className="cs-task-controls">
+                          {!task.done && (
+                            <button
+                              type="button"
+                              className="task-btn task-btn-secondary task-btn-icon"
+                              onClick={() => {
+                                if (task.timer.status !== "running") {
+                                  handleTaskAction(task.id, "start");
+                                }
+                                window.location.href = "/todo?focus=1";
+                              }}
+                              aria-label="Focus"
+                              title="Focus mode"
+                            >
+                              <svg className="task-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+                                <circle cx="12" cy="12" r="3" fill="currentColor" />
+                              </svg>
+                              <span className="sr-only">Focus</span>
+                            </button>
+                          )}
                           {task.done ? (
                             <span className="cs-task-status">Completed</span>
                           ) : task.timer.status === "running" ? (
