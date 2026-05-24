@@ -987,7 +987,7 @@ function SettingsPage() {
                 className="settings-input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="ARR Submission"
+                placeholder="AAAI 2027 Submission"
               />
             </label>
 

@@ -456,9 +456,9 @@ function normalizePomodoro(value) {
 export function createDefaultContent() {
   return {
     schemaVersion: SCHEMA_VERSION,
-    title: "ARR Submission",
+    title: "AAAI 2027 Submission",
     startDate: "2026-02-12T00:00:00",
-    deadlineDate: "2026-05-25T23:59:00",
+    deadlineDate: "2026-07-28T23:59:00",
     phase: "Phase 2 - Revision",
     projects: [{ ...DEFAULT_PROJECT }],
     todaysTasks: [

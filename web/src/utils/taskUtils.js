@@ -1,6 +1,6 @@
-export const TITLE = "ARR Submission";
+export const TITLE = "AAAI 2027 Submission";
 export const START_ISO = "2026-02-12T00:00:00";
-export const DEADLINE_ISO = "2026-05-25T23:59:00";
+export const DEADLINE_ISO = "2026-07-28T23:59:00";
 
 export const STORAGE_KEY = "arr_dashboard_content_v1";
 export const API_BASE_URL = (import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");

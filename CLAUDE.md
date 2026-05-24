@@ -53,7 +53,7 @@ npm run build:web            # builds web via --prefix
 All content is stored as a single MongoDB document keyed by `CONTENT_KEY` (default `"main"`).
 
 ### Frontend structure
-- `web/src/App.jsx` — routing shell + page definitions (`DashboardPage`, `AdminPage`, `TodoComposerPage`, `HistoryPage`). Routing is a `window.location.pathname` switch — `/`, `/todo`, `/admin`, `/history`. The `?focus=1` query on `/todo` auto-opens FocusMode.
+- `web/src/App.jsx` — routing shell + page definitions (`DashboardPage`, `AdminPage`, `HistoryPage`, `SettingsPage`). Routing is a `window.location.pathname` switch — `/`, `/todo`, `/admin`, `/history`, `/settings`. The `?focus=1` query on `/todo` auto-opens FocusMode. The `/todo` route renders the standalone `TodoPage` component from `components/todo/TodoPage.jsx`.
 - `web/src/components/` — extracted UI:
   - `TopNav.jsx` — top nav (Dashboard / Tasks / Focus / Edit / History)
   - `WalkingFigure.jsx` — react-three-fiber 3D walker shown on the dashboard

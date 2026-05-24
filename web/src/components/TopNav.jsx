@@ -4,6 +4,7 @@ const NAV_LINKS = [
   { href: "/todo?focus=1", label: "Focus" },
   { href: "/admin", label: "Edit" },
   { href: "/history", label: "History" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export default function TopNav() {

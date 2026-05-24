@@ -1119,7 +1119,6 @@ export default function FocusMode({
 }) {
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimeout = useRef(null);
-  const [elapsed, setElapsed] = useState(0);
   const [settings, setSettings] = useState(loadSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const toggleSettings = useCallback(() => setSettingsOpen((p) => !p), []);
@@ -1132,12 +1131,6 @@ export default function FocusMode({
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [open, onExit]);
-
-  useEffect(() => {
-    if (!open) return;
-    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(id);
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -1278,17 +1271,26 @@ export default function FocusMode({
 
         <div className="focus-controls">
           {isRunning ? (
-            <button type="button" className="focus-btn focus-btn-primary" onClick={() => onAction(task.id, "rest")}>
+            <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
+              onAction(task.id, "rest");
+              if (pomodoroRun.status === "running") onPausePomodoro();
+            }}>
               <svg viewBox="0 0 24 24" className="focus-btn-icon"><rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" /></svg>
               Pause
             </button>
           ) : isPaused ? (
-            <button type="button" className="focus-btn focus-btn-primary" onClick={() => onAction(task.id, "resume")}>
+            <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
+              onAction(task.id, "resume");
+              if (pomodoroRun.status === "paused" && pomodoroRun.taskId === task.id) onStartPomodoro();
+            }}>
               <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
               Resume
             </button>
           ) : (
-            <button type="button" className="focus-btn focus-btn-primary" onClick={() => onAction(task.id, "start")}>
+            <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
+              onAction(task.id, "start");
+              if (pomodoroRun.status === "paused" && pomodoroRun.taskId === task.id) onStartPomodoro();
+            }}>
               <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
               Start
             </button>
