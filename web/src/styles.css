@@ -3046,6 +3046,34 @@ button:focus-visible {
   transition: left 1s linear;
 }
 
+/* Pomodoro countdown display in focus mode (merged-timer model) */
+.focus-pomodoro-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  pointer-events: none;
+}
+
+.focus-pomodoro-time {
+  font-size: 3.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.focus-pomodoro-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.65);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
 /* Controls */
 .focus-controls {
   display: flex;

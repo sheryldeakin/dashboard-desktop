@@ -533,7 +533,7 @@ function DashboardPage() {
                                 if (task.timer.status !== "running") {
                                   handleTaskAction(task.id, "start");
                                 }
-                                window.location.href = "/todo?focus=1";
+                                window.location.href = `/todo?focus=1&taskId=${encodeURIComponent(task.id)}`;
                               }}
                               aria-label="Focus"
                               title="Focus mode"

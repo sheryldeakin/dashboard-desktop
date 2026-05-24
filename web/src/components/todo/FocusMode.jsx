@@ -1112,10 +1112,13 @@ export default function FocusMode({
   onExit,
   task,
   pomodoroRun,
+  pomodoroSettings,
   onAction,
   onTaskDone,
   onPausePomodoro,
   onStartPomodoro,
+  onSkipPomodoro,
+  onAssignPomodoroTask,
 }) {
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimeout = useRef(null);
@@ -1267,6 +1270,15 @@ export default function FocusMode({
           </div>
         )}
 
+        <div className="focus-pomodoro-display">
+          <div className="focus-pomodoro-time">{formatClock(pomodoroRun.remainingSeconds)}</div>
+          <div className="focus-pomodoro-label">
+            {pomodoroRun.mode === "focus"
+              ? `Focus · Cycle ${pomodoroRun.cycleCount + 1}/${pomodoroSettings?.cyclesBeforeLongBreak || 4}`
+              : pomodoroRun.mode === "shortBreak" ? "Short break" : "Long break"}
+          </div>
+        </div>
+
         {isPomodoroActive && <PathProgress progress={sessionProgress} />}
 
         <div className="focus-controls">
@@ -1289,7 +1301,9 @@ export default function FocusMode({
           ) : (
             <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
               onAction(task.id, "start");
-              if (pomodoroRun.status === "paused" && pomodoroRun.taskId === task.id) onStartPomodoro();
+              // Merged-timer model: assign task to pomodoro if needed, then start
+              if (pomodoroRun.taskId !== task.id) onAssignPomodoroTask(task.id);
+              if (pomodoroRun.status !== "running") onStartPomodoro();
             }}>
               <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
               Start
@@ -1300,6 +1314,13 @@ export default function FocusMode({
             <button type="button" className="focus-btn" onClick={() => onAction(task.id, "stop")}>
               <svg viewBox="0 0 24 24" className="focus-btn-icon"><rect x="6" y="6" width="12" height="12" rx="1.8" /></svg>
               Stop
+            </button>
+          )}
+
+          {isPomodoroActive && (
+            <button type="button" className="focus-btn" onClick={onSkipPomodoro}>
+              <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M5 4l11 8-11 8V4zm12 0h2v16h-2V4z" /></svg>
+              Skip
             </button>
           )}
 

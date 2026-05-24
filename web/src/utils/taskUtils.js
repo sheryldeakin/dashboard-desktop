@@ -1017,11 +1017,26 @@ export async function loadAndHydratePreferredContent() {
     const remoteTs = getLatestTaskTimestamp(rolledRemote);
 
     if (localTs > remoteTs) {
-      // Local is newer — API save was likely still in-flight, push local to DB
-      saveRemoteContent(local).catch((error) => {
-        console.error("Failed to push local content to database:", error);
+      // Local tasks are newer (recent edit not yet flushed to remote).
+      // Take local's task data, but ALWAYS trust remote for config fields
+      // (title, dates, phase, projects, pomodoro settings) — otherwise a stale
+      // local cache can revert settings the user fixed via /sync-to-dashboard
+      // or on another device.
+      const merged = {
+        ...rolledRemote,
+        todaysTasks: local.todaysTasks,
+        todaysTasksDate: local.todaysTasksDate,
+        taskHistory: local.taskHistory,
+        pomodoro: {
+          ...rolledRemote.pomodoro,
+          history: local.pomodoro?.history ?? rolledRemote.pomodoro.history,
+        },
+      };
+      saveContent(merged);
+      saveRemoteContent(merged).catch((error) => {
+        console.error("Failed to push merged content to database:", error);
       });
-      return local;
+      return merged;
     }
 
     // Remote is current — cache it locally

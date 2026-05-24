@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   PRIORITY_LEVELS,
   TODO_SIDEBAR_SECTIONS,
@@ -130,6 +130,23 @@ export default function TodoPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("focus") === "1") setFocusMode(true);
   }, []);
+
+  // Auto-assign task to pomodoro from ?taskId= query (set by dashboard Focus button)
+  const taskIdAssignedRef = useRef(false);
+  useEffect(() => {
+    if (taskIdAssignedRef.current || tasks.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const taskIdParam = params.get("taskId");
+    if (taskIdParam && tasks.some((t) => t.id === taskIdParam && !t.done)) {
+      assignPomodoroTask(taskIdParam);
+    }
+    taskIdAssignedRef.current = true;
+    if (taskIdParam) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("taskId");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+  }, [tasks, assignPomodoroTask]);
 
   const drawerProps = {
     task: selectedTask,
@@ -308,10 +325,13 @@ export default function TodoPage() {
         onExit={handleExitFocus}
         task={timerTask || selectedTask}
         pomodoroRun={pomodoroRun}
+        pomodoroSettings={pomodoro.settings}
         onAction={handleTaskAction}
         onTaskDone={handleTaskDone}
         onPausePomodoro={pausePomodoro}
         onStartPomodoro={startPomodoro}
+        onSkipPomodoro={skipPomodoro}
+        onAssignPomodoroTask={assignPomodoroTask}
       />
     </main>
   );
