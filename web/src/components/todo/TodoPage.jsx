@@ -332,6 +332,7 @@ export default function TodoPage() {
         onStartPomodoro={startPomodoro}
         onSkipPomodoro={skipPomodoro}
         onAssignPomodoroTask={assignPomodoroTask}
+        onUpdatePomodoroSetting={updatePomodoroSetting}
       />
     </main>
   );

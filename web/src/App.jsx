@@ -530,9 +530,8 @@ function DashboardPage() {
                               type="button"
                               className="task-btn task-btn-secondary task-btn-icon"
                               onClick={() => {
-                                if (task.timer.status !== "running") {
-                                  handleTaskAction(task.id, "start");
-                                }
+                                // Auto-assign but don't auto-start (per UX decision):
+                                // user clicks Start in focus mode to begin both timers.
                                 window.location.href = `/todo?focus=1&taskId=${encodeURIComponent(task.id)}`;
                               }}
                               aria-label="Focus"

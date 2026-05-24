@@ -73,11 +73,17 @@ function saveSettings(s) {
 }
 
 /* ── Settings panel ── */
-function FocusSettings({ settings, onChange, onClose }) {
+function FocusSettings({ settings, onChange, onClose, pomodoroSettings, onUpdatePomodoroSetting }) {
   function set(key, val) {
     const next = { ...settings, [key]: val };
     onChange(next);
     saveSettings(next);
+  }
+
+  function setPomo(key, raw, fallback, min, max) {
+    const parsed = parseInt(raw, 10);
+    const clamped = Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : fallback;
+    if (onUpdatePomodoroSetting) onUpdatePomodoroSetting(key, clamped);
   }
 
   return (
@@ -131,6 +137,41 @@ function FocusSettings({ settings, onChange, onClose }) {
             ))}
           </div>
         </div>
+
+        {pomodoroSettings && onUpdatePomodoroSetting && (
+          <div className="focus-settings-section">
+            <h4 className="focus-settings-label">Pomodoro Timer</h4>
+            <div className="focus-settings-pomo">
+              <label className="focus-settings-pomo-field">
+                <span>Focus (min)</span>
+                <input type="number" min="1" max="180"
+                  value={pomodoroSettings.focusMinutes ?? 25}
+                  onChange={(e) => setPomo("focusMinutes", e.target.value, 25, 1, 180)} />
+              </label>
+              <label className="focus-settings-pomo-field">
+                <span>Short break (min)</span>
+                <input type="number" min="1" max="60"
+                  value={pomodoroSettings.shortBreakMinutes ?? 5}
+                  onChange={(e) => setPomo("shortBreakMinutes", e.target.value, 5, 1, 60)} />
+              </label>
+              <label className="focus-settings-pomo-field">
+                <span>Long break (min)</span>
+                <input type="number" min="1" max="120"
+                  value={pomodoroSettings.longBreakMinutes ?? 15}
+                  onChange={(e) => setPomo("longBreakMinutes", e.target.value, 15, 1, 120)} />
+              </label>
+              <label className="focus-settings-pomo-field">
+                <span>Cycles before long break</span>
+                <input type="number" min="2" max="10"
+                  value={pomodoroSettings.cyclesBeforeLongBreak ?? 4}
+                  onChange={(e) => setPomo("cyclesBeforeLongBreak", e.target.value, 4, 2, 10)} />
+              </label>
+            </div>
+            <p className="focus-settings-hint">
+              Classic Pomodoro: 25-min focus &middot; 5-min short break &middot; 15-min long break &middot; 4 cycles before long break.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1119,6 +1160,7 @@ export default function FocusMode({
   onStartPomodoro,
   onSkipPomodoro,
   onAssignPomodoroTask,
+  onUpdatePomodoroSetting,
 }) {
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimeout = useRef(null);
@@ -1246,7 +1288,13 @@ export default function FocusMode({
       </div>
 
       {settingsOpen && (
-        <FocusSettings settings={settings} onChange={setSettings} onClose={toggleSettings} />
+        <FocusSettings
+          settings={settings}
+          onChange={setSettings}
+          onClose={toggleSettings}
+          pomodoroSettings={pomodoroSettings}
+          onUpdatePomodoroSetting={onUpdatePomodoroSetting}
+        />
       )}
 
       {/* Center timer */}

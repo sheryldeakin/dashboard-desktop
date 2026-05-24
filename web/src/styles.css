@@ -3046,6 +3046,43 @@ button:focus-visible {
   transition: left 1s linear;
 }
 
+/* Pomodoro settings inside the focus settings overlay */
+.focus-settings-pomo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+
+.focus-settings-pomo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.focus-settings-pomo-field input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.92);
+  padding: 6px 8px;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-settings-pomo-field input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.focus-settings-hint {
+  margin: 10px 0 0;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.4;
+}
+
 /* Pomodoro countdown display in focus mode (merged-timer model) */
 .focus-pomodoro-display {
   display: flex;
