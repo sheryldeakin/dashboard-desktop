@@ -66,10 +66,17 @@ function loadSettings() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (typeof parsed.pomodoroVisible === "undefined") parsed.pomodoroVisible = true;
+      if (typeof parsed.pomodoroPosition === "undefined") parsed.pomodoroPosition = "auto";
       return parsed;
     }
   } catch {}
-  return { colorScheme: "sunset", character: "hiker", environment: "mountains", pomodoroVisible: true };
+  return {
+    colorScheme: "sunset",
+    character: "hiker",
+    environment: "mountains",
+    pomodoroVisible: true,
+    pomodoroPosition: "auto",
+  };
 }
 
 function saveSettings(s) {
@@ -152,6 +159,24 @@ function FocusSettings({ settings, onChange, onClose, pomodoroSettings, onUpdate
             />
             <span>Show pomodoro timer in focus mode</span>
           </label>
+          {settings.pomodoroVisible !== false && (
+            <div className="focus-settings-pomo-position">
+              <span className="focus-settings-sublabel">Position</span>
+              <div className="focus-settings-options">
+                {[
+                  { id: "auto", label: "Auto" },
+                  { id: "center", label: "Center" },
+                  { id: "right", label: "Right" },
+                ].map((o) => (
+                  <button key={o.id} type="button"
+                    className={`focus-settings-option ${(settings.pomodoroPosition || "auto") === o.id ? "is-active" : ""}`}
+                    onClick={() => set("pomodoroPosition", o.id)}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {settings.pomodoroVisible !== false && pomodoroSettings && onUpdatePomodoroSetting && (
             <>
               <div className="focus-settings-pomo">
@@ -183,6 +208,22 @@ function FocusSettings({ settings, onChange, onClose, pomodoroSettings, onUpdate
               <p className="focus-settings-hint">
                 Classic Pomodoro: 25-min focus &middot; 5-min short break &middot; 15-min long break &middot; 4 cycles before long break.
               </p>
+              <label className="focus-settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={!!pomodoroSettings.autoStartBreak}
+                  onChange={(e) => onUpdatePomodoroSetting("autoStartBreak", e.target.checked)}
+                />
+                <span>Auto-start break after focus</span>
+              </label>
+              <label className="focus-settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={!!pomodoroSettings.autoStartFocus}
+                  onChange={(e) => onUpdatePomodoroSetting("autoStartFocus", e.target.checked)}
+                />
+                <span>Auto-start focus after break</span>
+              </label>
             </>
           )}
         </div>
@@ -1180,7 +1221,39 @@ export default function FocusMode({
   const hideTimeout = useRef(null);
   const [settings, setSettings] = useState(loadSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [effectivePomoPosition, setEffectivePomoPosition] = useState("center");
   const toggleSettings = useCallback(() => setSettingsOpen((p) => !p), []);
+
+  // Resolve auto vs manual pomodoro placement.
+  // Auto: compute whether the pomo block would overlap the hiker's head at the
+  // current window height; if so, move to right. Geometry constants come from CSS
+  // (.focus-hiker bottom: 11%, height: 130px) + the pomo block's center-mode
+  // transform (top: 50% + translateY(60px)). If the hiker or pomo dimensions
+  // change in CSS, update the constants below.
+  useEffect(() => {
+    const pos = settings.pomodoroPosition || "auto";
+    if (pos === "center" || pos === "right") {
+      setEffectivePomoPosition(pos);
+      return;
+    }
+    const HIKER_BOTTOM_PCT = 0.11;
+    const HIKER_HEIGHT_PX = 130;
+    const POMO_CENTER_OFFSET_PX = 60; // calc(-50% + 60px) on .focus-pomo-pos-center
+    const POMO_BLOCK_HEIGHT_PX = 130; // countdown + label + bar + actions + gaps (conservative)
+    const SAFETY_PAD_PX = 16;
+
+    function check() {
+      const H = window.innerHeight;
+      const hikerTop = H * (1 - HIKER_BOTTOM_PCT) - HIKER_HEIGHT_PX;
+      const pomoCenterY = H * 0.5 + POMO_CENTER_OFFSET_PX;
+      const pomoBottom = pomoCenterY + POMO_BLOCK_HEIGHT_PX / 2;
+      const wouldOverlap = pomoBottom + SAFETY_PAD_PX > hikerTop;
+      setEffectivePomoPosition(wouldOverlap ? "right" : "center");
+    }
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [settings.pomodoroPosition]);
 
   useEffect(() => {
     if (!open) return;
@@ -1191,7 +1264,8 @@ export default function FocusMode({
     return () => window.removeEventListener("keydown", handleKey);
   }, [open, onExit]);
 
-  // Auto-start pomodoro when focus mode opens with a task (skipped if user has hidden pomodoro)
+  // Auto-start pomodoro when focus mode opens with a task (skipped if user has hidden pomodoro).
+  // Work timer sync is handled by TodoPage's pomodoro-watching effect, not here.
   const pomodoroAutoStartedRef = useRef(false);
   useEffect(() => {
     if (!open) {
@@ -1202,12 +1276,9 @@ export default function FocusMode({
     if (settings.pomodoroVisible === false) return;
     if (task && pomodoroRun.status === "idle") {
       onStartPomodoro(task.id);
-      // Also start the work timer alongside (merged-timer model)
-      if (task.timer?.status === "paused") onAction(task.id, "resume");
-      else if (task.timer?.status !== "running") onAction(task.id, "start");
       pomodoroAutoStartedRef.current = true;
     }
-  }, [open, task, pomodoroRun.status, settings.pomodoroVisible, onStartPomodoro, onAction]);
+  }, [open, task, pomodoroRun.status, settings.pomodoroVisible, onStartPomodoro]);
 
   useEffect(() => {
     if (!open) return;
@@ -1250,7 +1321,10 @@ export default function FocusMode({
 
   const stateLabel = isRunning ? "Focusing" : isPaused ? "Resting" : "Ready";
   const isResting = isPaused || pomodoroRun.mode === "shortBreak" || pomodoroRun.mode === "longBreak";
-  const hikerWalking = isRunning;
+  // Hiker walks only when actively focusing (not during breaks, even if work timer
+  // hasn't paused yet during a brief transition). Belt-and-suspenders with the
+  // TodoPage sync effect that pauses work timer during breaks.
+  const hikerWalking = isRunning && !isResting;
 
   const scheme = COLOR_SCHEMES.find((s) => s.id === settings.colorScheme) || COLOR_SCHEMES[0];
   const skyColors = isResting ? scheme.restSky : scheme.sky;
@@ -1329,9 +1403,13 @@ export default function FocusMode({
         />
       )}
 
-      {/* Center timer — work timer + (optional) pomodoro stack with controls below progress bar */}
+      {/* Work timer — always centered */}
       <div className="focus-center-timer">
         <div className="focus-time-display">{formatDuration(timerMs)}</div>
+      </div>
+
+      {/* Pomodoro block — positionable (auto / center / right) so it doesn't overlap the hiker on short screens */}
+      <div className={`focus-pomo-block focus-pomo-pos-${effectivePomoPosition}`}>
         {settings.pomodoroVisible !== false ? (
           <>
             <div className="focus-pomo-countdown">{formatClock(pomodoroRun.remainingSeconds)}</div>
@@ -1347,18 +1425,11 @@ export default function FocusMode({
             )}
             <div className="focus-pomo-actions">
               {pomodoroRun.status === "running" ? (
-                <button type="button" className="focus-pomo-action" title="Pause" aria-label="Pause" onClick={() => {
-                  onPausePomodoro();
-                  if (task.timer.status === "running") onAction(task.id, "rest");
-                }}>
+                <button type="button" className="focus-pomo-action" title="Pause" aria-label="Pause" onClick={onPausePomodoro}>
                   <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" /></svg>
                 </button>
               ) : (
-                <button type="button" className="focus-pomo-action" title={pomodoroRun.status === "paused" ? "Resume" : "Start"} aria-label={pomodoroRun.status === "paused" ? "Resume" : "Start"} onClick={() => {
-                  onStartPomodoro(task.id);
-                  if (task.timer.status === "paused") onAction(task.id, "resume");
-                  else if (task.timer.status !== "running") onAction(task.id, "start");
-                }}>
+                <button type="button" className="focus-pomo-action" title={pomodoroRun.status === "paused" ? "Resume" : "Start"} aria-label={pomodoroRun.status === "paused" ? "Resume" : "Start"} onClick={() => onStartPomodoro(task.id)}>
                   <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                 </button>
               )}

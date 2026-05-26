@@ -106,8 +106,8 @@ function createDefaultPomodoro() {
       shortBreakMinutes: 5,
       longBreakMinutes: 15,
       cyclesBeforeLongBreak: 4,
-      autoStartBreak: false,
-      autoStartFocus: false,
+      autoStartBreak: true,
+      autoStartFocus: true,
     },
     history: [],
   };

@@ -131,6 +131,24 @@ export default function TodoPage() {
     if (params.get("focus") === "1") setFocusMode(true);
   }, []);
 
+  // Sync the task's work timer with the pomodoro state.
+  // Merged-timer model: work timer runs only when pomodoro is in focus mode AND
+  // running. During breaks, paused, or idle states the work timer is paused.
+  // This means: focus ends -> break auto-starts -> work timer pauses automatically;
+  // break ends -> focus auto-starts -> work timer resumes automatically.
+  useEffect(() => {
+    if (!pomodoroRun.taskId) return;
+    const pomoTask = tasks.find((t) => t.id === pomodoroRun.taskId);
+    if (!pomoTask) return;
+    const shouldRunWorkTimer = pomodoroRun.mode === "focus" && pomodoroRun.status === "running";
+    const workTimerRunning = pomoTask.timer.status === "running";
+    if (shouldRunWorkTimer && !workTimerRunning) {
+      handleTaskAction(pomoTask.id, pomoTask.timer.status === "paused" ? "resume" : "start");
+    } else if (!shouldRunWorkTimer && workTimerRunning) {
+      handleTaskAction(pomoTask.id, "rest");
+    }
+  }, [pomodoroRun.mode, pomodoroRun.status, pomodoroRun.taskId, tasks, handleTaskAction]);
+
   // Auto-assign task to pomodoro from ?taskId= query (set by dashboard Focus button)
   const taskIdAssignedRef = useRef(false);
   useEffect(() => {
