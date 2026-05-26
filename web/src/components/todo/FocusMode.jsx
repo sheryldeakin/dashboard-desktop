@@ -1313,8 +1313,8 @@ export default function FocusMode({
         )}
       </div>
 
-      {/* Bottom HUD */}
-      <div className={`focus-bottom-hud ${controlsVisible ? "is-visible" : "is-hidden"}`}>
+      {/* Bottom HUD — stays visible when pomodoro is idle so the Start button is reachable */}
+      <div className={`focus-bottom-hud ${(controlsVisible || pomodoroRun.status === "idle") ? "is-visible" : "is-hidden"}`}>
         {estPomos > 0 && (
           <div className="focus-pomo-dots">
             {Array.from({ length: pomoDotsCount }, (_, i) => (
@@ -1327,27 +1327,30 @@ export default function FocusMode({
         )}
 
         <div className="focus-controls">
-          {isRunning ? (
+          {/* Primary button reflects POMODORO state (the focus session), not the work timer.
+              All three variants sync both timers so you don't have to think about them separately. */}
+          {pomodoroRun.status === "running" ? (
             <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
-              onAction(task.id, "rest");
-              if (pomodoroRun.status === "running") onPausePomodoro();
+              onPausePomodoro();
+              if (task.timer.status === "running") onAction(task.id, "rest");
             }}>
               <svg viewBox="0 0 24 24" className="focus-btn-icon"><rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" /></svg>
               Pause
             </button>
-          ) : isPaused ? (
+          ) : pomodoroRun.status === "paused" ? (
             <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
-              onAction(task.id, "resume");
-              if (pomodoroRun.status === "paused" && pomodoroRun.taskId === task.id) onStartPomodoro();
+              onStartPomodoro(task.id);
+              if (task.timer.status === "paused") onAction(task.id, "resume");
+              else if (task.timer.status !== "running") onAction(task.id, "start");
             }}>
               <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
               Resume
             </button>
           ) : (
             <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
-              onAction(task.id, "start");
-              // Pass task.id directly so startPomodoro doesn't race with setState
-              if (pomodoroRun.status !== "running") onStartPomodoro(task.id);
+              onStartPomodoro(task.id);
+              if (task.timer.status === "paused") onAction(task.id, "resume");
+              else if (task.timer.status !== "running") onAction(task.id, "start");
             }}>
               <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
               Start
