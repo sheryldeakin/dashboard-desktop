@@ -3083,52 +3083,28 @@ button:focus-visible {
   line-height: 1.4;
 }
 
-/* Pomodoro countdown display in focus mode (compact widget below top bar,
-   so it doesn't overlap the hiker on short monitors). */
-.focus-pomodoro-display {
-  position: absolute;
-  top: 78px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  pointer-events: none;
-  z-index: 10;
-  min-width: 180px;
-}
-
-.focus-pomodoro-time {
-  font-size: 1.5rem;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.88);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
-  letter-spacing: 0.05em;
-  line-height: 1;
-}
-
-.focus-pomodoro-label {
+/* Pomodoro mode label + progress bar under the center timer */
+.focus-pomo-label {
+  margin-top: 4px;
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.45);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-.focus-pomodoro-bar {
-  width: 100%;
+.focus-pomo-bar {
+  width: 140px;
   height: 3px;
   background: rgba(255, 255, 255, 0.12);
   border-radius: 2px;
   overflow: hidden;
-  margin-top: 4px;
+  margin: 8px auto 0;
 }
 
-.focus-pomodoro-bar-fill {
+.focus-pomo-bar-fill {
   height: 100%;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.5);
   border-radius: 2px;
   transition: width 0.5s linear;
 }

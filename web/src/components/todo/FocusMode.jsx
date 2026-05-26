@@ -1297,11 +1297,19 @@ export default function FocusMode({
         />
       )}
 
-      {/* Center timer */}
+      {/* Center timer — big work timer + small pomodoro countdown + cycle label + progress bar */}
       <div className="focus-center-timer">
         <div className="focus-time-display">{formatDuration(timerMs)}</div>
+        <div className="focus-pomo-countdown">{formatClock(pomodoroRun.remainingSeconds)}</div>
+        <div className="focus-pomo-label">
+          {pomodoroRun.mode === "focus"
+            ? `Focus · Cycle ${pomodoroRun.cycleCount + 1}/${pomodoroSettings?.cyclesBeforeLongBreak || 4}`
+            : pomodoroRun.mode === "shortBreak" ? "Short break" : "Long break"}
+        </div>
         {isPomodoroActive && (
-          <div className="focus-pomo-countdown">{formatClock(pomodoroRun.remainingSeconds)}</div>
+          <div className="focus-pomo-bar">
+            <div className="focus-pomo-bar-fill" style={{ width: `${Math.min(100, sessionProgress * 100)}%` }} />
+          </div>
         )}
       </div>
 
@@ -1317,20 +1325,6 @@ export default function FocusMode({
             ))}
           </div>
         )}
-
-        <div className="focus-pomodoro-display">
-          <div className="focus-pomodoro-time">{formatClock(pomodoroRun.remainingSeconds)}</div>
-          <div className="focus-pomodoro-label">
-            {pomodoroRun.mode === "focus"
-              ? `Focus · Cycle ${pomodoroRun.cycleCount + 1}/${pomodoroSettings?.cyclesBeforeLongBreak || 4}`
-              : pomodoroRun.mode === "shortBreak" ? "Short break" : "Long break"}
-          </div>
-          {isPomodoroActive && (
-            <div className="focus-pomodoro-bar">
-              <div className="focus-pomodoro-bar-fill" style={{ width: `${Math.min(100, sessionProgress * 100)}%` }} />
-            </div>
-          )}
-        </div>
 
         <div className="focus-controls">
           {isRunning ? (
