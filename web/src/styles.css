@@ -3083,47 +3083,92 @@ button:focus-visible {
   line-height: 1.4;
 }
 
-/* Inline pomodoro controls (pause/play + skip) next to the countdown */
-.focus-pomo-row {
+/* Pomodoro controls — subtle icons below the progress bar, matching label aesthetic */
+.focus-pomo-actions {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  margin-top: 8px;
+  gap: 18px;
+  margin-top: 10px;
+  pointer-events: none; /* container is non-interactive; buttons opt back in */
 }
 
-.focus-pomo-btn {
+.focus-pomo-action {
   pointer-events: auto;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.78);
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  padding: 4px 6px;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  padding: 0;
-  flex-shrink: 0;
+  transition: color 0.15s ease, opacity 0.15s ease;
+  border-radius: 4px;
+  line-height: 0;
 }
 
-.focus-pomo-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.32);
-  color: rgba(255, 255, 255, 1);
+.focus-pomo-action:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.focus-pomo-btn:disabled {
-  opacity: 0.3;
+.focus-pomo-action:disabled {
+  opacity: 0.2;
   cursor: not-allowed;
 }
 
-.focus-pomo-btn svg {
+.focus-pomo-action svg {
   width: 14px;
   height: 14px;
   fill: currentColor;
+}
+
+.focus-pomo-action-toggle {
+  margin-left: 6px;
+  opacity: 0.5;
+}
+
+.focus-pomo-action-toggle:hover {
+  opacity: 1;
+}
+
+/* Expand chevron shown when pomodoro is collapsed */
+.focus-pomo-expand {
+  pointer-events: auto;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  margin-top: 8px;
+  border-radius: 4px;
+  line-height: 0;
+}
+
+.focus-pomo-expand:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.focus-pomo-expand svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+}
+
+/* Settings toggle (checkbox) for pomodoro visibility */
+.focus-settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  margin: 0 0 14px;
+  user-select: none;
+}
+
+.focus-settings-toggle input {
+  margin: 0;
+  cursor: pointer;
+  accent-color: rgba(255, 255, 255, 0.6);
 }
 
 /* Pomodoro mode label + progress bar under the center timer */

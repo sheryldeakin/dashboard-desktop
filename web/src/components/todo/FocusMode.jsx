@@ -63,9 +63,13 @@ const FOCUS_SETTINGS_KEY = "focus_mode_settings";
 function loadSettings() {
   try {
     const raw = localStorage.getItem(FOCUS_SETTINGS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed.pomodoroVisible === "undefined") parsed.pomodoroVisible = true;
+      return parsed;
+    }
   } catch {}
-  return { colorScheme: "sunset", character: "hiker", environment: "mountains" };
+  return { colorScheme: "sunset", character: "hiker", environment: "mountains", pomodoroVisible: true };
 }
 
 function saveSettings(s) {
@@ -138,40 +142,50 @@ function FocusSettings({ settings, onChange, onClose, pomodoroSettings, onUpdate
           </div>
         </div>
 
-        {pomodoroSettings && onUpdatePomodoroSetting && (
-          <div className="focus-settings-section">
-            <h4 className="focus-settings-label">Pomodoro Timer</h4>
-            <div className="focus-settings-pomo">
-              <label className="focus-settings-pomo-field">
-                <span>Focus (min)</span>
-                <input type="number" min="1" max="180"
-                  value={pomodoroSettings.focusMinutes ?? 25}
-                  onChange={(e) => setPomo("focusMinutes", e.target.value, 25, 1, 180)} />
-              </label>
-              <label className="focus-settings-pomo-field">
-                <span>Short break (min)</span>
-                <input type="number" min="1" max="60"
-                  value={pomodoroSettings.shortBreakMinutes ?? 5}
-                  onChange={(e) => setPomo("shortBreakMinutes", e.target.value, 5, 1, 60)} />
-              </label>
-              <label className="focus-settings-pomo-field">
-                <span>Long break (min)</span>
-                <input type="number" min="1" max="120"
-                  value={pomodoroSettings.longBreakMinutes ?? 15}
-                  onChange={(e) => setPomo("longBreakMinutes", e.target.value, 15, 1, 120)} />
-              </label>
-              <label className="focus-settings-pomo-field">
-                <span>Cycles before long break</span>
-                <input type="number" min="2" max="10"
-                  value={pomodoroSettings.cyclesBeforeLongBreak ?? 4}
-                  onChange={(e) => setPomo("cyclesBeforeLongBreak", e.target.value, 4, 2, 10)} />
-              </label>
-            </div>
-            <p className="focus-settings-hint">
-              Classic Pomodoro: 25-min focus &middot; 5-min short break &middot; 15-min long break &middot; 4 cycles before long break.
-            </p>
-          </div>
-        )}
+        <div className="focus-settings-section">
+          <h4 className="focus-settings-label">Pomodoro Timer</h4>
+          <label className="focus-settings-toggle">
+            <input
+              type="checkbox"
+              checked={settings.pomodoroVisible !== false}
+              onChange={(e) => set("pomodoroVisible", e.target.checked)}
+            />
+            <span>Show pomodoro timer in focus mode</span>
+          </label>
+          {settings.pomodoroVisible !== false && pomodoroSettings && onUpdatePomodoroSetting && (
+            <>
+              <div className="focus-settings-pomo">
+                <label className="focus-settings-pomo-field">
+                  <span>Focus (min)</span>
+                  <input type="number" min="1" max="180"
+                    value={pomodoroSettings.focusMinutes ?? 25}
+                    onChange={(e) => setPomo("focusMinutes", e.target.value, 25, 1, 180)} />
+                </label>
+                <label className="focus-settings-pomo-field">
+                  <span>Short break (min)</span>
+                  <input type="number" min="1" max="60"
+                    value={pomodoroSettings.shortBreakMinutes ?? 5}
+                    onChange={(e) => setPomo("shortBreakMinutes", e.target.value, 5, 1, 60)} />
+                </label>
+                <label className="focus-settings-pomo-field">
+                  <span>Long break (min)</span>
+                  <input type="number" min="1" max="120"
+                    value={pomodoroSettings.longBreakMinutes ?? 15}
+                    onChange={(e) => setPomo("longBreakMinutes", e.target.value, 15, 1, 120)} />
+                </label>
+                <label className="focus-settings-pomo-field">
+                  <span>Cycles before long break</span>
+                  <input type="number" min="2" max="10"
+                    value={pomodoroSettings.cyclesBeforeLongBreak ?? 4}
+                    onChange={(e) => setPomo("cyclesBeforeLongBreak", e.target.value, 4, 2, 10)} />
+                </label>
+              </div>
+              <p className="focus-settings-hint">
+                Classic Pomodoro: 25-min focus &middot; 5-min short break &middot; 15-min long break &middot; 4 cycles before long break.
+              </p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1177,7 +1191,7 @@ export default function FocusMode({
     return () => window.removeEventListener("keydown", handleKey);
   }, [open, onExit]);
 
-  // Auto-start pomodoro when focus mode opens with a task
+  // Auto-start pomodoro when focus mode opens with a task (skipped if user has hidden pomodoro)
   const pomodoroAutoStartedRef = useRef(false);
   useEffect(() => {
     if (!open) {
@@ -1185,6 +1199,7 @@ export default function FocusMode({
       return;
     }
     if (pomodoroAutoStartedRef.current) return;
+    if (settings.pomodoroVisible === false) return;
     if (task && pomodoroRun.status === "idle") {
       onStartPomodoro(task.id);
       // Also start the work timer alongside (merged-timer model)
@@ -1192,7 +1207,7 @@ export default function FocusMode({
       else if (task.timer?.status !== "running") onAction(task.id, "start");
       pomodoroAutoStartedRef.current = true;
     }
-  }, [open, task, pomodoroRun.status, onStartPomodoro, onAction]);
+  }, [open, task, pomodoroRun.status, settings.pomodoroVisible, onStartPomodoro, onAction]);
 
   useEffect(() => {
     if (!open) return;
@@ -1314,40 +1329,59 @@ export default function FocusMode({
         />
       )}
 
-      {/* Center timer — work timer (faint) + pomodoro row with inline controls + label + progress bar */}
+      {/* Center timer — work timer + (optional) pomodoro stack with controls below progress bar */}
       <div className="focus-center-timer">
         <div className="focus-time-display">{formatDuration(timerMs)}</div>
-        <div className="focus-pomo-row">
-          {pomodoroRun.status === "running" ? (
-            <button type="button" className="focus-pomo-btn" title="Pause" aria-label="Pause" onClick={() => {
-              onPausePomodoro();
-              if (task.timer.status === "running") onAction(task.id, "rest");
-            }}>
-              <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" /></svg>
-            </button>
-          ) : (
-            <button type="button" className="focus-pomo-btn" title={pomodoroRun.status === "paused" ? "Resume" : "Start"} aria-label={pomodoroRun.status === "paused" ? "Resume" : "Start"} onClick={() => {
-              onStartPomodoro(task.id);
-              if (task.timer.status === "paused") onAction(task.id, "resume");
-              else if (task.timer.status !== "running") onAction(task.id, "start");
-            }}>
-              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-            </button>
-          )}
-          <div className="focus-pomo-countdown">{formatClock(pomodoroRun.remainingSeconds)}</div>
-          <button type="button" className="focus-pomo-btn" title="Skip segment" aria-label="Skip segment" onClick={onSkipPomodoro} disabled={!isPomodoroActive}>
-            <svg viewBox="0 0 24 24"><path d="M5 4l11 8-11 8V4zm12 0h2v16h-2V4z" /></svg>
+        {settings.pomodoroVisible !== false ? (
+          <>
+            <div className="focus-pomo-countdown">{formatClock(pomodoroRun.remainingSeconds)}</div>
+            <div className="focus-pomo-label">
+              {pomodoroRun.mode === "focus"
+                ? `Focus · Cycle ${pomodoroRun.cycleCount + 1}/${pomodoroSettings?.cyclesBeforeLongBreak || 4}`
+                : pomodoroRun.mode === "shortBreak" ? "Short break" : "Long break"}
+            </div>
+            {isPomodoroActive && (
+              <div className="focus-pomo-bar">
+                <div className="focus-pomo-bar-fill" style={{ width: `${Math.min(100, sessionProgress * 100)}%` }} />
+              </div>
+            )}
+            <div className="focus-pomo-actions">
+              {pomodoroRun.status === "running" ? (
+                <button type="button" className="focus-pomo-action" title="Pause" aria-label="Pause" onClick={() => {
+                  onPausePomodoro();
+                  if (task.timer.status === "running") onAction(task.id, "rest");
+                }}>
+                  <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" /></svg>
+                </button>
+              ) : (
+                <button type="button" className="focus-pomo-action" title={pomodoroRun.status === "paused" ? "Resume" : "Start"} aria-label={pomodoroRun.status === "paused" ? "Resume" : "Start"} onClick={() => {
+                  onStartPomodoro(task.id);
+                  if (task.timer.status === "paused") onAction(task.id, "resume");
+                  else if (task.timer.status !== "running") onAction(task.id, "start");
+                }}>
+                  <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                </button>
+              )}
+              <button type="button" className="focus-pomo-action" title="Skip segment" aria-label="Skip segment" onClick={onSkipPomodoro} disabled={!isPomodoroActive}>
+                <svg viewBox="0 0 24 24"><path d="M5 4l11 8-11 8V4zm12 0h2v16h-2V4z" /></svg>
+              </button>
+              <button type="button" className="focus-pomo-action focus-pomo-action-toggle" title="Hide pomodoro timer" aria-label="Hide pomodoro timer" onClick={() => {
+                const next = { ...settings, pomodoroVisible: false };
+                setSettings(next);
+                saveSettings(next);
+              }}>
+                <svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
+              </button>
+            </div>
+          </>
+        ) : (
+          <button type="button" className="focus-pomo-expand" title="Show pomodoro timer" aria-label="Show pomodoro timer" onClick={() => {
+            const next = { ...settings, pomodoroVisible: true };
+            setSettings(next);
+            saveSettings(next);
+          }}>
+            <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
           </button>
-        </div>
-        <div className="focus-pomo-label">
-          {pomodoroRun.mode === "focus"
-            ? `Focus · Cycle ${pomodoroRun.cycleCount + 1}/${pomodoroSettings?.cyclesBeforeLongBreak || 4}`
-            : pomodoroRun.mode === "shortBreak" ? "Short break" : "Long break"}
-        </div>
-        {isPomodoroActive && (
-          <div className="focus-pomo-bar">
-            <div className="focus-pomo-bar-fill" style={{ width: `${Math.min(100, sessionProgress * 100)}%` }} />
-          </div>
         )}
       </div>
 
