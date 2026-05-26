@@ -1177,6 +1177,23 @@ export default function FocusMode({
     return () => window.removeEventListener("keydown", handleKey);
   }, [open, onExit]);
 
+  // Auto-start pomodoro when focus mode opens with a task
+  const pomodoroAutoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      pomodoroAutoStartedRef.current = false;
+      return;
+    }
+    if (pomodoroAutoStartedRef.current) return;
+    if (task && pomodoroRun.status === "idle") {
+      onStartPomodoro(task.id);
+      // Also start the work timer alongside (merged-timer model)
+      if (task.timer?.status === "paused") onAction(task.id, "resume");
+      else if (task.timer?.status !== "running") onAction(task.id, "start");
+      pomodoroAutoStartedRef.current = true;
+    }
+  }, [open, task, pomodoroRun.status, onStartPomodoro, onAction]);
+
   useEffect(() => {
     if (!open) return;
     function showControls() {
@@ -1297,10 +1314,31 @@ export default function FocusMode({
         />
       )}
 
-      {/* Center timer — big work timer + small pomodoro countdown + cycle label + progress bar */}
+      {/* Center timer — work timer (faint) + pomodoro row with inline controls + label + progress bar */}
       <div className="focus-center-timer">
         <div className="focus-time-display">{formatDuration(timerMs)}</div>
-        <div className="focus-pomo-countdown">{formatClock(pomodoroRun.remainingSeconds)}</div>
+        <div className="focus-pomo-row">
+          {pomodoroRun.status === "running" ? (
+            <button type="button" className="focus-pomo-btn" title="Pause" aria-label="Pause" onClick={() => {
+              onPausePomodoro();
+              if (task.timer.status === "running") onAction(task.id, "rest");
+            }}>
+              <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" /></svg>
+            </button>
+          ) : (
+            <button type="button" className="focus-pomo-btn" title={pomodoroRun.status === "paused" ? "Resume" : "Start"} aria-label={pomodoroRun.status === "paused" ? "Resume" : "Start"} onClick={() => {
+              onStartPomodoro(task.id);
+              if (task.timer.status === "paused") onAction(task.id, "resume");
+              else if (task.timer.status !== "running") onAction(task.id, "start");
+            }}>
+              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            </button>
+          )}
+          <div className="focus-pomo-countdown">{formatClock(pomodoroRun.remainingSeconds)}</div>
+          <button type="button" className="focus-pomo-btn" title="Skip segment" aria-label="Skip segment" onClick={onSkipPomodoro} disabled={!isPomodoroActive}>
+            <svg viewBox="0 0 24 24"><path d="M5 4l11 8-11 8V4zm12 0h2v16h-2V4z" /></svg>
+          </button>
+        </div>
         <div className="focus-pomo-label">
           {pomodoroRun.mode === "focus"
             ? `Focus · Cycle ${pomodoroRun.cycleCount + 1}/${pomodoroSettings?.cyclesBeforeLongBreak || 4}`
@@ -1327,50 +1365,8 @@ export default function FocusMode({
         )}
 
         <div className="focus-controls">
-          {/* Primary button reflects POMODORO state (the focus session), not the work timer.
-              All three variants sync both timers so you don't have to think about them separately. */}
-          {pomodoroRun.status === "running" ? (
-            <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
-              onPausePomodoro();
-              if (task.timer.status === "running") onAction(task.id, "rest");
-            }}>
-              <svg viewBox="0 0 24 24" className="focus-btn-icon"><rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" /></svg>
-              Pause
-            </button>
-          ) : pomodoroRun.status === "paused" ? (
-            <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
-              onStartPomodoro(task.id);
-              if (task.timer.status === "paused") onAction(task.id, "resume");
-              else if (task.timer.status !== "running") onAction(task.id, "start");
-            }}>
-              <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
-              Resume
-            </button>
-          ) : (
-            <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
-              onStartPomodoro(task.id);
-              if (task.timer.status === "paused") onAction(task.id, "resume");
-              else if (task.timer.status !== "running") onAction(task.id, "start");
-            }}>
-              <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
-              Start
-            </button>
-          )}
-
-          {(isRunning || isPaused) && (
-            <button type="button" className="focus-btn" onClick={() => onAction(task.id, "stop")}>
-              <svg viewBox="0 0 24 24" className="focus-btn-icon"><rect x="6" y="6" width="12" height="12" rx="1.8" /></svg>
-              Stop
-            </button>
-          )}
-
-          {isPomodoroActive && (
-            <button type="button" className="focus-btn" onClick={onSkipPomodoro}>
-              <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M5 4l11 8-11 8V4zm12 0h2v16h-2V4z" /></svg>
-              Skip
-            </button>
-          )}
-
+          {/* Pomodoro controls now live inline with the countdown above.
+              Bottom HUD keeps only Done + Esc. */}
           <button type="button" className="focus-btn" onClick={() => { onTaskDone(task.id, true); onExit(); }}>
             <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Done

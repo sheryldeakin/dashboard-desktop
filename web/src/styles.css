@@ -3083,6 +3083,49 @@ button:focus-visible {
   line-height: 1.4;
 }
 
+/* Inline pomodoro controls (pause/play + skip) next to the countdown */
+.focus-pomo-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.focus-pomo-btn {
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.78);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.focus-pomo-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.32);
+  color: rgba(255, 255, 255, 1);
+}
+
+.focus-pomo-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.focus-pomo-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
 /* Pomodoro mode label + progress bar under the center timer */
 .focus-pomo-label {
   margin-top: 4px;

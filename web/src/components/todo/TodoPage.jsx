@@ -323,7 +323,7 @@ export default function TodoPage() {
       <FocusMode
         open={focusMode}
         onExit={handleExitFocus}
-        task={timerTask || selectedTask}
+        task={(pomodoroRun.taskId && tasks.find((t) => t.id === pomodoroRun.taskId)) || timerTask || selectedTask}
         pomodoroRun={pomodoroRun}
         pomodoroSettings={pomodoro.settings}
         onAction={handleTaskAction}
