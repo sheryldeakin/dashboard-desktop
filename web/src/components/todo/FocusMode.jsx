@@ -1281,6 +1281,19 @@ export default function FocusMode({
     }
   }, [open, task, pomodoroRun.status, settings.pomodoroVisible, onStartPomodoro]);
 
+  // Minimizing/hiding the pomodoro (caret or settings) turns the feature off: stop the
+  // run so it doesn't keep counting down into a break and pause the still-running work
+  // timer. The work timer is left untouched — an idle pomodoro no longer drives it, so
+  // the user keeps the plain work-timer behavior they'd have with no pomodoro at all.
+  const pomodoroVisiblePrevRef = useRef(settings.pomodoroVisible !== false);
+  useEffect(() => {
+    const visible = settings.pomodoroVisible !== false;
+    if (pomodoroVisiblePrevRef.current && !visible && onStopPomodoro) {
+      onStopPomodoro();
+    }
+    pomodoroVisiblePrevRef.current = visible;
+  }, [settings.pomodoroVisible, onStopPomodoro]);
+
   useEffect(() => {
     if (!open) return;
     function showControls() {
