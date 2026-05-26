@@ -956,11 +956,15 @@ export function applyDailyRollover(content) {
 
   const nowIso = new Date().toISOString();
   const nowMs = parseIsoMs(nowIso) ?? Date.now();
-  const frozenOpenTasks = content.todaysTasks
-    .filter((task) => !task.done)
-    .map((task) => freezeTaskForRollover(task, nowIso, nowMs));
-  const openRecurringKeys = new Set(
-    frozenOpenTasks.map((task) => `${task.recurrenceSeedId || task.id}::${task.dueDate || ""}`)
+  // Carry every task into the new day — nothing is auto-removed at rollover.
+  // Open tasks are "frozen" (timer reset to idle, accumulated time preserved); completed
+  // tasks are kept as-is so they stay visible in the Done section. The Today/dashboard
+  // views filter out done tasks already, so kept completions don't clutter them.
+  const carriedTasks = content.todaysTasks.map((task) =>
+    task.done ? task : freezeTaskForRollover(task, nowIso, nowMs)
+  );
+  const existingRecurringKeys = new Set(
+    carriedTasks.map((task) => `${task.recurrenceSeedId || task.id}::${task.dueDate || ""}`)
   );
 
   const recurringTasks = content.todaysTasks
@@ -968,15 +972,15 @@ export function applyDailyRollover(content) {
     .filter(Boolean)
     .filter((task) => {
       const key = `${task.recurrenceSeedId || task.id}::${task.dueDate || ""}`;
-      if (openRecurringKeys.has(key)) return false;
-      openRecurringKeys.add(key);
+      if (existingRecurringKeys.has(key)) return false;
+      existingRecurringKeys.add(key);
       return true;
     });
 
   return {
     content: {
       ...content,
-      todaysTasks: [...frozenOpenTasks, ...recurringTasks],
+      todaysTasks: [...carriedTasks, ...recurringTasks],
       todaysTasksDate: todayKey,
     },
     changed: true,
