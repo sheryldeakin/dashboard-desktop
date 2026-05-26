@@ -195,14 +195,19 @@ export function usePomodoro(pomodoro, setPomodoro, tasks, setTasks, setStatus) {
     pomodoro.settings.longBreakMinutes,
   ]);
 
-  function startPomodoro() {
-    if (pomodoroRun.mode === "focus" && !pomodoroRun.taskId) {
+  function startPomodoro(taskIdOverride) {
+    // Accept an optional taskId so callers can assign-and-start atomically
+    // (avoids a setState race where startPomodoro fires before assignPomodoroTask
+    // has propagated through React state).
+    const effectiveTaskId = taskIdOverride || pomodoroRun.taskId;
+    if (pomodoroRun.mode === "focus" && !effectiveTaskId) {
       setStatus("Select a task for focus mode first.");
       return;
     }
     const nowIso = new Date().toISOString();
     setPomodoroRun((previous) => ({
       ...previous,
+      taskId: effectiveTaskId,
       status: "running",
       startedAt: previous.startedAt || nowIso,
     }));

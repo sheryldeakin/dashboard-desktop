@@ -1325,9 +1325,12 @@ export default function FocusMode({
               ? `Focus · Cycle ${pomodoroRun.cycleCount + 1}/${pomodoroSettings?.cyclesBeforeLongBreak || 4}`
               : pomodoroRun.mode === "shortBreak" ? "Short break" : "Long break"}
           </div>
+          {isPomodoroActive && (
+            <div className="focus-pomodoro-bar">
+              <div className="focus-pomodoro-bar-fill" style={{ width: `${Math.min(100, sessionProgress * 100)}%` }} />
+            </div>
+          )}
         </div>
-
-        {isPomodoroActive && <PathProgress progress={sessionProgress} />}
 
         <div className="focus-controls">
           {isRunning ? (
@@ -1349,9 +1352,8 @@ export default function FocusMode({
           ) : (
             <button type="button" className="focus-btn focus-btn-primary" onClick={() => {
               onAction(task.id, "start");
-              // Merged-timer model: assign task to pomodoro if needed, then start
-              if (pomodoroRun.taskId !== task.id) onAssignPomodoroTask(task.id);
-              if (pomodoroRun.status !== "running") onStartPomodoro();
+              // Pass task.id directly so startPomodoro doesn't race with setState
+              if (pomodoroRun.status !== "running") onStartPomodoro(task.id);
             }}>
               <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
               Start
