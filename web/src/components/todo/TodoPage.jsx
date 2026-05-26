@@ -40,7 +40,7 @@ export default function TodoPage() {
   const { handleTaskAction } = useTimer(setTasks, setStatus);
   const {
     pomodoroRun, setPomodoroRun,
-    startPomodoro, pausePomodoro, resetPomodoro, skipPomodoro,
+    startPomodoro, pausePomodoro, resetPomodoro, skipPomodoro, stopPomodoro,
     assignPomodoroTask, updatePomodoroSetting,
   } = usePomodoro(pomodoro, taskState.setPomodoro, tasks, setTasks, setStatus);
 
@@ -144,7 +144,10 @@ export default function TodoPage() {
     const workTimerRunning = pomoTask.timer.status === "running";
     if (shouldRunWorkTimer && !workTimerRunning) {
       handleTaskAction(pomoTask.id, pomoTask.timer.status === "paused" ? "resume" : "start");
-    } else if (!shouldRunWorkTimer && workTimerRunning) {
+    } else if (!shouldRunWorkTimer && workTimerRunning && pomodoroRun.status !== "idle") {
+      // Pause the work timer when the pomodoro is paused or on a break — but NOT when
+      // the pomodoro is idle. An idle pomodoro means it isn't driving; leave the work
+      // timer free so the focus-mode controls can run it directly (pomodoro-off mode).
       handleTaskAction(pomoTask.id, "rest");
     }
   }, [pomodoroRun.mode, pomodoroRun.status, pomodoroRun.taskId, tasks, handleTaskAction]);
@@ -349,6 +352,7 @@ export default function TodoPage() {
         onPausePomodoro={pausePomodoro}
         onStartPomodoro={startPomodoro}
         onSkipPomodoro={skipPomodoro}
+        onStopPomodoro={stopPomodoro}
         onAssignPomodoroTask={assignPomodoroTask}
         onUpdatePomodoroSetting={updatePomodoroSetting}
       />

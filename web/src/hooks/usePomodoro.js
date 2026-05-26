@@ -242,6 +242,22 @@ export function usePomodoro(pomodoro, setPomodoro, tasks, setTasks, setStatus) {
     }));
   }
 
+  // Stop the current run back to an idle focus segment but KEEP the assigned task,
+  // so focus mode stays on the task and the Start button can begin a fresh cycle.
+  // (resetPomodoro clears the task; this is the "Stop, but stay here" variant.)
+  function stopPomodoro() {
+    const seconds = getPomodoroModeSeconds("focus", pomodoro.settings);
+    setPomodoroRun((previous) => ({
+      mode: "focus",
+      status: "idle",
+      taskId: previous.taskId,
+      remainingSeconds: seconds,
+      segmentSeconds: seconds,
+      startedAt: null,
+      cycleCount: 0,
+    }));
+  }
+
   function assignPomodoroTask(taskId) {
     setPomodoroRun((previous) => ({
       ...previous,
@@ -269,6 +285,7 @@ export function usePomodoro(pomodoro, setPomodoro, tasks, setTasks, setStatus) {
     pausePomodoro,
     resetPomodoro,
     skipPomodoro,
+    stopPomodoro,
     assignPomodoroTask,
     updatePomodoroSetting,
   };

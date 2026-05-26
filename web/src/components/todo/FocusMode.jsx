@@ -1214,6 +1214,7 @@ export default function FocusMode({
   onPausePomodoro,
   onStartPomodoro,
   onSkipPomodoro,
+  onStopPomodoro,
   onAssignPomodoroTask,
   onUpdatePomodoroSetting,
 }) {
@@ -1325,6 +1326,22 @@ export default function FocusMode({
   // hasn't paused yet during a brief transition). Belt-and-suspenders with the
   // TodoPage sync effect that pauses work timer during breaks.
   const hikerWalking = isRunning && !isResting;
+
+  // Bottom controls (Start / Pause / Resume / Stop). When the pomodoro is shown they
+  // drive the pomodoro — the work timer follows via TodoPage's sync effect — so these
+  // stay two-way in sync with the inline pomodoro buttons. When the pomodoro is hidden
+  // they drive the task work timer directly, preserving the original behavior.
+  const usePomo = settings.pomodoroVisible !== false;
+  const ctrlRunning = usePomo ? pomodoroRun.status === "running" : isRunning;
+  const ctrlPaused = usePomo ? pomodoroRun.status === "paused" : isPaused;
+  const ctrlActive = usePomo ? isPomodoroActive : isRunning || isPaused;
+  const handleCtrlStart = () => (usePomo ? onStartPomodoro(task.id) : onAction(task.id, "start"));
+  const handleCtrlResume = () => (usePomo ? onStartPomodoro(task.id) : onAction(task.id, "resume"));
+  const handleCtrlPause = () => (usePomo ? onPausePomodoro() : onAction(task.id, "rest"));
+  const handleCtrlStop = () => {
+    onAction(task.id, "stop");
+    if (usePomo && onStopPomodoro) onStopPomodoro();
+  };
 
   const scheme = COLOR_SCHEMES.find((s) => s.id === settings.colorScheme) || COLOR_SCHEMES[0];
   const skyColors = isResting ? scheme.restSky : scheme.sky;
@@ -1456,8 +1473,8 @@ export default function FocusMode({
         )}
       </div>
 
-      {/* Bottom HUD — stays visible when pomodoro is idle so the Start button is reachable */}
-      <div className={`focus-bottom-hud ${(controlsVisible || pomodoroRun.status === "idle") ? "is-visible" : "is-hidden"}`}>
+      {/* Bottom HUD — stays visible whenever the timer isn't running so Start/Resume is reachable */}
+      <div className={`focus-bottom-hud ${(controlsVisible || !ctrlRunning) ? "is-visible" : "is-hidden"}`}>
         {estPomos > 0 && (
           <div className="focus-pomo-dots">
             {Array.from({ length: pomoDotsCount }, (_, i) => (
@@ -1470,8 +1487,33 @@ export default function FocusMode({
         )}
 
         <div className="focus-controls">
-          {/* Pomodoro controls now live inline with the countdown above.
-              Bottom HUD keeps only Done + Esc. */}
+          {/* Start / Pause / Resume / Stop. Drive the pomodoro when it's shown (work timer
+              follows via the sync effect), otherwise the work timer directly. Stays in sync
+              with the inline pomodoro buttons since both share pomodoroRun state. */}
+          {ctrlRunning ? (
+            <button type="button" className="focus-btn focus-btn-primary" onClick={handleCtrlPause}>
+              <svg viewBox="0 0 24 24" className="focus-btn-icon"><rect x="6" y="4" width="4" height="16" rx="1.5" /><rect x="14" y="4" width="4" height="16" rx="1.5" /></svg>
+              Pause
+            </button>
+          ) : ctrlPaused ? (
+            <button type="button" className="focus-btn focus-btn-primary" onClick={handleCtrlResume}>
+              <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
+              Resume
+            </button>
+          ) : (
+            <button type="button" className="focus-btn focus-btn-primary" onClick={handleCtrlStart}>
+              <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M8 5v14l11-7z" /></svg>
+              Start
+            </button>
+          )}
+
+          {ctrlActive && (
+            <button type="button" className="focus-btn" onClick={handleCtrlStop}>
+              <svg viewBox="0 0 24 24" className="focus-btn-icon"><rect x="6" y="6" width="12" height="12" rx="1.8" /></svg>
+              Stop
+            </button>
+          )}
+
           <button type="button" className="focus-btn" onClick={() => { onTaskDone(task.id, true); onExit(); }}>
             <svg viewBox="0 0 24 24" className="focus-btn-icon"><path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Done

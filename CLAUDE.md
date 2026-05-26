@@ -92,3 +92,36 @@ Content schema (v2) has these top-level fields: `phase`, `projects`, `todaysTask
 - No router library — routing is a simple `window.location.pathname` switch in `App()`; query params (e.g., `?focus=1`) are read by destination components on mount
 - Backend uses ES modules (`"type": "module"` in package.json)
 - Content normalization logic exists in both backend (`lib/content-schema.js`) and frontend (`App.jsx`) — keep them in sync when modifying the data schema
+
+## Session notes (2026-05-26): focus mode pomodoro overhaul
+
+### Architecture decisions
+- **Merged-timer model in focus mode**: work timer and pomodoro are linked via a single useEffect in `TodoPage.jsx` that watches `pomodoroRun.mode/status/taskId` and mirrors the task's work timer state. Work timer runs only when `mode === "focus" && status === "running"`; paused otherwise. Don't add competing logic in button onClicks — let the sync effect handle it.
+- **Pomodoro state lives in `usePomodoro` hook only**, not persisted. On page reload, `pomodoroRun` is always `{ idle, focus, "" }`. FocusMode auto-starts on open via its own useEffect.
+- **Auto-start defaults flipped to `true`** for `autoStartBreak` and `autoStartFocus` (both `content-schema.js` and `taskUtils.js`). Classic pomodoro continuous flow. Existing DB rows keep stored values; a one-off PUT is needed to update them.
+
+### New patterns
+- **Auto-adapt position math, not magic numbers**: `.focus-pomo-block` switches between center/right based on whether it would overlap the hiker, computed from `.focus-hiker` CSS (`bottom: 11%`, `height: 130px`) and the pomo block's transform. If hiker dimensions change, update the constants in the auto-adapt useEffect.
+- **Cross-page state via URL query**: dashboard Focus button navigates `/todo?focus=1&taskId=X`. TodoPage reads on mount, opens focus, assigns task, then `replaceState`s the URL clean. Convention: assign only via URL, don't auto-start.
+- **`focus_mode_settings` localStorage now holds UI preferences too** (Position selector, Show toggle, character/env/colorScheme) — pomodoro behavior settings stay in API content (focusMinutes, autoStartBreak, etc.).
+
+### Bug fixes
+- **localStorage merge clobber** (`taskUtils.js`, `loadAndHydratePreferredContent`): old logic did whole-document overwrite when local task timestamps beat remote, pushing stale `title`/`deadlineDate`/`projects` back to API. Fix: take local tasks but **always trust remote for config fields** (title, dates, phase, projects, pomodoro settings).
+- **AudioContext autoplay**: completion chime silently failed (browser-suspended state). Fix: `if (ctx.state === "suspended") ctx.resume()` before scheduling oscillators. Replaced silent catch with `console.warn`.
+- **Work-timer / pomodoro desync**: pomodoro transitions (focus→break) didn't pause work timer. User saw dark "rest" background but hiker still walked + clock kept counting. Fixed by TodoPage sync useEffect + `hikerWalking = isRunning && !isResting` as a belt-and-suspenders defense.
+- **Parallax tile jolt** (ground + scenery): SVG content didn't tile at the wrap point. Fix: generate items in one half-tile width then duplicate at `x + tileWidth/2`. Mountain SVGs were already tile-able (verified math). Ground replaced with flat strip.
+- **Mountain layers aligned-then-drifted-apart**: all four started at `translateX(0)`. Added `animation-delay: -27s/-37s/-38s` on back/mid/front (~25%/50%/75% phase offsets).
+
+### Watch items
+- **Pause sectioning under live test** (2026-05-26) — confirm break transitions work across multiple cycles.
+- **Auto-start default flip affects existing DB rows**: one-off PUT done for Sheryl's production. Other hosts need the same PUT, or re-save settings via UI.
+- **CSS geometry constants in `FocusMode.jsx` auto-adapt useEffect** must stay in sync with `.focus-hiker` CSS. Constants documented inline.
+- **Scenery item counts halved** when adding tile-duplication (so on-screen total stays similar). Bump `count`/`rockCount` in SceneryLayer/DesertSceneryLayer if it feels sparse.
+- **`components/WalkingFigure.jsx` is dead code** — fully built (3D character, confetti, head-tracking) but never imported. Decision (2026-05-26): leave for now, revisit post-AAAI.
+
+### Next-session pickup
+- **Compact CSS layout modes** (deferred): "strip across top" + "corner box" responsive modes for running the dashboard on a normal monitor without dedicating the small one. Pair with PowerToys Win+Ctrl+T for always-on-top until Tauri wrapper exists.
+- **Forest theme distinctification** (deferred): make the visual concept legally distinct from Focus Traveller for safe public release. Directions sketched: ambient cycles (time/weather/seasons), per-session rewards, companion characters, biome unlocks.
+- **Stale code from prior audit** (P2, not urgent): `useTimer.getTimerText` exported but never imported (4 inline reimplementations); `TimerBar` accepts `onPausePomodoro`/`onStartPomodoro` props but never binds them; `dashboard.html` at repo root is an unreferenced prototype with hardcoded "ARR Submission".
+- **Dashboard inline-edit headings keyboard-accessible** (P0, trivial): `<span onClick>` for title/phase/deadline need `tabIndex`/`role="button"`/Enter handler.
+- **Post-AAAI Store-abstraction refactor**: pluggable `IContentStore` (Mongo / JsonFile / ObsidianStore). Target August 2026. Spec at vault's `Areas/Personal/dashboard-app/integration-notes.md`.
