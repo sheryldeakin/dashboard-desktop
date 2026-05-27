@@ -504,6 +504,10 @@ export const DEFAULT_CONTENT = {
       projectId: DEFAULT_PROJECT.id,
       done: false,
       inTodayQueue: true,
+      // Fixed, old timestamps so this seed task never out-ranks real remote data in
+      // the local-vs-remote freshness comparison (see loadAndHydratePreferredContent).
+      createdAt: START_ISO,
+      updatedAt: START_ISO,
       timer: createDefaultTimer(),
     }),
   ],
@@ -687,14 +691,17 @@ export function createRecurringTaskFromCompleted(task, referenceDate = getTodayK
   });
 }
 
+// Returns null when there's no usable stored content (fresh browser, cleared cache,
+// incognito, or corrupt JSON). Callers decide the fallback — critically, "no local
+// content" must never be treated as data that can overwrite the remote DB.
 function loadContent() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return cloneContent(DEFAULT_CONTENT);
+    if (!raw) return null;
 
     return normalizeContentRecord(JSON.parse(raw));
   } catch {
-    return cloneContent(DEFAULT_CONTENT);
+    return null;
   }
 }
 
@@ -988,7 +995,7 @@ export function applyDailyRollover(content) {
 }
 
 function loadAndHydrateContent() {
-  const loaded = loadContent();
+  const loaded = loadContent() ?? cloneContent(DEFAULT_CONTENT);
   const { content, changed } = applyDailyRollover(loaded);
   if (changed) saveContent(content);
   return content;
@@ -1000,7 +1007,13 @@ function getLatestTaskTimestamp(content) {
 }
 
 export async function loadAndHydratePreferredContent() {
-  const local = loadAndHydrateContent();
+  const stored = loadContent(); // null when nothing is cached in this browser
+  const local = (() => {
+    const base = stored ?? cloneContent(DEFAULT_CONTENT);
+    const { content, changed } = applyDailyRollover(base);
+    if (changed) saveContent(content);
+    return content;
+  })();
   if (!API_BASE_URL) return local;
 
   try {
@@ -1015,6 +1028,20 @@ export async function loadAndHydratePreferredContent() {
 
     const normalizedRemote = normalizeContentRecord(remote);
     const { content: rolledRemote, changed } = applyDailyRollover(normalizedRemote);
+
+    // CRITICAL: if this browser has no stored content (fresh visit, cleared cache,
+    // incognito, new device), `local` is just seed defaults. It must NEVER overwrite
+    // real remote data — trusting the timestamp here would wipe the DB. Always take
+    // remote in that case. (This was the cause of full task+history loss.)
+    if (!stored) {
+      saveContent(rolledRemote);
+      if (changed) {
+        saveRemoteContent(rolledRemote).catch((error) => {
+          console.error("Failed to save rollover to database:", error);
+        });
+      }
+      return rolledRemote;
+    }
 
     // Compare: use whichever has more recent data
     const localTs = getLatestTaskTimestamp(local);
