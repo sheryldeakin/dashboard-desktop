@@ -53,12 +53,12 @@ export default function TodoPage() {
     defaultProjectId, visibleTasks, sectionCounts,
     searchTerm, setSearchTerm, activeSectionId,
     filterProjectId, setFilterProjectId, filterStatus, setFilterStatus,
-    filterPriority, setFilterPriority, sortBy, setSortBy,
+    filterPriority, setFilterPriority, filterTag, sortBy, setSortBy,
     dragTaskId, dragOverTaskId, dragOverSectionId, dragOverProjectId,
     newProjectName, setNewProjectName, handleAddProject, handleRemoveProject,
     handleTaskField, handleTaskDone, handleDuplicateTask, handleRemoveTask,
     handleMarkVisibleDone, handleClearCompleted, handleSave,
-    handleSelectSidebarSection, handleSelectProjectFilter, handleResetFilters,
+    handleSelectSidebarSection, handleSelectProjectFilter, handleSelectFileTag, handleResetFilters,
     handleTaskDragStart, handleTaskDragOver, handleTaskDrop,
     handleSectionDragOver, handleSectionDrop, handleProjectDragOver,
     handleProjectDrop, handleTaskDragEnd,
@@ -244,7 +244,10 @@ export default function TodoPage() {
           projects={projects}
           defaultProjectId={defaultProjectId}
           filterProjectId={filterProjectId}
+          filterTag={filterTag}
           onSelectProject={handleSelectProjectFilter}
+          onSelectFileTag={handleSelectFileTag}
+          tasks={tasks}
           newProjectName={newProjectName}
           onNewProjectNameChange={setNewProjectName}
           onAddProject={handleAddProject}

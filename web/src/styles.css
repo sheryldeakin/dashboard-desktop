@@ -1335,13 +1335,115 @@ button:focus-visible {
 }
 
 .tp-project-item {
+  /* Was a single horizontal row; now stacks the project row + auto-discovered
+     sub-items (one per file/area tag) underneath when expanded. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0 8px;
+}
+
+.tp-project-row {
   display: flex;
   align-items: center;
-  padding: 0 8px;
+  gap: 4px;
 }
 
 .tp-project-item.is-drop-target .tp-project-btn {
   background: rgba(90, 126, 95, 0.14);
+}
+
+.tp-project-expand {
+  width: 18px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: transform 120ms ease;
+  flex: 0 0 auto;
+}
+
+.tp-project-expand:hover {
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--ink);
+}
+
+.tp-project-expand.is-open {
+  transform: rotate(90deg);
+}
+
+.tp-project-expand-spacer {
+  flex: 0 0 auto;
+}
+
+.tp-project-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.tp-project-subitems {
+  margin: 2px 0 6px 22px;
+  padding: 0 0 0 8px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-left: 1px solid rgba(182, 139, 97, 0.22);
+}
+
+.tp-subitem {
+  display: flex;
+}
+
+.tp-subitem-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tp-subitem-btn:hover {
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+}
+
+.tp-subitem-btn.is-active {
+  background: rgba(182, 110, 53, 0.12);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.tp-subitem-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tp-subitem-count {
+  font-size: 10px;
+  color: var(--ink-muted);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex: 0 0 auto;
 }
 
 .tp-project-btn {

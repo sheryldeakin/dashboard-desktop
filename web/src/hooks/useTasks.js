@@ -46,6 +46,7 @@ export function useTasks(setStatus) {
   const [filterProjectId, setFilterProjectId] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
+  const [filterTag, setFilterTag] = useState("");
   const [sortBy, setSortBy] = useState("manual");
   const [dragTaskId, setDragTaskId] = useState("");
   const [dragOverTaskId, setDragOverTaskId] = useState("");
@@ -127,6 +128,7 @@ export function useTasks(setStatus) {
   function taskMatchesCurrentFilters(task, query, todayKey) {
     if (!taskMatchesSidebarSection(task, activeSectionId || "all", todayKey, defaultProjectId)) return false;
     if (filterProjectId !== "all" && task.projectId !== filterProjectId) return false;
+    if (filterTag && !(task.tags || []).includes(filterTag)) return false;
     if (filterPriority !== "all" && task.priority !== filterPriority) return false;
     if (filterStatus === "active" && task.done) return false;
     if (filterStatus === "done" && !task.done) return false;
@@ -388,6 +390,7 @@ export function useTasks(setStatus) {
     setActiveSectionId(sectionId);
     setFilterProjectId("all");
     setFilterPriority("all");
+    setFilterTag("");
     setSearchTerm("");
     if (sectionId === "done") {
       setFilterStatus("done");
@@ -401,6 +404,17 @@ export function useTasks(setStatus) {
   function handleSelectProjectFilter(projectId) {
     setActiveSectionId("");
     setFilterProjectId(projectId);
+    setFilterTag("");
+    setFilterStatus("all");
+  }
+
+  // Drilldown handler used by the sidebar's per-project sub-items (file-tag
+  // children of each area-project). Sets both filters so the visible list is
+  // the intersection: tasks in the project AND carrying the tag.
+  function handleSelectFileTag(projectId, tag) {
+    setActiveSectionId("");
+    setFilterProjectId(projectId);
+    setFilterTag(tag);
     setFilterStatus("all");
   }
 
@@ -408,6 +422,7 @@ export function useTasks(setStatus) {
     setActiveSectionId("today");
     setSearchTerm("");
     setFilterProjectId("all");
+    setFilterTag("");
     setFilterStatus("all");
     setFilterPriority("all");
     setSortBy("manual");
@@ -640,6 +655,8 @@ export function useTasks(setStatus) {
     setFilterStatus,
     filterPriority,
     setFilterPriority,
+    filterTag,
+    setFilterTag,
     sortBy,
     setSortBy,
 
@@ -666,6 +683,7 @@ export function useTasks(setStatus) {
     // Section/filter
     handleSelectSidebarSection,
     handleSelectProjectFilter,
+    handleSelectFileTag,
     handleResetFilters,
 
     // Drag
