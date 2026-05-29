@@ -15,6 +15,10 @@
     {
       "source": "/settings/:path*",
       "destination": "/"
+    },
+    {
+      "source": "/stats/:path*",
+      "destination": "/"
     }
   ]
 }
