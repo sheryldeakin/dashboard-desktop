@@ -2307,6 +2307,24 @@ button:focus-visible {
   color: var(--ink-muted);
 }
 
+.tp-save-status-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tp-sync-indicator {
+  font-size: 11px;
+  color: var(--ink-muted);
+  opacity: 0.7;
+}
+
+.tp-sync-indicator.is-stale {
+  color: #c45c4a;
+  opacity: 1;
+  font-weight: 500;
+}
+
 /* ----- Immersive Focus Mode ----- */
 .focus-immersive {
   position: fixed;

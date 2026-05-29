@@ -3,6 +3,24 @@ export const START_ISO = "2026-02-12T00:00:00";
 export const DEADLINE_ISO = "2026-07-28T23:59:00";
 
 export const STORAGE_KEY = "arr_dashboard_content_v1";
+// Sync hardening: dirty flag and last-synced timestamp. The dirty flag is the
+// gate on "local wins" in loadAndHydratePreferredContent — without it, a stale
+// localStorage cache could still out-rank remote on raw timestamp and clobber
+// the DB. We only allow local to overwrite remote when there are genuinely
+// unflushed local edits (dirty=true). saveSerial protects against a race where
+// a save lands DURING a remote push — we only clear dirty if no further save
+// has happened since the push started.
+const DIRTY_KEY = "arr_dashboard_dirty_v1";
+const LAST_SYNCED_KEY = "arr_dashboard_last_synced_v1";
+let saveSerial = 0;
+
+function isDirty() {
+  try { return window.localStorage.getItem(DIRTY_KEY) === "1"; } catch { return false; }
+}
+
+export function getLastSyncedAt() {
+  try { return window.localStorage.getItem(LAST_SYNCED_KEY); } catch { return null; }
+}
 export const API_BASE_URL = (import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");
 export const SCHEMA_VERSION = 2;
 export const DEFAULT_PROJECT = {
@@ -707,6 +725,8 @@ function loadContent() {
 
 export function saveContent(nextContent) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextContent));
+  saveSerial += 1;
+  try { window.localStorage.setItem(DIRTY_KEY, "1"); } catch {}
 }
 
 function getApiUrl(path) {
@@ -729,6 +749,7 @@ async function fetchRemoteContent() {
 async function saveRemoteContent(nextContent) {
   if (!API_BASE_URL) return;
 
+  const pushSerial = saveSerial;
   const response = await fetch(getApiUrl("/api/content"), {
     method: "PUT",
     headers: {
@@ -739,6 +760,14 @@ async function saveRemoteContent(nextContent) {
 
   if (!response.ok) {
     throw new Error(`Failed to save content (${response.status})`);
+  }
+
+  // Record successful sync. Only clear the dirty flag if no further saveContent
+  // landed during the push — otherwise we'd drop a legitimate dirty mark for an
+  // in-flight edit that hasn't been pushed yet.
+  try { window.localStorage.setItem(LAST_SYNCED_KEY, new Date().toISOString()); } catch {}
+  if (pushSerial === saveSerial) {
+    try { window.localStorage.removeItem(DIRTY_KEY); } catch {}
   }
 }
 
@@ -1043,11 +1072,13 @@ export async function loadAndHydratePreferredContent() {
       return rolledRemote;
     }
 
-    // Compare: use whichever has more recent data
+    // "Local wins" only when there are genuinely unflushed local edits (dirty
+    // flag set this session). Without the dirty gate, a stale localStorage cache
+    // could still out-rank remote on raw task-timestamp and clobber the DB.
     const localTs = getLatestTaskTimestamp(local);
     const remoteTs = getLatestTaskTimestamp(rolledRemote);
 
-    if (localTs > remoteTs) {
+    if (isDirty() && localTs > remoteTs) {
       // Local tasks are newer (recent edit not yet flushed to remote).
       // Take local's task data, but ALWAYS trust remote for config fields
       // (title, dates, phase, projects, pomodoro settings) — otherwise a stale

@@ -6,7 +6,35 @@ import {
   formatPriority,
   formatRecurrence,
   RECURRENCE_TYPES,
+  getLastSyncedAt,
 } from "../../utils/taskUtils.js";
+
+// Small "synced Xm ago" indicator near the save bar. Reads localStorage on a
+// 15s interval — set when saveRemoteContent succeeds. Goes red if the last
+// successful push was >30 min ago so the user notices broken sync.
+function SyncIndicator() {
+  const [iso, setIso] = useState(() => getLastSyncedAt());
+  useEffect(() => {
+    const id = setInterval(() => setIso(getLastSyncedAt()), 15000);
+    return () => clearInterval(id);
+  }, []);
+  if (!iso) return <span className="tp-sync-indicator">not synced yet</span>;
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  let label;
+  if (mins < 1) label = "just now";
+  else if (mins < 60) label = `${mins}m ago`;
+  else if (mins < 60 * 24) label = `${Math.floor(mins / 60)}h ago`;
+  else label = `${Math.floor(mins / 60 / 24)}d ago`;
+  const stale = mins > 30;
+  return (
+    <span
+      className={`tp-sync-indicator${stale ? " is-stale" : ""}`}
+      title={`Last successful sync: ${new Date(iso).toLocaleString()}`}
+    >
+      synced {label}
+    </span>
+  );
+}
 import { useTasks } from "../../hooks/useTasks.js";
 import { usePomodoro } from "../../hooks/usePomodoro.js";
 import { useTimer } from "../../hooks/useTimer.js";
@@ -315,7 +343,10 @@ export default function TodoPage() {
           />
 
           <form className="tp-save-bar" onSubmit={handleSave}>
-            <span className="tp-save-status">{status}</span>
+            <div className="tp-save-status-group">
+              <span className="tp-save-status">{status}</span>
+              <SyncIndicator />
+            </div>
             <button type="submit" className="tp-btn">Save</button>
           </form>
         </div>
