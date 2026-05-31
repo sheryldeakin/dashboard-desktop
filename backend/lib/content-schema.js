@@ -1,4 +1,10 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
+// v3 adds the top-level `workSessions` array — unified work-time log spanning
+// both task-timer sessions (source: "task_timer") and external assistant
+// sessions (source: "claude_code", etc.). Backfilled lazily: until the
+// task.timer.sessions → workSessions eager migration ships, the stats page
+// computes task_timer totals directly from task.timer.sessions, and only
+// claude_code entries land in workSessions. See memory/workSessions-migration-deferred.md.
 
 const DEFAULT_PROJECT = {
   id: "project-inbox",
@@ -453,6 +459,65 @@ function normalizePomodoro(value) {
   };
 }
 
+const WORK_SESSION_SOURCES = new Set(["task_timer", "claude_code", "claude_web"]);
+const MAX_WORK_SESSIONS = 10000; // generous cap; ~30 sessions/day for a year
+
+function normalizeWorkSessionRecord(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const startedAt =
+    typeof entry.startedAt === "string" && parseIsoMs(entry.startedAt) !== null
+      ? entry.startedAt
+      : null;
+  if (!startedAt) return null;
+  const endedAt =
+    typeof entry.endedAt === "string" && parseIsoMs(entry.endedAt) !== null
+      ? entry.endedAt
+      : startedAt;
+  const activeMs =
+    typeof entry.activeMs === "number" && Number.isFinite(entry.activeMs) && entry.activeMs >= 0
+      ? Math.floor(entry.activeMs)
+      : Math.max(0, (parseIsoMs(endedAt) ?? 0) - (parseIsoMs(startedAt) ?? 0));
+  const messageCount =
+    typeof entry.messageCount === "number" && Number.isFinite(entry.messageCount) && entry.messageCount >= 0
+      ? Math.floor(entry.messageCount)
+      : 0;
+  const source =
+    typeof entry.source === "string" && WORK_SESSION_SOURCES.has(entry.source)
+      ? entry.source
+      : "unknown";
+  return {
+    id: typeof entry.id === "string" && entry.id ? entry.id : newId("ws"),
+    source,
+    projectId: typeof entry.projectId === "string" ? entry.projectId : "",
+    tags: Array.isArray(entry.tags)
+      ? entry.tags.filter((t) => typeof t === "string" && t).map((t) => t.toLowerCase()).slice(0, MAX_TAGS_PER_TASK)
+      : [],
+    startedAt,
+    endedAt,
+    activeMs,
+    messageCount,
+    transcriptId: typeof entry.transcriptId === "string" ? entry.transcriptId : "",
+    cwd: typeof entry.cwd === "string" ? entry.cwd : "",
+    taskId: typeof entry.taskId === "string" ? entry.taskId : "",
+  };
+}
+
+function normalizeWorkSessions(value) {
+  if (!Array.isArray(value)) return [];
+  // Dedupe by id; cap at MAX; newest first (by startedAt desc).
+  const seen = new Set();
+  const out = [];
+  for (const e of value) {
+    const n = normalizeWorkSessionRecord(e);
+    if (!n) continue;
+    if (seen.has(n.id)) continue;
+    seen.add(n.id);
+    out.push(n);
+  }
+  out.sort((a, b) => (parseIsoMs(b.startedAt) ?? 0) - (parseIsoMs(a.startedAt) ?? 0));
+  return out.slice(0, MAX_WORK_SESSIONS);
+}
+
 export function createDefaultContent() {
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -474,6 +539,7 @@ export function createDefaultContent() {
     todaysTasksDate: getTodayKey(),
     taskHistory: [],
     pomodoro: createDefaultPomodoro(),
+    workSessions: [],
   };
 }
 
@@ -499,6 +565,7 @@ export function normalizeContentRecord(record) {
     todaysTasksDate: parseDateKey(record.todaysTasksDate) || getTodayKey(),
     taskHistory: normalizeHistory(record.taskHistory, defaultProjectId),
     pomodoro: normalizePomodoro(record.pomodoro),
+    workSessions: normalizeWorkSessions(record.workSessions),
   };
 }
 
@@ -508,5 +575,6 @@ export function isContentPayload(payload) {
   if (!Array.isArray(payload.todaysTasks) && typeof payload.todaysTask !== "string") return false;
   if (payload.taskHistory !== undefined && !Array.isArray(payload.taskHistory)) return false;
   if (payload.projects !== undefined && !Array.isArray(payload.projects)) return false;
+  if (payload.workSessions !== undefined && !Array.isArray(payload.workSessions)) return false;
   return true;
 }
