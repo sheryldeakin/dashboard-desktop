@@ -4159,3 +4159,140 @@ button:focus-visible {
   margin: 6px 0;
   line-height: 1.5;
 }
+
+/* ----- /stats tabs ----- */
+
+.stats-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 16px 0 24px;
+  border-bottom: 1px solid rgba(182, 139, 97, 0.22);
+}
+
+.stats-tab {
+  border: none;
+  background: transparent;
+  padding: 9px 16px;
+  font-size: 13px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 120ms, border-color 120ms;
+}
+
+.stats-tab:hover {
+  color: var(--ink);
+}
+
+.stats-tab.is-active {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom-color: #8a6940;
+}
+
+.stats-tab-body {
+  /* container */
+}
+
+/* Two-tone daily chart segments (task = tan/brown bottom, Claude outside = slate top) */
+.stats-daily-stack {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.stats-daily-bar-task {
+  background: linear-gradient(180deg, #b68b61, #8a6940);
+  border-radius: 0 0 0 0;
+}
+
+.stats-daily-bar-claude {
+  background: linear-gradient(180deg, #6a7b8c, #4a5a70);
+  border-radius: 3px 3px 0 0;
+}
+
+/* When today's column is active, both segments shift to greener tones */
+.stats-daily-col.is-today .stats-daily-bar-task {
+  background: linear-gradient(180deg, #5a7e5f, #3d5d42);
+}
+
+.stats-daily-col.is-today .stats-daily-bar-claude {
+  background: linear-gradient(180deg, #7a9a7f, #5d7d62);
+}
+
+.stats-swatch-task { background: #8a6940; }
+.stats-swatch-claude { background: #4a5a70; }
+
+/* Claude tab: per-project rows with multi-line right-side metadata */
+.stats-breakdown-row-2line .stats-breakdown-value {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.stats-breakdown-sub {
+  color: var(--ink-muted);
+  font-size: 10px;
+}
+
+.stats-assist-pct {
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+/* Recent Claude sessions list */
+.stats-session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-session-row {
+  display: grid;
+  grid-template-columns: 110px 110px 1fr 70px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.stats-session-row:hover {
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.stats-session-time {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-session-proj {
+  font-weight: 600;
+}
+
+.stats-session-tags {
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-session-dur {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.stats-session-meta {
+  color: var(--ink-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
