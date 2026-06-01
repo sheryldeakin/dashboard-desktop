@@ -4296,3 +4296,210 @@ button:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Triage banner (Overview tab) — hidden when count == 0 */
+.stats-triage-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  margin-bottom: 18px;
+  background: rgba(196, 92, 74, 0.1);
+  border: 1px solid rgba(196, 92, 74, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.stats-triage-text strong { font-weight: 700; }
+.stats-triage-sub { color: var(--ink-muted); font-size: 12px; }
+.stats-triage-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(196, 92, 74, 0.4);
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  cursor: pointer;
+}
+.stats-triage-btn:disabled { cursor: default; opacity: 0.55; }
+
+/* Per-project grid cards (Overview tab) */
+.stats-pcard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.stats-pcard {
+  border: 1px solid rgba(182, 139, 97, 0.22);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stats-pcard-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stats-pcard-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.stats-pcard-total {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.stats-pcard-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.stats-pcard-bar-row {
+  display: grid;
+  grid-template-columns: 78px 1fr 100px;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.stats-pcard-bar-label {
+  color: var(--ink-muted);
+}
+
+.stats-pcard-bar-track {
+  height: 10px;
+  background: rgba(182, 139, 97, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stats-pcard-bar {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.stats-pcard-bar-task { background: linear-gradient(90deg, #b68b61, #8a6940); }
+.stats-pcard-bar-claude { background: linear-gradient(90deg, #6a7b8c, #4a5a70); }
+.stats-pcard-bar-both { background: linear-gradient(90deg, #7a9a7f, #5d7d62); }
+
+.stats-pcard-bar-val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.stats-pcard-bar-sub {
+  color: var(--ink-muted);
+  font-size: 10px;
+}
+
+.stats-pcard-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--ink-muted);
+  padding-top: 4px;
+  border-top: 1px dashed rgba(182, 139, 97, 0.18);
+}
+
+.stats-pcard-foot strong { color: var(--ink); font-weight: 600; }
+.stats-pcard-last { margin-left: auto; }
+
+/* Hour-of-day heatmap */
+.stats-heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stats-heatmap-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.stats-heatmap-select {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(182, 139, 97, 0.3);
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.stats-heatmap-period {
+  display: inline-flex;
+  border: 1px solid rgba(182, 139, 97, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.stats-heatmap-period-btn {
+  padding: 5px 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--ink-muted);
+  border-right: 1px solid rgba(182, 139, 97, 0.18);
+}
+.stats-heatmap-period-btn:last-child { border-right: none; }
+.stats-heatmap-period-btn.is-active {
+  background: rgba(138, 105, 64, 0.18);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.stats-heatmap-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stats-heatmap-row {
+  display: grid;
+  grid-template-columns: 36px repeat(24, 1fr);
+  gap: 2px;
+  align-items: center;
+}
+
+.stats-heatmap-row-hdr .stats-heatmap-hour-label {
+  font-size: 9px;
+  color: var(--ink-muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-heatmap-dow {
+  font-size: 10px;
+  color: var(--ink-muted);
+  text-align: right;
+  padding-right: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-heatmap-cell {
+  display: block;
+  aspect-ratio: 1 / 1;
+  min-height: 18px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.04);
+  transition: filter 100ms;
+}
+
+.stats-heatmap-cell:hover {
+  outline: 1px solid rgba(138, 105, 64, 0.5);
+  filter: brightness(1.1);
+}

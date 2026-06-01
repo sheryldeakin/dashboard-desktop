@@ -295,6 +295,45 @@ function computeStats(content) {
       }),
     }));
 
+  // Per-project rollup for the grid-card view on Overview. One row per project
+  // that has any activity (task_timer OR claude). combinedMs uses the no-double-
+  // count formula (task absorbing concurrent claude + claude-outside).
+  const cardMap = new Map();
+  function slot(pid) {
+    if (!cardMap.has(pid)) {
+      cardMap.set(pid, {
+        projectId: pid,
+        taskMs: 0, claudeMs: 0, absorbedMs: 0, claudeOutsideMs: 0,
+        taskSessions: 0, claudeSessions: 0,
+        lastActivityMs: 0, lastActivitySource: null,
+      });
+    }
+    return cardMap.get(pid);
+  }
+  for (const t of taskTimer) {
+    const s = slot(t.projectId);
+    s.taskMs += t.durationMs;
+    s.taskSessions += 1;
+    if (t.end > s.lastActivityMs) { s.lastActivityMs = t.end; s.lastActivitySource = "task"; }
+  }
+  for (const c of claude) {
+    const s = slot(c.projectId);
+    s.claudeMs += c.durationMs;
+    s.absorbedMs += c.absorbedMs;
+    s.claudeOutsideMs += c.outsideMs;
+    s.claudeSessions += 1;
+    if (c.end > s.lastActivityMs) { s.lastActivityMs = c.end; s.lastActivitySource = "claude"; }
+  }
+  const projectCards = [...cardMap.values()]
+    .map((s) => ({
+      ...s,
+      projectName: projectName.get(s.projectId) || "Unknown",
+      combinedMs: s.taskMs + s.claudeOutsideMs,
+      assistPct: s.taskMs > 0 ? Math.round((s.absorbedMs / s.taskMs) * 100) : null,
+    }))
+    .filter((s) => s.combinedMs > 0 || s.claudeMs > 0)
+    .sort((a, b) => b.combinedMs + b.claudeMs - (a.combinedMs + a.claudeMs));
+
   return {
     today, week, all,
     currentStreak,
@@ -307,6 +346,12 @@ function computeStats(content) {
     recentClaude,
     taskHistoryCount: (content.taskHistory || []).length,
     tasksOpen: tasks.filter((t) => !t.done).length,
+    // Raw intervals + project list — passed to HeatmapGrid so it can re-bucket
+    // based on its own filter/period state without re-running computeStats.
+    taskTimer,
+    claude,
+    projects: [...projectName.entries()].map(([id, name]) => ({ id, name })),
+    projectCards,
   };
 }
 
@@ -458,11 +503,249 @@ function RecentClaudeList({ rows }) {
   );
 }
 
+/* ── Heatmap (Overview tab) ── */
+
+const HEATMAP_PERIODS = [
+  { id: "4w", label: "4 weeks", weeks: 4 },
+  { id: "8w", label: "8 weeks", weeks: 8 },
+  { id: "12w", label: "12 weeks", weeks: 12 },
+];
+const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function buildHeatmapGrid(taskTimer, claude, periodWeeks, projectId) {
+  const cutoff = Date.now() - periodWeeks * 7 * MS_PER_DAY;
+  const grid = Array.from({ length: 7 }, () =>
+    Array.from({ length: 24 }, () => ({ taskMs: 0, claudeOutsideMs: 0 }))
+  );
+
+  // Distribute a session's contribution across the hour cells it spans.
+  // factor lets us scale (used for Claude's outsideMs which is < durationMs).
+  function distribute(startMs, endMs, totalMs, key) {
+    if (endMs <= startMs || totalMs <= 0) return;
+    const wallMs = endMs - startMs;
+    const factor = totalMs / wallMs;
+    let cursor = startMs;
+    while (cursor < endMs) {
+      const d = new Date(cursor);
+      const dow = d.getDay();
+      const hr = d.getHours();
+      const nextBoundary = new Date(
+        d.getFullYear(), d.getMonth(), d.getDate(), hr + 1, 0, 0
+      ).getTime();
+      const segEnd = Math.min(endMs, nextBoundary);
+      grid[dow][hr][key] += (segEnd - cursor) * factor;
+      cursor = segEnd;
+    }
+  }
+
+  for (const t of taskTimer) {
+    if (t.start < cutoff) continue;
+    if (projectId !== "all" && t.projectId !== projectId) continue;
+    distribute(t.start, t.end, t.durationMs, "taskMs");
+  }
+  for (const c of claude) {
+    if (c.start < cutoff) continue;
+    if (projectId !== "all" && c.projectId !== projectId) continue;
+    if (c.outsideMs <= 0) continue;
+    distribute(c.start, c.end, c.outsideMs, "claudeOutsideMs");
+  }
+
+  let max = 0;
+  for (const row of grid) for (const cell of row) {
+    const total = cell.taskMs + cell.claudeOutsideMs;
+    if (total > max) max = total;
+  }
+  return { grid, max };
+}
+
+function HeatmapGrid({ stats }) {
+  const [period, setPeriod] = useState("8w");
+  const [projectId, setProjectId] = useState("all");
+  const weeks = HEATMAP_PERIODS.find((p) => p.id === period)?.weeks || 8;
+  const { grid, max } = useMemo(
+    () => buildHeatmapGrid(stats.taskTimer, stats.claude, weeks, projectId),
+    [stats.taskTimer, stats.claude, weeks, projectId]
+  );
+  const projectOptions = useMemo(
+    () => [{ id: "all", name: "All projects" }, ...stats.projects],
+    [stats.projects]
+  );
+
+  return (
+    <div className="stats-heatmap">
+      <div className="stats-heatmap-controls">
+        <select
+          className="stats-heatmap-select"
+          value={projectId}
+          onChange={(e) => setProjectId(e.target.value)}
+        >
+          {projectOptions.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+        <div className="stats-heatmap-period">
+          {HEATMAP_PERIODS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`stats-heatmap-period-btn${period === p.id ? " is-active" : ""}`}
+              onClick={() => setPeriod(p.id)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {max === 0 ? (
+        <p className="stats-empty">No activity in this window.</p>
+      ) : (
+        <div className="stats-heatmap-table">
+          <div className="stats-heatmap-row stats-heatmap-row-hdr">
+            <span className="stats-heatmap-dow" />
+            {Array.from({ length: 24 }, (_, h) => (
+              <span key={h} className="stats-heatmap-hour-label">
+                {h % 3 === 0 ? h : ""}
+              </span>
+            ))}
+          </div>
+          {grid.map((row, dow) => (
+            <div key={dow} className="stats-heatmap-row">
+              <span className="stats-heatmap-dow">{DOW_LABELS[dow]}</span>
+              {row.map((cell, hr) => {
+                const total = cell.taskMs + cell.claudeOutsideMs;
+                const intensity = total / max;
+                const taskShare = total > 0 ? cell.taskMs / total : 0;
+                // Two-channel cell: tan (task) on bottom + slate (claude) on top,
+                // each weighted by share of total. Total opacity scales with intensity.
+                const bg = total === 0
+                  ? "rgba(0,0,0,0.04)"
+                  : `linear-gradient(180deg, rgba(74,90,112,${0.18 + 0.78 * intensity * (1 - taskShare)}) ${(1 - taskShare) * 100}%, rgba(138,105,64,${0.18 + 0.78 * intensity * taskShare}) ${(1 - taskShare) * 100}%)`;
+                const tooltip = total === 0
+                  ? `${DOW_LABELS[dow]} ${hr}:00 — no activity`
+                  : `${DOW_LABELS[dow]} ${hr}:00 — ${fmtDuration(total)} total
+  Task timer: ${fmtDuration(cell.taskMs)}
+  Claude outside: ${fmtDuration(cell.claudeOutsideMs)}`;
+                return (
+                  <span
+                    key={hr}
+                    className="stats-heatmap-cell"
+                    style={{ background: bg }}
+                    title={tooltip}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="stats-footnote">
+        Hour-of-day intensity ({weeks} weeks). Each cell:{" "}
+        <span className="stats-swatch stats-swatch-task" /> task timer +{" "}
+        <span className="stats-swatch stats-swatch-claude" /> Claude outside (stacked, intensity scaled to busiest cell).
+        Hover for the breakdown.
+      </p>
+    </div>
+  );
+}
+
+/* ── Per-project grid cards (Overview tab) ── */
+
+function ProjectGridCard({ card }) {
+  const maxBarMs = Math.max(card.taskMs, card.claudeMs, 1);
+  const taskPct = (card.taskMs / maxBarMs) * 100;
+  const claudePct = (card.claudeMs / maxBarMs) * 100;
+  const bothPct = (card.absorbedMs / maxBarMs) * 100;
+  const lastDelta = card.lastActivityMs ? Date.now() - card.lastActivityMs : null;
+  let lastAgo = "—";
+  if (lastDelta !== null) {
+    const m = Math.floor(lastDelta / MS_PER_MIN);
+    if (m < 1) lastAgo = "just now";
+    else if (m < 60) lastAgo = `${m}m ago`;
+    else if (m < 60 * 24) lastAgo = `${Math.floor(m / 60)}h ago`;
+    else lastAgo = `${Math.floor(m / (60 * 24))}d ago`;
+  }
+  return (
+    <div className="stats-pcard">
+      <div className="stats-pcard-head">
+        <span className="stats-pcard-name">{card.projectName}</span>
+        <span className="stats-pcard-total">{fmtDuration(card.combinedMs)}</span>
+      </div>
+      <div className="stats-pcard-bars">
+        <div className="stats-pcard-bar-row">
+          <span className="stats-pcard-bar-label">Task timer</span>
+          <div className="stats-pcard-bar-track">
+            <div className="stats-pcard-bar stats-pcard-bar-task" style={{ width: `${taskPct}%` }} />
+          </div>
+          <span className="stats-pcard-bar-val">
+            {fmtDuration(card.taskMs)} <span className="stats-pcard-bar-sub">({card.taskSessions} ses)</span>
+          </span>
+        </div>
+        <div className="stats-pcard-bar-row">
+          <span className="stats-pcard-bar-label">Claude</span>
+          <div className="stats-pcard-bar-track">
+            <div className="stats-pcard-bar stats-pcard-bar-claude" style={{ width: `${claudePct}%` }} />
+          </div>
+          <span className="stats-pcard-bar-val">
+            {fmtDuration(card.claudeMs)} <span className="stats-pcard-bar-sub">({card.claudeSessions} ses)</span>
+          </span>
+        </div>
+        {card.absorbedMs > 0 && (
+          <div className="stats-pcard-bar-row">
+            <span className="stats-pcard-bar-label">Both</span>
+            <div className="stats-pcard-bar-track">
+              <div className="stats-pcard-bar stats-pcard-bar-both" style={{ width: `${bothPct}%` }} />
+            </div>
+            <span className="stats-pcard-bar-val">{fmtDuration(card.absorbedMs)}</span>
+          </div>
+        )}
+      </div>
+      <div className="stats-pcard-foot">
+        <span>Combined: <strong>{fmtDuration(card.combinedMs)}</strong></span>
+        {card.assistPct !== null && (
+          <span>{card.assistPct}% AI-assisted</span>
+        )}
+        <span className="stats-pcard-last">
+          last {card.lastActivitySource === "claude" ? "Claude" : "task"}: {lastAgo}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ProjectGrid({ cards }) {
+  if (!cards.length) return <p className="stats-empty">No project activity yet.</p>;
+  return (
+    <div className="stats-pcard-grid">
+      {cards.map((c) => <ProjectGridCard key={c.projectId} card={c} />)}
+    </div>
+  );
+}
+
+/* ── Triage banner (currently always-hidden — count is 0 until the importer
+       starts pushing triage entries to the backend). ── */
+
+function TriageBanner({ count }) {
+  if (!count) return null;
+  return (
+    <div className="stats-triage-banner">
+      <div className="stats-triage-text">
+        <strong>{count}</strong> Claude session{count === 1 ? "" : "s"} need triage
+        <span className="stats-triage-sub">{" "}— couldn't auto-attribute to a project.</span>
+      </div>
+      <button type="button" className="stats-triage-btn" disabled>
+        Triage queue (coming soon)
+      </button>
+    </div>
+  );
+}
+
 /* ── Tab views ── */
 
 function OverviewTab({ stats }) {
   return (
     <>
+      <TriageBanner count={stats.triageCount || 0} />
+
       <section className="stats-cards">
         {[["Today", stats.today], ["This week", stats.week], ["All-time", stats.all]].map(([label, r]) => (
           <Card key={label} label={label}>
@@ -481,6 +764,16 @@ function OverviewTab({ stats }) {
           {"  "}
           <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer
         </p>
+      </section>
+
+      <section className="stats-section">
+        <h2>By project</h2>
+        <ProjectGrid cards={stats.projectCards} />
+      </section>
+
+      <section className="stats-section">
+        <h2>Hour-of-day heatmap</h2>
+        <HeatmapGrid stats={stats} />
       </section>
 
       <section className="stats-section">
