@@ -673,6 +673,11 @@ export default function HomePage() {
     patchContent({ todaysTasks, dailyTop3History: history });
   }
 
+  // Hook order: this MUST run on every render (Rules of Hooks). The default
+  // content from DEFAULT_CONTENT has scheduledTaskHeartbeats normalized, so
+  // the call is safe before the loaded-guard below.
+  const heartbeatRows = useHeartbeatRows(content.scheduledTaskHeartbeats);
+
   if (!loaded) {
     return (
       <main className="home-page">
@@ -680,8 +685,6 @@ export default function HomePage() {
       </main>
     );
   }
-
-  const heartbeatRows = useHeartbeatRows(content.scheduledTaskHeartbeats);
 
   return (
     <main className="home-page">
