@@ -294,22 +294,25 @@ function UpNextSection({ tasks, projects }) {
   );
 }
 
-/* ── Header ── */
+/* ── Header ──
+   Stable text anchor ("Today") + a single subhead line carrying the date
+   and (optionally) the deadline countdown as a small inline chip. */
 function HomeHeader({ content }) {
   const today = formatDateLong();
   const daysLeft = dayCountUntil(content.deadlineDate);
   const title = content.title || "submission";
   return (
     <header className="home-header">
-      <div className="home-header-main">
-        <div className="home-date">{today}</div>
+      <h1 className="home-page-title">Today</h1>
+      <div className="home-subhead">
+        <span>{today}</span>
         {daysLeft !== null && (
-          <div className="home-countdown">
-            <span className="home-countdown-num">{daysLeft}</span>
-            <span className="home-countdown-label">
-              {daysLeft === 1 ? "day" : "days"} to {title}
+          <>
+            <span className="home-subhead-sep" aria-hidden="true">·</span>
+            <span className="home-subhead-countdown">
+              <strong>{daysLeft}</strong> {daysLeft === 1 ? "day" : "days"} to {title}
             </span>
-          </div>
+          </>
         )}
       </div>
     </header>
