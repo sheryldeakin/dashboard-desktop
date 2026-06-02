@@ -4029,6 +4029,27 @@ button:focus-visible {
   gap: 4px;
 }
 
+/* Snapshot freshness pill — fixed bottom-right so it doesn't compete with
+   the header anchor. Stays out of the way until you need it. */
+.home-snapshot-fixed {
+  position: fixed;
+  bottom: 12px;
+  right: 16px;
+  z-index: 50;
+  padding: 4px 8px;
+  background: var(--paper-warm);
+  border: 1px solid rgba(var(--accent-tan-rgb), 0.18);
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0.7;
+  transition: opacity 150ms;
+}
+
+.home-snapshot-fixed:hover {
+  opacity: 1;
+}
+
 .stats-empty {
   color: var(--ink-muted);
   font-size: 13px;
@@ -4966,34 +4987,46 @@ button:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* Actions are inline text-links — calmer than a row of buttons; the row
+   itself already carries the "needs attention" weight via the left bar. */
 .home-unfinished-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.home-unf-btn {
-  padding: 4px 10px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   font-size: 11px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  background: rgba(255, 255, 255, 0.7);
-  color: var(--ink);
-  border-radius: 4px;
-  cursor: pointer;
+  color: var(--ink-muted);
+}
+
+.home-unf-action {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
   font-family: inherit;
-  transition: background 100ms;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 100ms;
 }
 
-.home-unf-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 1);
+.home-unf-action:hover:not(:disabled) {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.home-unf-btn:disabled {
+.home-unf-action:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.home-unf-btn-drop {
-  color: var(--ink-muted);
+.home-unf-action-drop:hover:not(:disabled) {
+  color: var(--accent-warn);
+}
+
+.home-unf-sep {
+  color: rgba(0, 0, 0, 0.25);
+  user-select: none;
 }
 
 .home-link-btn {
@@ -5069,6 +5102,22 @@ button:focus-visible {
 .home-upnext-prio {
   margin-right: 4px;
 }
+
+/* Small dot in place of priority emoji — semantic color, no glyph noise.
+   Sized so it sits at body-text baseline without shifting line height. */
+.home-prio-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: 1px;
+  background: rgba(var(--accent-tan-rgb), 0.4);
+}
+
+.home-prio-dot-high   { background: var(--accent-warn); }
+.home-prio-dot-medium { background: var(--accent-tan); }
+.home-prio-dot-low    { background: rgba(var(--accent-slate-rgb), 0.5); }
 
 .home-upnext-proj {
   font-size: 11px;

@@ -267,12 +267,21 @@ function UpNextSection({ tasks, projects }) {
                   : it.daysUntil === 1
                     ? "tomorrow"
                     : `in ${it.daysUntil} days`;
-          const prio =
-            it.priority === "high" ? "⏫" : it.priority === "medium" ? "🔼" : it.priority === "low" ? "🔽" : "";
+          const prioLabel =
+            it.priority === "high" ? "high priority"
+            : it.priority === "medium" ? "medium priority"
+            : it.priority === "low" ? "low priority"
+            : null;
           return (
             <li key={it.id} className={`home-upnext-row${overdue ? " is-overdue" : ""}`}>
               <span className="home-upnext-text">
-                {prio && <span className="home-upnext-prio">{prio}</span>}
+                {prioLabel && (
+                  <span
+                    className={`home-prio-dot home-prio-dot-${it.priority}`}
+                    title={prioLabel}
+                    aria-label={prioLabel}
+                  />
+                )}
                 {it.text}
               </span>
               <span className="home-upnext-proj">{it.projectName}</span>
@@ -286,21 +295,10 @@ function UpNextSection({ tasks, projects }) {
 }
 
 /* ── Header ── */
-function HomeHeader({ content, loadedAtMs }) {
+function HomeHeader({ content }) {
   const today = formatDateLong();
   const daysLeft = dayCountUntil(content.deadlineDate);
   const title = content.title || "submission";
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, []);
-  const loadedMin = Math.floor((now - loadedAtMs) / 60000);
-  const rel =
-    loadedMin < 1 ? "just now"
-    : loadedMin < 60 ? `${loadedMin}m ago`
-    : loadedMin < 60 * 24 ? `${Math.floor(loadedMin / 60)}h ago`
-    : `${Math.floor(loadedMin / 60 / 24)}d ago`;
   return (
     <header className="home-header">
       <div className="home-header-main">
@@ -314,18 +312,36 @@ function HomeHeader({ content, loadedAtMs }) {
           </div>
         )}
       </div>
-      <div className="home-snapshot">
-        <span className="home-snapshot-label">Loaded {rel}</span>
-        <button
-          type="button"
-          className="home-snapshot-refresh"
-          onClick={() => window.location.reload()}
-          title="Reload to fetch the latest data"
-        >
-          ↻ refresh
-        </button>
-      </div>
     </header>
+  );
+}
+
+/* ── Snapshot pill — fixed bottom-right so it doesn't fight the header anchor.
+   Stays available, but quiet. ── */
+function SnapshotPill({ loadedAtMs }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  const loadedMin = Math.floor((now - loadedAtMs) / 60000);
+  const rel =
+    loadedMin < 1 ? "just now"
+    : loadedMin < 60 ? `${loadedMin}m ago`
+    : loadedMin < 60 * 24 ? `${Math.floor(loadedMin / 60)}h ago`
+    : `${Math.floor(loadedMin / 60 / 24)}d ago`;
+  return (
+    <div className="home-snapshot home-snapshot-fixed">
+      <span className="home-snapshot-label">Loaded {rel}</span>
+      <button
+        type="button"
+        className="home-snapshot-refresh"
+        onClick={() => window.location.reload()}
+        title="Reload to fetch the latest data"
+      >
+        ↻ refresh
+      </button>
+    </div>
   );
 }
 
@@ -422,41 +438,44 @@ function UnfinishedSection({
       <li key={`${dayDate}-${item.slotIdx}`} className="home-unfinished-row">
         <span className="home-unfinished-text">{item.text}</span>
         {dayLabel && <span className="home-unfinished-date">{dayLabel}</span>}
-        <div className="home-unfinished-actions">
+        <span className="home-unfinished-actions">
           <button
             type="button"
-            className="home-unf-btn"
+            className="home-unf-action"
             disabled={!hasEmptySlotToday}
             onClick={() => onCarry(dayDate, item.slotIdx)}
             title={hasEmptySlotToday ? "Move to today's first empty Top 3 slot" : "All today's slots are filled"}
           >
-            Carry
+            carry
           </button>
+          <span className="home-unf-sep" aria-hidden="true">·</span>
           <button
             type="button"
-            className="home-unf-btn"
+            className="home-unf-action"
             onClick={() => onDone(dayDate, item.slotIdx)}
             title="Mark done (app-only; doesn't rewrite yesterday's daily note)"
           >
-            Done
+            done
           </button>
+          <span className="home-unf-sep" aria-hidden="true">·</span>
           <button
             type="button"
-            className="home-unf-btn"
+            className="home-unf-action"
             onClick={() => onPromote(dayDate, item.slotIdx)}
             title="Promote to a regular task in your task list"
           >
-            Promote
+            promote
           </button>
+          <span className="home-unf-sep" aria-hidden="true">·</span>
           <button
             type="button"
-            className="home-unf-btn home-unf-btn-drop"
+            className="home-unf-action home-unf-action-drop"
             onClick={() => onDrop(dayDate, item.slotIdx)}
             title="Drop — not done, not carried forward"
           >
-            Drop
+            drop
           </button>
-        </div>
+        </span>
       </li>
     );
   }
@@ -653,7 +672,7 @@ export default function HomePage() {
 
   return (
     <main className="home-page">
-      <HomeHeader content={content} loadedAtMs={loadedAtMs} />
+      <HomeHeader content={content} />
 
       <Top3Editor dailyTop3={content.dailyTop3} onSlotChange={updateSlot} />
 
@@ -676,6 +695,8 @@ export default function HomePage() {
         Top 3 syncs to today's daily note <code>## Top 3</code> section every 5 min via
         <code> sync-top3.py</code>. Resume / start surface coming next.
       </p>
+
+      <SnapshotPill loadedAtMs={loadedAtMs} />
     </main>
   );
 }
