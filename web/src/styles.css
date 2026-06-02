@@ -4787,12 +4787,11 @@ button:focus-visible {
   min-width: 0;
 }
 
-/* Rail card — quiet container; no border, soft hairline divider only
-   between the title and the body. Pro-todo apps lean on whitespace, not
-   borders, to group rail items. */
+/* Rail card — same hairline-divider pattern as main sections so the page
+   reads cohesively across columns. */
 .home-rail-card {
-  padding: 12px 0;
-  border-top: 1px solid var(--rule-soft);
+  padding: 16px 0 0;
+  border-top: 1px solid var(--rule);
 }
 
 .home-rail-card:first-child {
@@ -4903,8 +4902,19 @@ button:focus-visible {
   color: var(--ink-muted);
 }
 
+/* Sections get a hairline top divider so they read as belonging to one
+   page instead of floating in space. First section has no divider — the
+   header takes that role. */
 .home-section {
-  margin-bottom: 32px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+}
+
+.home-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 /* SaaS-style section label — uppercase, tracked, muted. Conveys structure
