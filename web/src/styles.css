@@ -4503,3 +4503,167 @@ button:focus-visible {
   outline: 1px solid rgba(138, 105, 64, 0.5);
   filter: brightness(1.1);
 }
+
+/* ----- Today tab ----- */
+
+.stats-hourbar {
+  width: 100%;
+}
+
+.stats-hourbar-row {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 3px;
+}
+
+.stats-hourbar-cell {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 56px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.stats-hourbar-cell.stats-hourbar-cell-active:hover {
+  outline: 1px solid rgba(138, 105, 64, 0.5);
+  filter: brightness(1.08);
+}
+
+.stats-hourbar-label {
+  font-size: 10px;
+  color: var(--ink-muted);
+  padding-bottom: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-hourbar-cell-active .stats-hourbar-label {
+  color: var(--ink);
+}
+
+/* Today: project rows */
+.stats-today-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stats-today-project-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 130px;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.stats-today-project-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.stats-today-project-track {
+  height: 16px;
+  background: rgba(182, 139, 97, 0.1);
+  border-radius: 4px;
+  display: flex;
+  overflow: hidden;
+}
+
+.stats-today-project-bar {
+  height: 100%;
+}
+
+.stats-today-project-bar-task {
+  background: linear-gradient(90deg, #b68b61, #8a6940);
+}
+
+.stats-today-project-bar-claude {
+  background: linear-gradient(90deg, #6a7b8c, #4a5a70);
+}
+
+.stats-today-project-val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+/* Today: chronological sessions list */
+.stats-today-session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-today-session-row {
+  display: grid;
+  grid-template-columns: 110px 80px 130px 1fr 70px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.stats-today-session-row:hover {
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.stats-today-session-time {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-today-session-source {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.stats-today-session-source.is-task {
+  background: rgba(138, 105, 64, 0.18);
+  color: #6a4f30;
+}
+
+.stats-today-session-source.is-claude {
+  background: rgba(74, 90, 112, 0.18);
+  color: #3a4a60;
+}
+
+.stats-today-session-proj {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-today-session-tags {
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-today-session-dur {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.stats-today-session-meta {
+  color: var(--ink-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

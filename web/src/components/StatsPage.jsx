@@ -793,6 +793,283 @@ function OverviewTab({ stats }) {
   );
 }
 
+function buildTodayData(stats) {
+  const todayStart = todayStartMs();
+  const todayEnd = todayStart + MS_PER_DAY;
+  const yStart = todayStart - MS_PER_DAY;
+
+  const tt = stats.taskTimer.filter((t) => t.start >= todayStart && t.start < todayEnd);
+  const cc = stats.claude.filter((c) => c.start >= todayStart && c.start < todayEnd);
+  const ttY = stats.taskTimer.filter((t) => t.start >= yStart && t.start < todayStart);
+  const ccY = stats.claude.filter((c) => c.start >= yStart && c.start < todayStart);
+
+  const taskMs = tt.reduce((s, t) => s + t.durationMs, 0);
+  const claudeMs = cc.reduce((s, c) => s + c.durationMs, 0);
+  const claudeOutsideMs = cc.reduce((s, c) => s + c.outsideMs, 0);
+  const deepMs = taskMs + claudeOutsideMs;
+  const absorbedMs = cc.reduce((s, c) => s + c.absorbedMs, 0);
+
+  const yTaskMs = ttY.reduce((s, t) => s + t.durationMs, 0);
+  const yClaudeOutsideMs = ccY.reduce((s, c) => s + c.outsideMs, 0);
+  const yDeepMs = yTaskMs + yClaudeOutsideMs;
+
+  // Hour-by-hour today: a 24-element row of {taskMs, claudeOutsideMs}. We split
+  // sessions across hour boundaries with the same proportional-interval slicing
+  // the heatmap uses, so a 14:50–15:20 session credits the right hours.
+  const hours = Array.from({ length: 24 }, () => ({ taskMs: 0, claudeOutsideMs: 0 }));
+  function distribute(startMs, endMs, totalMs, key) {
+    if (endMs <= startMs || totalMs <= 0) return;
+    const factor = totalMs / (endMs - startMs);
+    let cursor = Math.max(startMs, todayStart);
+    const stop = Math.min(endMs, todayEnd);
+    while (cursor < stop) {
+      const d = new Date(cursor);
+      const hr = d.getHours();
+      const next = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hr + 1, 0, 0).getTime();
+      const segEnd = Math.min(stop, next);
+      hours[hr][key] += (segEnd - cursor) * factor;
+      cursor = segEnd;
+    }
+  }
+  for (const t of tt) distribute(t.start, t.end, t.durationMs, "taskMs");
+  for (const c of cc) if (c.outsideMs > 0) distribute(c.start, c.end, c.outsideMs, "claudeOutsideMs");
+  const hoursMax = Math.max(1, ...hours.map((h) => h.taskMs + h.claudeOutsideMs));
+
+  // Per-project today
+  const projectName = new Map(stats.projects.map((p) => [p.id, p.name]));
+  const byProjMap = new Map();
+  const projSlot = (pid) => {
+    if (!byProjMap.has(pid)) byProjMap.set(pid, { taskMs: 0, claudeMs: 0, absorbedMs: 0, sessions: 0 });
+    return byProjMap.get(pid);
+  };
+  for (const t of tt) { const s = projSlot(t.projectId); s.taskMs += t.durationMs; s.sessions += 1; }
+  for (const c of cc) { const s = projSlot(c.projectId); s.claudeMs += c.durationMs; s.absorbedMs += c.absorbedMs; s.sessions += 1; }
+  const byProject = [...byProjMap.entries()]
+    .map(([pid, x]) => ({
+      label: projectName.get(pid) || "Unknown",
+      taskMs: x.taskMs,
+      claudeMs: x.claudeMs,
+      claudeOutsideMs: x.claudeMs - x.absorbedMs,
+      combinedMs: x.taskMs + (x.claudeMs - x.absorbedMs),
+      sessions: x.sessions,
+    }))
+    .sort((a, b) => b.combinedMs - a.combinedMs);
+
+  // Chronological session list (task + claude interleaved)
+  const sessions = [];
+  for (const t of tt) sessions.push({
+    type: "task",
+    start: t.start, end: t.end, durationMs: t.durationMs,
+    projectName: projectName.get(t.projectId) || "Unknown",
+    tags: t.tags || [],
+    msgs: 0,
+  });
+  for (const c of cc) sessions.push({
+    type: "claude",
+    start: c.start, end: c.end, durationMs: c.durationMs,
+    projectName: projectName.get(c.projectId) || "Unknown",
+    tags: c.tags || [],
+    msgs: c.messageCount,
+    absorbedMs: c.absorbedMs,
+  });
+  sessions.sort((a, b) => a.start - b.start);
+
+  // Tag totals today
+  const tagMs = new Map();
+  for (const t of tt) for (const tg of t.tags || []) tagMs.set(tg, (tagMs.get(tg) || 0) + t.durationMs);
+  for (const c of cc) for (const tg of c.tags || []) tagMs.set(tg, (tagMs.get(tg) || 0) + c.durationMs);
+  const tags = [...tagMs.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, ms]) => ({ label: `#${t}`, value: ms }));
+
+  return {
+    taskMs, claudeMs, claudeOutsideMs, absorbedMs, deepMs,
+    yTaskMs, yClaudeOutsideMs, yDeepMs,
+    deepDelta: deepMs - yDeepMs,
+    sessions, byProject, hours, hoursMax, tags,
+    todayPomos: stats.today.pomos,
+  };
+}
+
+function HourBar({ hours, max }) {
+  // 24-cell single row showing today's hour-by-hour intensity. Each cell is
+  // stacked: tan task on bottom, slate Claude on top. Same color logic as the
+  // weekly heatmap but for one day.
+  return (
+    <div className="stats-hourbar">
+      <div className="stats-hourbar-row">
+        {hours.map((h, i) => {
+          const total = h.taskMs + h.claudeOutsideMs;
+          if (total === 0) {
+            return (
+              <span key={i} className="stats-hourbar-cell" title={`${i}:00 — no activity`}>
+                <span className="stats-hourbar-label">{i}</span>
+              </span>
+            );
+          }
+          const intensity = total / max;
+          const taskShare = h.taskMs / total;
+          const bg = `linear-gradient(180deg,
+            rgba(74,90,112,${0.25 + 0.7 * intensity * (1 - taskShare)}) ${(1 - taskShare) * 100}%,
+            rgba(138,105,64,${0.25 + 0.7 * intensity * taskShare}) ${(1 - taskShare) * 100}%)`;
+          const tip = `${i}:00 — ${fmtDuration(total)}\n  Task: ${fmtDuration(h.taskMs)}\n  Claude outside: ${fmtDuration(h.claudeOutsideMs)}`;
+          return (
+            <span
+              key={i}
+              className="stats-hourbar-cell stats-hourbar-cell-active"
+              style={{ background: bg }}
+              title={tip}
+            >
+              <span className="stats-hourbar-label">{i}</span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TodaySessionRow({ s }) {
+  const startStr = new Date(s.start).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+  const endStr = new Date(s.end).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+  const tagsLine = s.tags.slice(0, 4).map((t) => `#${t}`).join(" ");
+  const sourceBadge = s.type === "task" ? "Task timer" : "Claude";
+  const sourceClass = s.type === "task" ? "is-task" : "is-claude";
+  const meta = s.type === "claude"
+    ? `${s.msgs} msgs${s.absorbedMs > 0 ? ` · ${fmtDuration(s.absorbedMs)} absorbed` : ""}`
+    : "pomodoro / manual";
+  return (
+    <li className="stats-today-session-row">
+      <span className="stats-today-session-time">{startStr}–{endStr}</span>
+      <span className={`stats-today-session-source ${sourceClass}`}>{sourceBadge}</span>
+      <span className="stats-today-session-proj">{s.projectName}</span>
+      <span className="stats-today-session-tags">{tagsLine}</span>
+      <span className="stats-today-session-dur">{fmtDuration(s.durationMs)}</span>
+      <span className="stats-today-session-meta">{meta}</span>
+    </li>
+  );
+}
+
+function TodayProjectRow({ row, max }) {
+  const taskPct = max ? (row.taskMs / max) * 100 : 0;
+  const claudePct = max ? (row.claudeOutsideMs / max) * 100 : 0;
+  return (
+    <div className="stats-today-project-row">
+      <span className="stats-today-project-name">{row.label}</span>
+      <div className="stats-today-project-track">
+        {row.taskMs > 0 && (
+          <div className="stats-today-project-bar stats-today-project-bar-task" style={{ width: `${taskPct}%` }} title={`${fmtDuration(row.taskMs)} task timer`} />
+        )}
+        {row.claudeOutsideMs > 0 && (
+          <div className="stats-today-project-bar stats-today-project-bar-claude" style={{ width: `${claudePct}%` }} title={`${fmtDuration(row.claudeOutsideMs)} Claude outside`} />
+        )}
+      </div>
+      <span className="stats-today-project-val">
+        {fmtDuration(row.combinedMs)}
+        <span className="stats-breakdown-sub"> · {row.sessions} ses</span>
+      </span>
+    </div>
+  );
+}
+
+function TodayTab({ stats }) {
+  const t = useMemo(() => buildTodayData(stats), [stats]);
+  const noActivity = t.deepMs === 0 && t.sessions.length === 0;
+  const maxProjectMs = Math.max(1, ...t.byProject.map((r) => r.combinedMs));
+  const deltaMin = Math.round(t.deepDelta / MS_PER_MIN);
+  const deltaSign = deltaMin > 0 ? "+" : "";
+
+  if (noActivity) {
+    return (
+      <section className="stats-section">
+        <h2>Today</h2>
+        <p className="stats-empty">No work sessions logged yet today.</p>
+        <p className="stats-footnote">
+          Sessions populate as the hourly importer picks up new Claude transcripts
+          and as task timers run. Yesterday: {fmtDuration(t.yDeepMs)} total deep work.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <>
+      <section className="stats-cards">
+        <Card label="Total today">
+          <CardRow value={fmtDuration(t.deepMs)} unit="deep work" />
+          <CardRow value={fmtDuration(t.taskMs)} unit="task timer" />
+          <CardRow value={fmtDuration(t.claudeOutsideMs)} unit="claude (outside)" />
+        </Card>
+        <Card label="Sessions">
+          <CardRow value={t.sessions.length} unit="total" />
+          <CardRow value={t.todayPomos} unit="pomodoros done" />
+          <CardRow
+            value={t.sessions.length ? fmtDuration(Math.round(t.deepMs / t.sessions.length)) : "—"}
+            unit="avg deep work / session"
+          />
+        </Card>
+        <Card label="Claude breakdown">
+          <CardRow value={fmtDuration(t.claudeMs)} unit="total claude" />
+          <CardRow value={fmtDuration(t.absorbedMs)} unit="absorbed by task timer" />
+          <CardRow
+            value={t.claudeMs > 0 ? `${Math.round((t.absorbedMs / t.claudeMs) * 100)}%` : "—"}
+            unit="overlap rate"
+          />
+        </Card>
+        <Card label="vs yesterday">
+          <CardRow value={`${deltaSign}${deltaMin}m`} unit="vs yesterday's deep work" />
+          <CardRow value={fmtDuration(t.yDeepMs)} unit="yesterday's total" />
+        </Card>
+      </section>
+
+      <section className="stats-section">
+        <h2>Hour by hour</h2>
+        <HourBar hours={t.hours} max={t.hoursMax} />
+        <p className="stats-footnote">
+          <span className="stats-swatch stats-swatch-task" /> Task timer{" "}
+          <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer.
+          Hover any hour cell for the breakdown.
+        </p>
+      </section>
+
+      <section className="stats-section">
+        <h2>By project — today</h2>
+        {t.byProject.length === 0 ? (
+          <p className="stats-empty">No project activity yet today.</p>
+        ) : (
+          <div className="stats-today-project-list">
+            {t.byProject.map((r) => (
+              <TodayProjectRow key={r.label} row={r} max={maxProjectMs} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="stats-section">
+        <h2>Sessions today — chronological</h2>
+        {t.sessions.length === 0 ? (
+          <p className="stats-empty">No sessions logged today.</p>
+        ) : (
+          <ul className="stats-today-session-list">
+            {t.sessions.map((s, i) => (
+              <TodaySessionRow key={i} s={s} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="stats-section">
+        <h2>By tag — today</h2>
+        <BreakdownBars
+          rows={t.tags.slice(0, 12)}
+          formatRight={(v) => fmtDuration(v)}
+          emptyMsg="No tags on today's sessions."
+        />
+      </section>
+    </>
+  );
+}
+
 function FocusTab({ stats }) {
   return (
     <>
@@ -898,6 +1175,7 @@ function TasksTab({ stats }) {
 
 const TABS = [
   { id: "overview", label: "Overview" },
+  { id: "today", label: "Today" },
   { id: "focus", label: "Focus" },
   { id: "claude", label: "Claude" },
   { id: "tasks", label: "Tasks" },
@@ -948,6 +1226,7 @@ export default function StatsPage() {
 
       <div className="stats-tab-body">
         {tab === "overview" && <OverviewTab stats={stats} />}
+        {tab === "today" && <TodayTab stats={stats} />}
         {tab === "focus" && <FocusTab stats={stats} />}
         {tab === "claude" && <ClaudeTab stats={stats} />}
         {tab === "tasks" && <TasksTab stats={stats} />}
