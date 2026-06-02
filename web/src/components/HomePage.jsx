@@ -307,7 +307,10 @@ function HomeHeader({ content, loadedAtMs }) {
         <div className="home-date">{today}</div>
         {daysLeft !== null && (
           <div className="home-countdown">
-            {title} in <strong>{daysLeft}</strong> {daysLeft === 1 ? "day" : "days"}
+            <span className="home-countdown-num">{daysLeft}</span>
+            <span className="home-countdown-label">
+              {daysLeft === 1 ? "day" : "days"} to {title}
+            </span>
           </div>
         )}
       </div>
