@@ -145,16 +145,44 @@ app.get("/api/content", async (_req, res) => {
   }
 });
 
+// Merge workSessions append-only (union by id). The frontend's save paths
+// can carry a stale snapshot (workSessions isn't surfaced in any UI state, so
+// the client's view lags the importer); without this union, every /todo save
+// would clobber whatever entries the hourly importer added since page load.
+// Other top-level arrays stay REPLACE semantics — they're user-editable so
+// the user can legitimately delete from them.
+function mergeWorkSessions(existing, incoming) {
+  const map = new Map();
+  for (const e of existing || []) {
+    if (e && e.id) map.set(e.id, e);
+  }
+  // Incoming wins on id collision so the client can update an entry it owns.
+  for (const e of incoming || []) {
+    if (e && e.id) map.set(e.id, e);
+  }
+  return [...map.values()];
+}
+
 app.put("/api/content", async (req, res) => {
   const payload = req.body;
   if (!isContentPayload(payload)) {
     return res.status(400).json({ error: "Invalid content payload." });
   }
 
-  const normalizedPayload = normalizeContentRecord(payload);
-
   try {
     const collection = await getCollection();
+    const existing = await readNormalizedContent(collection);
+
+    // workSessions: union by id — never lose entries the client didn't include.
+    // Everything else: client's body wins (replace semantics).
+    const mergedPayload = {
+      ...payload,
+      workSessions: mergeWorkSessions(
+        existing.content.workSessions,
+        payload.workSessions,
+      ),
+    };
+    const normalizedPayload = normalizeContentRecord(mergedPayload);
     const updatedAt = await saveContentDocument(collection, normalizedPayload);
 
     return res.json({

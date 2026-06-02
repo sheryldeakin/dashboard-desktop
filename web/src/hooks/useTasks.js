@@ -57,6 +57,12 @@ export function useTasks(setStatus) {
 
   const isHydrated = useRef(false);
   const saveTimerRef = useRef(null);
+  // pristineRef holds the full last-known server content so save paths can
+  // spread it as a base and only override the fields useTasks owns. Without
+  // this, constructing a save body from useTasks's state alone silently drops
+  // any top-level field useTasks doesn't track (workSessions today, future
+  // additions tomorrow) — which is how 436 workSessions got wiped over time.
+  const pristineRef = useRef(null);
 
   // Load content on mount
   useEffect(() => {
@@ -64,6 +70,7 @@ export function useTasks(setStatus) {
 
     loadAndHydratePreferredContent().then((saved) => {
       if (!isMounted) return;
+      pristineRef.current = saved;
       setPhase(saved.phase);
       setProjects(saved.projects);
       setTasks(saved.todaysTasks);
@@ -84,6 +91,7 @@ export function useTasks(setStatus) {
   useEffect(() => {
     if (!isHydrated.current) return;
     const content = normalizeContentRecord({
+      ...(pristineRef.current || {}),
       schemaVersion: SCHEMA_VERSION,
       phase,
       projects,
@@ -92,6 +100,9 @@ export function useTasks(setStatus) {
       taskHistory,
       pomodoro,
     });
+    // Keep ref in sync with what we're about to write so subsequent saves
+    // build on this state rather than the stale initial-load snapshot.
+    pristineRef.current = content;
     // localStorage is synchronous — survives page refresh/navigation
     saveContent(content);
     // Debounce API call to avoid flooding during rapid edits
@@ -164,7 +175,13 @@ export function useTasks(setStatus) {
   }, [visibleTasks, selectedTaskId]);
 
   function normalizeAndPersist(next) {
-    const normalized = normalizeContentRecord(next);
+    // Spread the last-known full content first so unowned fields (workSessions
+    // etc.) survive the save round-trip.
+    const normalized = normalizeContentRecord({
+      ...(pristineRef.current || {}),
+      ...next,
+    });
+    pristineRef.current = normalized;
     persistContent(normalized);
     // Cancel pending auto-save — we just persisted
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
