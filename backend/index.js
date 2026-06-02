@@ -163,6 +163,20 @@ function mergeWorkSessions(existing, incoming) {
   return [...map.values()];
 }
 
+// dailyTop3History is also append-only — entries get added at midnight rollover
+// and never replaced. Union by date. Same reasoning as workSessions: client's
+// snapshot can be stale relative to a rollover that fired elsewhere.
+function mergeDailyTop3History(existing, incoming) {
+  const map = new Map();
+  for (const e of existing || []) {
+    if (e && e.date) map.set(e.date, e);
+  }
+  for (const e of incoming || []) {
+    if (e && e.date) map.set(e.date, e);
+  }
+  return [...map.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+}
+
 app.put("/api/content", async (req, res) => {
   const payload = req.body;
   if (!isContentPayload(payload)) {
@@ -173,13 +187,17 @@ app.put("/api/content", async (req, res) => {
     const collection = await getCollection();
     const existing = await readNormalizedContent(collection);
 
-    // workSessions: union by id — never lose entries the client didn't include.
-    // Everything else: client's body wins (replace semantics).
+    // workSessions + dailyTop3History: union — never lose entries the client
+    // didn't include. dailyTop3 (today's) and other arrays: client's body wins.
     const mergedPayload = {
       ...payload,
       workSessions: mergeWorkSessions(
         existing.content.workSessions,
         payload.workSessions,
+      ),
+      dailyTop3History: mergeDailyTop3History(
+        existing.content.dailyTop3History,
+        payload.dailyTop3History,
       ),
     };
     const normalizedPayload = normalizeContentRecord(mergedPayload);

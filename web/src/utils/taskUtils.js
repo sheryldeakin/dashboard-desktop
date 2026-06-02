@@ -555,6 +555,75 @@ function normalizeWorkSessionRecord(entry) {
   };
 }
 
+/* dailyTop3 — today's three priority slots. Lifecycle fields used when an
+   entry rolls into dailyTop3History at midnight: done / dropped / carriedToDate
+   / promoted-to-task. text+done+updatedAt round-trip through the daily note's
+   `## Top 3` checkbox section via the sync-top3 script (separate from this
+   module). */
+function normalizeTop3Slot(slot) {
+  if (!slot || typeof slot !== "object") slot = {};
+  return {
+    text: typeof slot.text === "string" ? slot.text : "",
+    done: Boolean(slot.done),
+    updatedAt:
+      typeof slot.updatedAt === "string" && parseIsoMs(slot.updatedAt) !== null
+        ? slot.updatedAt
+        : null,
+    completedAt:
+      typeof slot.completedAt === "string" && parseIsoMs(slot.completedAt) !== null
+        ? slot.completedAt
+        : null,
+    dropped: Boolean(slot.dropped),
+    droppedAt:
+      typeof slot.droppedAt === "string" && parseIsoMs(slot.droppedAt) !== null
+        ? slot.droppedAt
+        : null,
+    carriedToDate:
+      typeof slot.carriedToDate === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(slot.carriedToDate)
+        ? slot.carriedToDate
+        : null,
+    promoted: Boolean(slot.promoted),
+    promotedTaskId: typeof slot.promotedTaskId === "string" ? slot.promotedTaskId : null,
+  };
+}
+
+export function normalizeDailyTop3(value) {
+  if (!value || typeof value !== "object") {
+    return {
+      date: getTodayKey(),
+      slots: [normalizeTop3Slot(), normalizeTop3Slot(), normalizeTop3Slot()],
+      updatedAt: null,
+    };
+  }
+  const slotsIn = Array.isArray(value.slots) ? value.slots : [];
+  return {
+    date: parseDateKey(value.date) || getTodayKey(),
+    slots: [
+      normalizeTop3Slot(slotsIn[0]),
+      normalizeTop3Slot(slotsIn[1]),
+      normalizeTop3Slot(slotsIn[2]),
+    ],
+    updatedAt:
+      typeof value.updatedAt === "string" && parseIsoMs(value.updatedAt) !== null
+        ? value.updatedAt
+        : null,
+  };
+}
+
+export function normalizeDailyTop3History(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((e) => e && typeof e === "object")
+    .map((e) => ({
+      date: parseDateKey(e.date),
+      slots: (Array.isArray(e.slots) ? e.slots.slice(0, 3) : []).map(normalizeTop3Slot),
+    }))
+    .filter((e) => e.date)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 30);
+}
+
 export function normalizeWorkSessions(value) {
   if (!Array.isArray(value)) return [];
   const seen = new Set();
@@ -595,6 +664,8 @@ export const DEFAULT_CONTENT = {
   taskHistory: [],
   pomodoro: createDefaultPomodoro(),
   workSessions: [],
+  dailyTop3: normalizeDailyTop3(null),
+  dailyTop3History: [],
 };
 
 export function cloneTask(task) {
@@ -641,6 +712,8 @@ export function cloneContent(content) {
           tags: Array.isArray(entry.tags) ? [...entry.tags] : [],
         }))
       : [],
+    dailyTop3: normalizeDailyTop3(content.dailyTop3),
+    dailyTop3History: normalizeDailyTop3History(content.dailyTop3History),
   };
 }
 
@@ -665,6 +738,8 @@ export function normalizeContentRecord(record) {
     taskHistory: normalizeHistory(record.taskHistory, defaultProjectId),
     pomodoro: normalizePomodoro(record.pomodoro),
     workSessions: normalizeWorkSessions(record.workSessions),
+    dailyTop3: normalizeDailyTop3(record.dailyTop3),
+    dailyTop3History: normalizeDailyTop3History(record.dailyTop3History),
   };
 }
 
@@ -1083,11 +1158,43 @@ export function applyDailyRollover(content) {
       return true;
     });
 
+  // dailyTop3 rollover: if today's recorded date != actual today, archive the
+  // recorded one into history (so the "Unfinished from yesterday" UI has data
+  // to render) and reset today's slots to empty.
+  let nextDailyTop3 = content.dailyTop3 || normalizeDailyTop3(null);
+  let nextDailyTop3History = content.dailyTop3History || [];
+  if (nextDailyTop3.date && nextDailyTop3.date !== todayKey) {
+    const hasContent = (nextDailyTop3.slots || []).some(
+      (s) => s.text || s.done || s.dropped || s.promoted || s.carriedToDate
+    );
+    if (hasContent) {
+      const existingIdx = nextDailyTop3History.findIndex((h) => h.date === nextDailyTop3.date);
+      if (existingIdx >= 0) {
+        nextDailyTop3History = [
+          ...nextDailyTop3History.slice(0, existingIdx),
+          { date: nextDailyTop3.date, slots: nextDailyTop3.slots },
+          ...nextDailyTop3History.slice(existingIdx + 1),
+        ];
+      } else {
+        nextDailyTop3History = [
+          { date: nextDailyTop3.date, slots: nextDailyTop3.slots },
+          ...nextDailyTop3History,
+        ];
+      }
+      nextDailyTop3History = nextDailyTop3History
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 30);
+    }
+    nextDailyTop3 = normalizeDailyTop3(null);
+  }
+
   return {
     content: {
       ...content,
       todaysTasks: [...carriedTasks, ...recurringTasks],
       todaysTasksDate: todayKey,
+      dailyTop3: nextDailyTop3,
+      dailyTop3History: nextDailyTop3History,
     },
     changed: true,
   };

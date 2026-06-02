@@ -40,6 +40,7 @@ import {
 } from "./utils/taskUtils.js";
 import TodoPage from "./components/todo/TodoPage.jsx";
 import StatsPage from "./components/StatsPage.jsx";
+import HomePage from "./components/HomePage.jsx";
 
 
 function useCountdown(deadlineIso = DEADLINE_ISO, startIso = START_ISO) {
@@ -1123,6 +1124,15 @@ export default function App() {
       <>
         <TopNav />
         <StatsPage />
+      </>
+    );
+  }
+
+  if (window.location.pathname === "/home") {
+    return (
+      <>
+        <TopNav />
+        <HomePage />
       </>
     );
   }

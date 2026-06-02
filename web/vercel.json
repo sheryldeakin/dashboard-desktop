@@ -19,6 +19,10 @@
     {
       "source": "/stats/:path*",
       "destination": "/"
+    },
+    {
+      "source": "/home/:path*",
+      "destination": "/"
     }
   ]
 }
