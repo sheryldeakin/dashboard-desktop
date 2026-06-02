@@ -207,18 +207,42 @@ function UpNextSection({ tasks, projects }) {
 }
 
 /* ── Header ── */
-function HomeHeader({ content }) {
+function HomeHeader({ content, loadedAtMs }) {
   const today = formatDateLong();
   const daysLeft = dayCountUntil(content.deadlineDate);
   const title = content.title || "submission";
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  const loadedMin = Math.floor((now - loadedAtMs) / 60000);
+  const rel =
+    loadedMin < 1 ? "just now"
+    : loadedMin < 60 ? `${loadedMin}m ago`
+    : loadedMin < 60 * 24 ? `${Math.floor(loadedMin / 60)}h ago`
+    : `${Math.floor(loadedMin / 60 / 24)}d ago`;
   return (
     <header className="home-header">
-      <div className="home-date">{today}</div>
-      {daysLeft !== null && (
-        <div className="home-countdown">
-          {title} in <strong>{daysLeft}</strong> {daysLeft === 1 ? "day" : "days"}
-        </div>
-      )}
+      <div className="home-header-main">
+        <div className="home-date">{today}</div>
+        {daysLeft !== null && (
+          <div className="home-countdown">
+            {title} in <strong>{daysLeft}</strong> {daysLeft === 1 ? "day" : "days"}
+          </div>
+        )}
+      </div>
+      <div className="home-snapshot">
+        <span className="home-snapshot-label">Loaded {rel}</span>
+        <button
+          type="button"
+          className="home-snapshot-refresh"
+          onClick={() => window.location.reload()}
+          title="Reload to fetch the latest data"
+        >
+          ↻ refresh
+        </button>
+      </div>
     </header>
   );
 }
@@ -394,6 +418,7 @@ function UnfinishedSection({
 export default function HomePage() {
   const [content, setContent] = useState(() => cloneContent(DEFAULT_CONTENT));
   const [loaded, setLoaded] = useState(false);
+  const [loadedAtMs, setLoadedAtMs] = useState(Date.now());
   const pristineRef = useRef(null);
   const saveTimerRef = useRef(null);
 
@@ -403,6 +428,7 @@ export default function HomePage() {
       if (!mounted) return;
       pristineRef.current = c;
       setContent(c);
+      setLoadedAtMs(Date.now());
       setLoaded(true);
     });
     return () => {
@@ -545,7 +571,7 @@ export default function HomePage() {
 
   return (
     <main className="home-page">
-      <HomeHeader content={content} />
+      <HomeHeader content={content} loadedAtMs={loadedAtMs} />
 
       <Top3Editor dailyTop3={content.dailyTop3} onSlotChange={updateSlot} />
 

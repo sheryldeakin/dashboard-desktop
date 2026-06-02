@@ -1181,16 +1181,49 @@ const TABS = [
   { id: "tasks", label: "Tasks" },
 ];
 
+function SnapshotIndicator({ loadedAtMs }) {
+  // Tells the user how stale this view is. /stats is a snapshot at page-load
+  // time — no live polling — so when the schedules ran for the last time can
+  // matter as much as when the page loaded. Both lines printed.
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  function rel(min) {
+    if (min < 1) return "just now";
+    if (min < 60) return `${min}m ago`;
+    if (min < 60 * 24) return `${Math.floor(min / 60)}h ago`;
+    return `${Math.floor(min / 60 / 24)}d ago`;
+  }
+  const loadedMin = Math.floor((now - loadedAtMs) / 60000);
+  return (
+    <div className="stats-snapshot">
+      <span className="stats-snapshot-label">Snapshot loaded {rel(loadedMin)}</span>
+      <button
+        type="button"
+        className="stats-snapshot-refresh"
+        onClick={() => window.location.reload()}
+        title="Reload to fetch the latest data from the server"
+      >
+        ↻ refresh
+      </button>
+    </div>
+  );
+}
+
 export default function StatsPage() {
   const [content, setContent] = useState(() => cloneContent(DEFAULT_CONTENT));
   const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState("overview");
+  const [loadedAtMs, setLoadedAtMs] = useState(Date.now());
 
   useEffect(() => {
     let mounted = true;
     loadAndHydratePreferredContent().then((c) => {
       if (mounted) {
         setContent(c);
+        setLoadedAtMs(Date.now());
         setLoaded(true);
       }
     });
@@ -1209,7 +1242,10 @@ export default function StatsPage() {
 
   return (
     <main className="stats-page">
-      <h1 className="stats-title">Stats</h1>
+      <div className="stats-title-row">
+        <h1 className="stats-title">Stats</h1>
+        <SnapshotIndicator loadedAtMs={loadedAtMs} />
+      </div>
 
       <nav className="stats-tabs" aria-label="Stats sections">
         {TABS.map((t) => (

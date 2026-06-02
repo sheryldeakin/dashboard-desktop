@@ -3959,7 +3959,53 @@ button:focus-visible {
 .stats-title {
   font-size: 28px;
   font-weight: 600;
+  margin: 0;
+}
+
+.stats-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
   margin: 0 0 24px;
+  flex-wrap: wrap;
+}
+
+.stats-snapshot,
+.home-snapshot {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.stats-snapshot-label,
+.home-snapshot-label {
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-snapshot-refresh,
+.home-snapshot-refresh {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(182, 139, 97, 0.3);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.stats-snapshot-refresh:hover,
+.home-snapshot-refresh:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.home-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .stats-empty {
