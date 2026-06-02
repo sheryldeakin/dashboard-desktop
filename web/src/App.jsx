@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import TopNav from "./components/TopNav.jsx";
+import SideNav from "./components/SideNav.jsx";
 import {
   TITLE,
   START_ISO,
@@ -1130,10 +1131,12 @@ export default function App() {
 
   if (window.location.pathname === "/home") {
     return (
-      <>
-        <TopNav />
-        <HomePage />
-      </>
+      <div className="app-shell">
+        <SideNav />
+        <div className="app-shell-main">
+          <HomePage />
+        </div>
+      </div>
     );
   }
 
