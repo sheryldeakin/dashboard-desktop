@@ -4805,10 +4805,14 @@ button:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-muted);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule-soft);
 }
 
-/* Schedule card title doubles as a fold-out toggle. */
+/* Schedule card title doubles as a fold-out toggle. Border-bottom lives
+   on the toggle (not the title) so the hairline spans the full width
+   under both the title text and the status pill. */
 .home-rail-card-toggle {
   display: flex;
   align-items: center;
@@ -4816,8 +4820,9 @@ button:focus-visible {
   width: 100%;
   background: transparent;
   border: none;
-  padding: 0;
-  margin-bottom: 8px;
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 0 0 6px;
+  margin-bottom: 12px;
   cursor: pointer;
   font-family: inherit;
   color: inherit;
@@ -4825,6 +4830,8 @@ button:focus-visible {
 
 .home-rail-card-toggle .home-rail-card-title {
   margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 /* Status pill — single source of truth for schedule health. Green dot
@@ -4917,15 +4924,18 @@ button:focus-visible {
   border-top: none;
 }
 
-/* SaaS-style section label — uppercase, tracked, muted. Conveys structure
-   without competing with the content. */
+/* SaaS-style section label — uppercase, tracked, muted. Lighter hairline
+   under the title separates header from content (--rule-soft so it doesn't
+   compete with the heavier --rule divider above each section). */
 .home-section-title {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-muted);
-  margin: 0 0 12px;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule-soft);
 }
 
 .home-section-count {
