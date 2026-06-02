@@ -72,48 +72,71 @@ function relTime(ms) {
   return `${Math.floor(min / 60 / 24)}d ago`;
 }
 
-function ScheduleStatusSection({ heartbeats }) {
+/* Shared hook so the banner (full-width, top of page) and the rail card
+   (right column) read from the same computed rows. Ticks every 30s to keep
+   "Xm ago" labels fresh. */
+function useHeartbeatRows(heartbeats) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(id);
   }, []);
-
-  const rows = HEARTBEAT_SPEC.map((s) => {
+  return HEARTBEAT_SPEC.map((s) => {
     const iso = heartbeats?.[s.key];
     const ts = iso ? Date.parse(iso) : null;
     const ageMs = ts ? now - ts : null;
     const stale = ts === null || ageMs > s.expectedMin * MS_PER_MIN * 2;
     return { ...s, iso, ts, ageMs, stale };
   });
+}
+
+/* Banner sits above the layout grid (full width). Only renders if at least
+   one heartbeat is stale — otherwise the page should feel calm. */
+function ScheduleBanner({ rows }) {
   const staleRows = rows.filter((r) => r.stale);
-
+  if (staleRows.length === 0) return null;
   return (
-    <>
-      {staleRows.length > 0 && (
-        <section className="home-schedule-banner">
-          <div className="home-schedule-banner-title">
-            ⚠ Schedule issue: {staleRows.length} task{staleRows.length === 1 ? "" : "s"} not running
-          </div>
-          <ul className="home-schedule-banner-list">
-            {staleRows.map((r) => (
-              <li key={r.key}>
-                <strong>{r.label}</strong> —{" "}
-                {r.iso ? `last run ${relTime(r.ageMs)}` : "no run recorded"}
-                {" "}(expected every {r.expectedMin < 60 ? `${r.expectedMin} min` : r.expectedMin === 60 ? "hour" : `${r.expectedMin / 60} hr`})
-              </li>
-            ))}
-          </ul>
-          <p className="home-schedule-banner-help">
-            Run a script manually to diagnose, or check{" "}
-            <code>schtasks /query /tn Dashboard{`<name>`} /v /fo LIST | findstr "Last Result"</code>
-            {" "}— anything other than 0 means it crashed.
-          </p>
-        </section>
-      )}
+    <section className="home-schedule-banner">
+      <div className="home-schedule-banner-title">
+        ⚠ Schedule issue: {staleRows.length} task{staleRows.length === 1 ? "" : "s"} not running
+      </div>
+      <ul className="home-schedule-banner-list">
+        {staleRows.map((r) => (
+          <li key={r.key}>
+            <strong>{r.label}</strong> —{" "}
+            {r.iso ? `last run ${relTime(r.ageMs)}` : "no run recorded"}
+            {" "}(expected every {r.expectedMin < 60 ? `${r.expectedMin} min` : r.expectedMin === 60 ? "hour" : `${r.expectedMin / 60} hr`})
+          </li>
+        ))}
+      </ul>
+      <p className="home-schedule-banner-help">
+        Run a script manually to diagnose, or check{" "}
+        <code>schtasks /query /tn Dashboard{`<name>`} /v /fo LIST | findstr "Last Result"</code>
+        {" "}— anything other than 0 means it crashed.
+      </p>
+    </section>
+  );
+}
 
-      <section className="home-section">
-        <h2 className="home-section-title">Schedule health</h2>
+/* Compact rail card. Headline = single status pill ("all running" / "X stale")
+   with a fold-out detail list. Trades visibility-by-default for chrome. */
+function ScheduleHealthCard({ rows }) {
+  const staleCount = rows.filter((r) => r.stale).length;
+  const [open, setOpen] = useState(staleCount > 0);
+  return (
+    <section className="home-rail-card">
+      <button
+        type="button"
+        className="home-rail-card-toggle"
+        onClick={() => setOpen((p) => !p)}
+        aria-expanded={open}
+      >
+        <span className="home-rail-card-title">Schedule</span>
+        <span className={`home-status-pill${staleCount === 0 ? " is-ok" : " is-warn"}`}>
+          {staleCount === 0 ? "● all running" : `⚠ ${staleCount} stale`}
+        </span>
+      </button>
+      {open && (
         <ul className="home-schedule-list">
           {rows.map((r) => (
             <li key={r.key} className={`home-schedule-row${r.stale ? " is-stale" : ""}`}>
@@ -121,14 +144,11 @@ function ScheduleStatusSection({ heartbeats }) {
               <span className="home-schedule-when">
                 {r.iso ? relTime(r.ageMs) : "never"}
               </span>
-              <span className="home-schedule-expected">
-                every {r.expectedMin < 60 ? `${r.expectedMin}m` : r.expectedMin === 60 ? "hr" : `${r.expectedMin / 60}h`}
-              </span>
             </li>
           ))}
         </ul>
-      </section>
-    </>
+      )}
+    </section>
   );
 }
 
@@ -180,7 +200,9 @@ function computePeakHour(workSessions) {
   };
 }
 
-function PeakHourCallout({ workSessions }) {
+/* Compact rail card. Hero number = peak hour; sub-line = the contextual
+   "when" hint based on current clock vs peak. */
+function PeakHourCard({ workSessions }) {
   const peak = useMemo(() => computePeakHour(workSessions), [workSessions]);
   if (!peak) return null;
   const now = new Date();
@@ -188,39 +210,34 @@ function PeakHourCallout({ workSessions }) {
   const currentMin = now.getMinutes();
   const diff = currentHr - peak.hour;
   let when;
+  let whenTone = "neutral";
   if (currentHr === peak.hour) {
-    when = `It's ${currentHr}:${String(currentMin).padStart(2, "0")} now — you're in your green window.`;
+    when = "in your green window";
+    whenTone = "good";
   } else if (currentHr === peak.hour - 1) {
-    const minsUntil = 60 - currentMin;
-    when = `Green window opens in ${minsUntil} min.`;
+    when = `opens in ${60 - currentMin} min`;
+    whenTone = "good";
   } else if (diff >= 1 && diff <= 3) {
-    when = `${diff}h past peak — still productive territory.`;
+    when = `${diff}h past peak`;
   } else if (diff > 3) {
-    when = `It's ${currentHr}:${String(currentMin).padStart(2, "0")} — well past your usual peak.`;
+    when = "well past peak";
   } else {
-    const hoursUntil = peak.hour - currentHr;
-    when = `Green window opens in ${hoursUntil}h.`;
+    when = `opens in ${peak.hour - currentHr}h`;
   }
   return (
-    <section className="home-section">
-      <h2 className="home-section-title">Pattern</h2>
-      <p className="home-pattern">
-        Your peak hour (last 8 wk) is{" "}
-        <strong>
-          {peak.hour}:00–{peak.hour + 1}:00
-        </strong>
-        , avg <strong>{peak.avgMinPerActiveDay} min</strong> on days you worked then. {when}
-      </p>
+    <section className="home-rail-card">
+      <div className="home-rail-card-title">Peak hour</div>
+      <div className="home-rail-stat">
+        <span className="home-rail-stat-num">{peak.hour}:00</span>
+        <span className="home-rail-stat-unit">avg {peak.avgMinPerActiveDay}m</span>
+      </div>
+      <div className={`home-rail-hint home-rail-hint-${whenTone}`}>{when}</div>
     </section>
   );
 }
 
-/* ── Up next (upcoming-due tasks) ── */
-function UpNextSection({ tasks, projects }) {
-  const projectName = useMemo(
-    () => new Map((projects || []).map((p) => [p.id, p.name])),
-    [projects]
-  );
+/* ── Up next (upcoming-due tasks) — compact rail card ── */
+function UpNextCard({ tasks }) {
   const items = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -232,45 +249,34 @@ function UpNextSection({ tasks, projects }) {
       .map((t) => {
         const dueMs = Date.parse(t.dueDate + "T00:00:00") || Date.parse(t.dueDate);
         const days = Number.isFinite(dueMs) ? Math.ceil((dueMs - todayMs) / MS_PER_DAY) : null;
-        return {
-          id: t.id,
-          text: t.text,
-          dueDate: t.dueDate,
-          daysUntil: days,
-          projectName: projectName.get(t.projectId) || "Unknown",
-          priority: t.priority,
-        };
+        return { id: t.id, text: t.text, daysUntil: days, priority: t.priority, dueDate: t.dueDate };
       });
-  }, [tasks, projectName]);
+  }, [tasks]);
 
   if (!items.length) {
     return (
-      <section className="home-section">
-        <h2 className="home-section-title">Up next</h2>
-        <p className="home-empty">No tasks with due dates. Add some in /todo to see them queued here.</p>
+      <section className="home-rail-card">
+        <div className="home-rail-card-title">Up next</div>
+        <p className="home-rail-empty">Nothing due. Add a date in /todo to surface here.</p>
       </section>
     );
   }
   return (
-    <section className="home-section">
-      <h2 className="home-section-title">Up next</h2>
+    <section className="home-rail-card">
+      <div className="home-rail-card-title">Up next</div>
       <ul className="home-upnext-list">
         {items.map((it) => {
           const overdue = it.daysUntil !== null && it.daysUntil < 0;
           const dueLabel =
-            it.daysUntil === null
-              ? it.dueDate
-              : it.daysUntil < 0
-                ? `${-it.daysUntil}d overdue`
-                : it.daysUntil === 0
-                  ? "due today"
-                  : it.daysUntil === 1
-                    ? "tomorrow"
-                    : `in ${it.daysUntil} days`;
+            it.daysUntil === null   ? it.dueDate
+            : it.daysUntil < 0      ? `${-it.daysUntil}d over`
+            : it.daysUntil === 0    ? "today"
+            : it.daysUntil === 1    ? "tmrw"
+            : `${it.daysUntil}d`;
           const prioLabel =
-            it.priority === "high" ? "high priority"
+            it.priority === "high"   ? "high priority"
             : it.priority === "medium" ? "medium priority"
-            : it.priority === "low" ? "low priority"
+            : it.priority === "low"  ? "low priority"
             : null;
           return (
             <li key={it.id} className={`home-upnext-row${overdue ? " is-overdue" : ""}`}>
@@ -284,7 +290,6 @@ function UpNextSection({ tasks, projects }) {
                 )}
                 {it.text}
               </span>
-              <span className="home-upnext-proj">{it.projectName}</span>
               <span className="home-upnext-due">{dueLabel}</span>
             </li>
           );
@@ -294,27 +299,30 @@ function UpNextSection({ tasks, projects }) {
   );
 }
 
-/* ── Header ──
-   Stable text anchor ("Today") + a single subhead line carrying the date
-   and (optionally) the deadline countdown as a small inline chip. */
-function HomeHeader({ content }) {
-  const today = formatDateLong();
+/* ── Countdown card — top of rail, gracefully omitted if no deadline. ── */
+function CountdownCard({ content }) {
   const daysLeft = dayCountUntil(content.deadlineDate);
+  if (daysLeft === null) return null;
   const title = content.title || "submission";
+  return (
+    <section className="home-rail-card">
+      <div className="home-rail-card-title">Deadline</div>
+      <div className="home-rail-stat">
+        <span className="home-rail-stat-num">{daysLeft}</span>
+        <span className="home-rail-stat-unit">{daysLeft === 1 ? "day" : "days"} left</span>
+      </div>
+      <div className="home-rail-hint">to {title}</div>
+    </section>
+  );
+}
+
+/* ── Header — stable "Today" anchor + the date. Countdown lives in the
+   rail's CountdownCard now, so the header can stay calm. */
+function HomeHeader() {
   return (
     <header className="home-header">
       <h1 className="home-page-title">Today</h1>
-      <div className="home-subhead">
-        <span>{today}</span>
-        {daysLeft !== null && (
-          <>
-            <span className="home-subhead-sep" aria-hidden="true">·</span>
-            <span className="home-subhead-countdown">
-              <strong>{daysLeft}</strong> {daysLeft === 1 ? "day" : "days"} to {title}
-            </span>
-          </>
-        )}
-      </div>
+      <div className="home-subhead">{formatDateLong()}</div>
     </header>
   );
 }
@@ -673,31 +681,36 @@ export default function HomePage() {
     );
   }
 
+  const heartbeatRows = useHeartbeatRows(content.scheduledTaskHeartbeats);
+
   return (
     <main className="home-page">
-      <HomeHeader content={content} />
+      {/* Banner sits full-width above the grid — only renders on failure. */}
+      <ScheduleBanner rows={heartbeatRows} />
 
-      <Top3Editor dailyTop3={content.dailyTop3} onSlotChange={updateSlot} />
+      <HomeHeader />
 
-      <UnfinishedSection
-        history={content.dailyTop3History}
-        todaysSlots={content.dailyTop3.slots}
-        onCarry={handleCarry}
-        onDone={handleDone}
-        onPromote={handlePromote}
-        onDrop={handleDrop}
-      />
+      <div className="home-layout">
+        <div className="home-main">
+          <Top3Editor dailyTop3={content.dailyTop3} onSlotChange={updateSlot} />
 
-      <ScheduleStatusSection heartbeats={content.scheduledTaskHeartbeats} />
+          <UnfinishedSection
+            history={content.dailyTop3History}
+            todaysSlots={content.dailyTop3.slots}
+            onCarry={handleCarry}
+            onDone={handleDone}
+            onPromote={handlePromote}
+            onDrop={handleDrop}
+          />
+        </div>
 
-      <PeakHourCallout workSessions={content.workSessions} />
-
-      <UpNextSection tasks={content.todaysTasks} projects={content.projects} />
-
-      <p className="home-footnote">
-        Top 3 syncs to today's daily note <code>## Top 3</code> section every 5 min via
-        <code> sync-top3.py</code>. Resume / start surface coming next.
-      </p>
+        <aside className="home-rail">
+          <CountdownCard content={content} />
+          <PeakHourCard workSessions={content.workSessions} />
+          <UpNextCard tasks={content.todaysTasks} />
+          <ScheduleHealthCard rows={heartbeatRows} />
+        </aside>
+      </div>
 
       <SnapshotPill loadedAtMs={loadedAtMs} />
     </main>

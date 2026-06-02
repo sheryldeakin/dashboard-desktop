@@ -4754,9 +4754,132 @@ button:focus-visible {
 /* ----- /home (daily-driver landing) ----- */
 
 .home-page {
-  max-width: 760px;
+  max-width: 1040px;
   margin: 0 auto;
   padding: 32px 32px 48px;
+}
+
+/* Two-column shell: main column (Top 3 + carryover) + right rail
+   (countdown, peak, up-next, schedule). Stacks on narrow screens so the
+   page still works on the small monitor. */
+.home-layout {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 48px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+
+.home-main {
+  min-width: 0;
+}
+
+.home-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Rail card — quiet container; no border, soft hairline divider only
+   between the title and the body. Pro-todo apps lean on whitespace, not
+   borders, to group rail items. */
+.home-rail-card {
+  padding: 12px 0;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.home-rail-card:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.home-rail-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+
+/* Schedule card title doubles as a fold-out toggle. */
+.home-rail-card-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+
+.home-rail-card-toggle .home-rail-card-title {
+  margin-bottom: 0;
+}
+
+/* Status pill — single source of truth for schedule health. Green dot
+   when everything's fine; warn glyph + count when not. */
+.home-status-pill {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-status-pill.is-ok {
+  color: var(--accent-sage);
+}
+
+.home-status-pill.is-warn {
+  color: var(--accent-warn);
+}
+
+/* Hero stat (countdown days / peak hour) — restrained, no decoration. */
+.home-rail-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.home-rail-stat-num {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.home-rail-stat-unit {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.home-rail-hint {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.home-rail-hint-good {
+  color: var(--accent-sage);
+}
+
+.home-rail-empty {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin: 0;
 }
 
 /* Clean app-style header: stable "Today" anchor + secondary date/countdown
@@ -4778,24 +4901,6 @@ button:focus-visible {
 .home-subhead {
   font-size: 13px;
   color: var(--ink-muted);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.home-subhead-sep {
-  color: rgba(0, 0, 0, 0.18);
-  user-select: none;
-}
-
-.home-subhead-countdown {
-  font-variant-numeric: tabular-nums;
-}
-
-.home-subhead-countdown strong {
-  color: var(--ink);
-  font-weight: 600;
 }
 
 .home-section {
@@ -4941,17 +5046,24 @@ button:focus-visible {
   border-top: 1px dashed rgba(var(--accent-tan-rgb), 0.2);
 }
 
+/* Unfinished row — was warn-tinted box; now just a plain row with a thin
+   warn left-bar. The section header already labels these as needing
+   attention; the row doesn't need to shout it twice. */
 .home-unfinished-row {
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 12px;
   align-items: center;
   padding: 8px 12px;
-  background: rgba(var(--accent-warn-rgb), 0.05);
+  background: transparent;
   border: none;
-  border-left: 3px solid rgba(var(--accent-warn-rgb), 0.4);
+  border-left: 2px solid rgba(var(--accent-warn-rgb), 0.35);
   border-radius: 0;
   font-size: 13px;
+}
+
+.home-unfinished-row:hover {
+  background: rgba(var(--accent-warn-rgb), 0.04);
 }
 
 .home-unfinished-text {
@@ -5049,24 +5161,28 @@ button:focus-visible {
   gap: 4px;
 }
 
+/* Up-next row in the rail — compact 2-col (text + due chip), no project
+   name (saved for /todo's full list view). */
 .home-upnext-row {
   display: grid;
-  grid-template-columns: 1fr 130px 90px;
-  gap: 12px;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
   align-items: baseline;
-  padding: 8px 12px;
+  padding: 6px 0;
   background: transparent;
   border: none;
   border-radius: 0;
-  font-size: 13px;
-  /* hair-line between rows; lighter than the old per-row border */
-  box-shadow: inset 0 -1px 0 rgba(var(--accent-tan-rgb), 0.1);
+  font-size: 12px;
+  box-shadow: inset 0 -1px 0 var(--rule-soft);
 }
 
-.home-upnext-row.is-overdue {
-  background: rgba(var(--accent-warn-rgb), 0.06);
-  box-shadow: inset 3px 0 0 rgba(var(--accent-warn-rgb), 0.5),
-              inset 0 -1px 0 rgba(var(--accent-warn-rgb), 0.18);
+.home-upnext-row:last-child {
+  box-shadow: none;
+}
+
+.home-upnext-row.is-overdue .home-upnext-due {
+  color: var(--accent-warn);
+  font-weight: 600;
 }
 
 .home-upnext-text {
@@ -5175,23 +5291,23 @@ button:focus-visible {
   gap: 4px;
 }
 
+/* Schedule row in the rail card — compact 2-col, no per-row warn
+   background (the title-pill carries the global warn state). */
 .home-schedule-row {
   display: grid;
-  grid-template-columns: 1fr 100px 80px;
-  gap: 12px;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
   align-items: baseline;
-  padding: 8px 12px;
+  padding: 4px 0;
   background: transparent;
   border: none;
   border-radius: 0;
   font-size: 12px;
-  box-shadow: inset 0 -1px 0 var(--rule-soft);
 }
 
-.home-schedule-row.is-stale {
-  background: rgba(var(--accent-warn-rgb), 0.06);
-  box-shadow: inset 3px 0 0 rgba(var(--accent-warn-rgb), 0.5),
-              inset 0 -1px 0 rgba(var(--accent-warn-rgb), 0.18);
+.home-schedule-row.is-stale .home-schedule-when {
+  color: var(--accent-warn);
+  font-weight: 600;
 }
 
 .home-schedule-name {
