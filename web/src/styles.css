@@ -4907,3 +4907,79 @@ button:focus-visible {
 .home-link-btn:hover {
   color: var(--ink);
 }
+
+/* Peak hour pattern callout */
+.home-pattern {
+  font-size: 13px;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.home-pattern strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Up next list */
+.home-upnext-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.home-upnext-row {
+  display: grid;
+  grid-template-columns: 1fr 130px 90px;
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(182, 139, 97, 0.18);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.home-upnext-row.is-overdue {
+  background: rgba(196, 92, 74, 0.07);
+  border-color: rgba(196, 92, 74, 0.3);
+}
+
+.home-upnext-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-upnext-prio {
+  margin-right: 4px;
+}
+
+.home-upnext-proj {
+  font-size: 11px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-upnext-due {
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-upnext-row.is-overdue .home-upnext-due {
+  color: #c45c4a;
+  font-weight: 600;
+}
+
+.home-footnote code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+}

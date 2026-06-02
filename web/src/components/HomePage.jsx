@@ -53,6 +53,159 @@ function formatDateLong(d = new Date()) {
   });
 }
 
+/* ── Peak hour pattern (last 8 weeks) ── */
+function computePeakHour(workSessions) {
+  const cutoff = Date.now() - 8 * 7 * MS_PER_DAY;
+  const hourMs = Array(24).fill(0);
+  const hourDays = Array.from({ length: 24 }, () => new Set());
+  for (const ws of workSessions || []) {
+    const start = parseIsoMs(ws.startedAt);
+    if (start === null || start < cutoff) continue;
+    const end = parseIsoMs(ws.endedAt);
+    if (end === null || end <= start) continue;
+    const activeMs = ws.activeMs || end - start;
+    const factor = activeMs / (end - start);
+    let cursor = start;
+    while (cursor < end) {
+      const d = new Date(cursor);
+      const hr = d.getHours();
+      const nextBoundary = new Date(
+        d.getFullYear(),
+        d.getMonth(),
+        d.getDate(),
+        hr + 1,
+        0,
+        0
+      ).getTime();
+      const segEnd = Math.min(end, nextBoundary);
+      hourMs[hr] += (segEnd - cursor) * factor;
+      hourDays[hr].add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+      cursor = segEnd;
+    }
+  }
+  let peakHr = -1;
+  let peakTotalMs = 0;
+  for (let h = 0; h < 24; h++) {
+    if (hourMs[h] > peakTotalMs) {
+      peakTotalMs = hourMs[h];
+      peakHr = h;
+    }
+  }
+  if (peakHr === -1) return null;
+  const activeDays = hourDays[peakHr].size;
+  return {
+    hour: peakHr,
+    avgMinPerActiveDay: activeDays > 0 ? Math.round(peakTotalMs / activeDays / MS_PER_MIN) : 0,
+    activeDays,
+    totalMs: peakTotalMs,
+  };
+}
+
+function PeakHourCallout({ workSessions }) {
+  const peak = useMemo(() => computePeakHour(workSessions), [workSessions]);
+  if (!peak) return null;
+  const now = new Date();
+  const currentHr = now.getHours();
+  const currentMin = now.getMinutes();
+  const diff = currentHr - peak.hour;
+  let when;
+  if (currentHr === peak.hour) {
+    when = `It's ${currentHr}:${String(currentMin).padStart(2, "0")} now — you're in your green window.`;
+  } else if (currentHr === peak.hour - 1) {
+    const minsUntil = 60 - currentMin;
+    when = `Green window opens in ${minsUntil} min.`;
+  } else if (diff >= 1 && diff <= 3) {
+    when = `${diff}h past peak — still productive territory.`;
+  } else if (diff > 3) {
+    when = `It's ${currentHr}:${String(currentMin).padStart(2, "0")} — well past your usual peak.`;
+  } else {
+    const hoursUntil = peak.hour - currentHr;
+    when = `Green window opens in ${hoursUntil}h.`;
+  }
+  return (
+    <section className="home-section">
+      <h2 className="home-section-title">Pattern</h2>
+      <p className="home-pattern">
+        Your peak hour (last 8 wk) is{" "}
+        <strong>
+          {peak.hour}:00–{peak.hour + 1}:00
+        </strong>
+        , avg <strong>{peak.avgMinPerActiveDay} min</strong> on days you worked then. {when}
+      </p>
+    </section>
+  );
+}
+
+/* ── Up next (upcoming-due tasks) ── */
+function UpNextSection({ tasks, projects }) {
+  const projectName = useMemo(
+    () => new Map((projects || []).map((p) => [p.id, p.name])),
+    [projects]
+  );
+  const items = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    return (tasks || [])
+      .filter((t) => !t.done && t.dueDate)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+      .slice(0, 5)
+      .map((t) => {
+        const dueMs = Date.parse(t.dueDate + "T00:00:00") || Date.parse(t.dueDate);
+        const days = Number.isFinite(dueMs) ? Math.ceil((dueMs - todayMs) / MS_PER_DAY) : null;
+        return {
+          id: t.id,
+          text: t.text,
+          dueDate: t.dueDate,
+          daysUntil: days,
+          projectName: projectName.get(t.projectId) || "Unknown",
+          priority: t.priority,
+        };
+      });
+  }, [tasks, projectName]);
+
+  if (!items.length) {
+    return (
+      <section className="home-section">
+        <h2 className="home-section-title">Up next</h2>
+        <p className="home-empty">No tasks with due dates. Add some in /todo to see them queued here.</p>
+      </section>
+    );
+  }
+  return (
+    <section className="home-section">
+      <h2 className="home-section-title">Up next</h2>
+      <ul className="home-upnext-list">
+        {items.map((it) => {
+          const overdue = it.daysUntil !== null && it.daysUntil < 0;
+          const dueLabel =
+            it.daysUntil === null
+              ? it.dueDate
+              : it.daysUntil < 0
+                ? `${-it.daysUntil}d overdue`
+                : it.daysUntil === 0
+                  ? "due today"
+                  : it.daysUntil === 1
+                    ? "tomorrow"
+                    : `in ${it.daysUntil} days`;
+          const prio =
+            it.priority === "high" ? "⏫" : it.priority === "medium" ? "🔼" : it.priority === "low" ? "🔽" : "";
+          return (
+            <li key={it.id} className={`home-upnext-row${overdue ? " is-overdue" : ""}`}>
+              <span className="home-upnext-text">
+                {prio && <span className="home-upnext-prio">{prio}</span>}
+                {it.text}
+              </span>
+              <span className="home-upnext-proj">{it.projectName}</span>
+              <span className="home-upnext-due">{dueLabel}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /* ── Header ── */
 function HomeHeader({ content }) {
   const today = formatDateLong();
@@ -154,8 +307,8 @@ function UnfinishedSection({
     return out;
   }, [history, yKey]);
 
-  if (!yesterdayOpen.length && !allOpen.length) return null;
-
+  // Always render the section — even when empty — so the affordance is
+  // discoverable. Empty state lives below.
   const hasEmptySlotToday = todaysSlots.some((s) => !s.text);
 
   function renderRow(item, dayDate, dayLabel) {
@@ -405,8 +558,13 @@ export default function HomePage() {
         onDrop={handleDrop}
       />
 
+      <PeakHourCallout workSessions={content.workSessions} />
+
+      <UpNextSection tasks={content.todaysTasks} projects={content.projects} />
+
       <p className="home-footnote">
-        More sections (peak-hour pattern, resume / start, up next) coming soon.
+        Top 3 syncs to today's daily note <code>## Top 3</code> section every 5 min via
+        <code> sync-top3.py</code>. Resume / start surface coming next.
       </p>
     </main>
   );
