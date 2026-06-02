@@ -624,6 +624,21 @@ export function normalizeDailyTop3History(value) {
     .slice(0, 30);
 }
 
+// scheduledTaskHeartbeats: {<task-name>: <ISO>}. Each background script PUTs
+// its heartbeat on successful completion. Frontend surfaces on /home (warning
+// banner + status section) so the user knows when the schedule is silently
+// broken — same class of failure as the silent task-scheduler PATH bug.
+export function normalizeScheduledTaskHeartbeats(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (typeof k !== "string" || typeof v !== "string") continue;
+    if (parseIsoMs(v) === null) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 export function normalizeWorkSessions(value) {
   if (!Array.isArray(value)) return [];
   const seen = new Set();
@@ -666,6 +681,7 @@ export const DEFAULT_CONTENT = {
   workSessions: [],
   dailyTop3: normalizeDailyTop3(null),
   dailyTop3History: [],
+  scheduledTaskHeartbeats: {},
 };
 
 export function cloneTask(task) {
@@ -714,6 +730,7 @@ export function cloneContent(content) {
       : [],
     dailyTop3: normalizeDailyTop3(content.dailyTop3),
     dailyTop3History: normalizeDailyTop3History(content.dailyTop3History),
+    scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(content.scheduledTaskHeartbeats),
   };
 }
 
@@ -740,6 +757,7 @@ export function normalizeContentRecord(record) {
     workSessions: normalizeWorkSessions(record.workSessions),
     dailyTop3: normalizeDailyTop3(record.dailyTop3),
     dailyTop3History: normalizeDailyTop3History(record.dailyTop3History),
+    scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
   };
 }
 

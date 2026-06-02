@@ -53,6 +53,85 @@ function formatDateLong(d = new Date()) {
   });
 }
 
+/* ── Schedule heartbeat status ── */
+// Expected cadence per script + the multiplier at which we call it "stale".
+// Stale threshold = expected × 2 — gives one missed run worth of grace before
+// raising the alarm.
+const HEARTBEAT_SPEC = [
+  { key: "sync-top3",              label: "Top 3 sync",         expectedMin: 5 },
+  { key: "sync-todos",             label: "Todos sync",         expectedMin: 15 },
+  { key: "import-claude-sessions", label: "Claude import",      expectedMin: 60 },
+  { key: "backup-dashboard",       label: "Daily backup",       expectedMin: 60 * 24 },
+];
+
+function relTime(ms) {
+  const min = Math.floor(ms / MS_PER_MIN);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  if (min < 60 * 24) return `${Math.floor(min / 60)}h ago`;
+  return `${Math.floor(min / 60 / 24)}d ago`;
+}
+
+function ScheduleStatusSection({ heartbeats }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const rows = HEARTBEAT_SPEC.map((s) => {
+    const iso = heartbeats?.[s.key];
+    const ts = iso ? Date.parse(iso) : null;
+    const ageMs = ts ? now - ts : null;
+    const stale = ts === null || ageMs > s.expectedMin * MS_PER_MIN * 2;
+    return { ...s, iso, ts, ageMs, stale };
+  });
+  const staleRows = rows.filter((r) => r.stale);
+
+  return (
+    <>
+      {staleRows.length > 0 && (
+        <section className="home-schedule-banner">
+          <div className="home-schedule-banner-title">
+            ⚠ Schedule issue: {staleRows.length} task{staleRows.length === 1 ? "" : "s"} not running
+          </div>
+          <ul className="home-schedule-banner-list">
+            {staleRows.map((r) => (
+              <li key={r.key}>
+                <strong>{r.label}</strong> —{" "}
+                {r.iso ? `last run ${relTime(r.ageMs)}` : "no run recorded"}
+                {" "}(expected every {r.expectedMin < 60 ? `${r.expectedMin} min` : r.expectedMin === 60 ? "hour" : `${r.expectedMin / 60} hr`})
+              </li>
+            ))}
+          </ul>
+          <p className="home-schedule-banner-help">
+            Run a script manually to diagnose, or check{" "}
+            <code>schtasks /query /tn Dashboard{`<name>`} /v /fo LIST | findstr "Last Result"</code>
+            {" "}— anything other than 0 means it crashed.
+          </p>
+        </section>
+      )}
+
+      <section className="home-section">
+        <h2 className="home-section-title">Schedule health</h2>
+        <ul className="home-schedule-list">
+          {rows.map((r) => (
+            <li key={r.key} className={`home-schedule-row${r.stale ? " is-stale" : ""}`}>
+              <span className="home-schedule-name">{r.label}</span>
+              <span className="home-schedule-when">
+                {r.iso ? relTime(r.ageMs) : "never"}
+              </span>
+              <span className="home-schedule-expected">
+                every {r.expectedMin < 60 ? `${r.expectedMin}m` : r.expectedMin === 60 ? "hr" : `${r.expectedMin / 60}h`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </>
+  );
+}
+
 /* ── Peak hour pattern (last 8 weeks) ── */
 function computePeakHour(workSessions) {
   const cutoff = Date.now() - 8 * 7 * MS_PER_DAY;
@@ -583,6 +662,8 @@ export default function HomePage() {
         onPromote={handlePromote}
         onDrop={handleDrop}
       />
+
+      <ScheduleStatusSection heartbeats={content.scheduledTaskHeartbeats} />
 
       <PeakHourCallout workSessions={content.workSessions} />
 

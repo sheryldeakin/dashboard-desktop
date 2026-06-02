@@ -5029,3 +5029,95 @@ button:focus-visible {
   border-radius: 3px;
   font-size: 10px;
 }
+
+/* Schedule health: warning banner + always-visible status panel */
+.home-schedule-banner {
+  margin: 0 0 24px;
+  padding: 12px 16px;
+  background: rgba(196, 92, 74, 0.08);
+  border: 1px solid rgba(196, 92, 74, 0.35);
+  border-radius: 8px;
+}
+
+.home-schedule-banner-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8c3a2c;
+  margin-bottom: 6px;
+}
+
+.home-schedule-banner-list {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.home-schedule-banner-list li {
+  margin: 2px 0;
+}
+
+.home-schedule-banner-list strong {
+  font-weight: 600;
+}
+
+.home-schedule-banner-help {
+  font-size: 11px;
+  color: var(--ink-muted);
+  margin: 8px 0 0;
+}
+
+.home-schedule-banner-help code {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.home-schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.home-schedule-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 80px;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(182, 139, 97, 0.16);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.home-schedule-row.is-stale {
+  background: rgba(196, 92, 74, 0.08);
+  border-color: rgba(196, 92, 74, 0.3);
+}
+
+.home-schedule-name {
+  font-weight: 500;
+}
+
+.home-schedule-when {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-align: right;
+}
+
+.home-schedule-row.is-stale .home-schedule-when {
+  color: #c45c4a;
+  font-weight: 600;
+}
+
+.home-schedule-expected {
+  font-size: 10px;
+  color: rgba(0, 0, 0, 0.4);
+  text-align: right;
+}

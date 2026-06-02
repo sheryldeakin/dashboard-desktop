@@ -177,6 +177,14 @@ function mergeDailyTop3History(existing, incoming) {
   return [...map.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
 }
 
+// Heartbeats: merge by key, incoming overrides for that task. Without this, a
+// /todo save (which doesn't know about heartbeats) would wipe the field every
+// time a script PUT'd its heartbeat just before. Same data-loss class as the
+// workSessions clobber we fixed earlier.
+function mergeHeartbeats(existing, incoming) {
+  return { ...(existing || {}), ...(incoming || {}) };
+}
+
 app.put("/api/content", async (req, res) => {
   const payload = req.body;
   if (!isContentPayload(payload)) {
@@ -187,8 +195,9 @@ app.put("/api/content", async (req, res) => {
     const collection = await getCollection();
     const existing = await readNormalizedContent(collection);
 
-    // workSessions + dailyTop3History: union — never lose entries the client
-    // didn't include. dailyTop3 (today's) and other arrays: client's body wins.
+    // workSessions + dailyTop3History + scheduledTaskHeartbeats: merge so
+    // background writers (importer, sync scripts) aren't clobbered by /todo
+    // saves that don't carry those fields. Everything else: client wins.
     const mergedPayload = {
       ...payload,
       workSessions: mergeWorkSessions(
@@ -198,6 +207,10 @@ app.put("/api/content", async (req, res) => {
       dailyTop3History: mergeDailyTop3History(
         existing.content.dailyTop3History,
         payload.dailyTop3History,
+      ),
+      scheduledTaskHeartbeats: mergeHeartbeats(
+        existing.content.scheduledTaskHeartbeats,
+        payload.scheduledTaskHeartbeats,
       ),
     };
     const normalizedPayload = normalizeContentRecord(mergedPayload);

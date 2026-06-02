@@ -570,6 +570,22 @@ function normalizeDailyTop3History(value) {
     .slice(0, 30); // last 30 days kept; older drops off
 }
 
+// scheduledTaskHeartbeats: {<task-name>: <ISO timestamp>}
+// Each Dashboard* scheduled task writes its name + nowIso on successful
+// completion. Frontend reads to surface schedule health on /home (warning
+// banner + status panel). Merged per-key by the PUT handler so concurrent
+// scripts don't clobber each other's heartbeats.
+function normalizeScheduledTaskHeartbeats(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (typeof k !== "string" || typeof v !== "string") continue;
+    if (parseIsoMs(v) === null) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 function normalizeWorkSessions(value) {
   if (!Array.isArray(value)) return [];
   // Dedupe by id; cap at MAX; newest first (by startedAt desc).
@@ -610,6 +626,7 @@ export function createDefaultContent() {
     workSessions: [],
     dailyTop3: normalizeDailyTop3(null),
     dailyTop3History: [],
+    scheduledTaskHeartbeats: {},
   };
 }
 
@@ -638,6 +655,7 @@ export function normalizeContentRecord(record) {
     workSessions: normalizeWorkSessions(record.workSessions),
     dailyTop3: normalizeDailyTop3(record.dailyTop3),
     dailyTop3History: normalizeDailyTop3History(record.dailyTop3History),
+    scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
   };
 }
 
@@ -650,5 +668,13 @@ export function isContentPayload(payload) {
   if (payload.workSessions !== undefined && !Array.isArray(payload.workSessions)) return false;
   if (payload.dailyTop3 !== undefined && (typeof payload.dailyTop3 !== "object" || payload.dailyTop3 === null)) return false;
   if (payload.dailyTop3History !== undefined && !Array.isArray(payload.dailyTop3History)) return false;
+  if (
+    payload.scheduledTaskHeartbeats !== undefined &&
+    (typeof payload.scheduledTaskHeartbeats !== "object" ||
+      payload.scheduledTaskHeartbeats === null ||
+      Array.isArray(payload.scheduledTaskHeartbeats))
+  ) {
+    return false;
+  }
   return true;
 }
