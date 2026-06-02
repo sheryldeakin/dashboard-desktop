@@ -185,6 +185,47 @@ function mergeHeartbeats(existing, incoming) {
   return { ...(existing || {}), ...(incoming || {}) };
 }
 
+// dailyTop3: per-slot merge using slot.updatedAt as the last-write-wins signal.
+// Without this, the same partial-deploy clobber class as workSessions hits Top 3:
+// an old client PUTs without updatedAt on slots → looks like "empty wins" if we
+// took the incoming wholesale → today's Top 3 wiped. Rule per slot:
+//   - if incoming has no updatedAt AND existing does, keep existing
+//     (covers old-client and stale-snapshot writes)
+//   - else newer updatedAt wins
+//   - else (both null) incoming wins (first-write)
+// If dates differ, take incoming wholesale (rollover happened on the client side).
+function isoToMs(s) {
+  if (typeof s !== "string") return null;
+  const ms = Date.parse(s);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function mergeDailyTop3(existing, incoming) {
+  if (!incoming || typeof incoming !== "object") return existing;
+  if (!existing || typeof existing !== "object") return incoming;
+  if (incoming.date && existing.date && incoming.date !== existing.date) {
+    return incoming;
+  }
+  const eSlots = Array.isArray(existing.slots) ? existing.slots : [];
+  const iSlots = Array.isArray(incoming.slots) ? incoming.slots : [];
+  const merged = [];
+  for (let s = 0; s < 3; s++) {
+    const eS = eSlots[s] || {};
+    const iS = iSlots[s] || {};
+    const eAt = isoToMs(eS.updatedAt);
+    const iAt = isoToMs(iS.updatedAt);
+    if (iAt === null && eAt !== null) merged.push(eS);
+    else if (eAt === null && iAt !== null) merged.push(iS);
+    else if ((iAt || 0) >= (eAt || 0)) merged.push(iS);
+    else merged.push(eS);
+  }
+  return {
+    date: incoming.date || existing.date,
+    slots: merged,
+    updatedAt: incoming.updatedAt || existing.updatedAt,
+  };
+}
+
 app.put("/api/content", async (req, res) => {
   const payload = req.body;
   if (!isContentPayload(payload)) {
@@ -195,9 +236,9 @@ app.put("/api/content", async (req, res) => {
     const collection = await getCollection();
     const existing = await readNormalizedContent(collection);
 
-    // workSessions + dailyTop3History + scheduledTaskHeartbeats: merge so
-    // background writers (importer, sync scripts) aren't clobbered by /todo
-    // saves that don't carry those fields. Everything else: client wins.
+    // workSessions / dailyTop3History / scheduledTaskHeartbeats / dailyTop3:
+    // all merged so background writers (importer, sync scripts) and stale
+    // client snapshots can't clobber each other. Everything else: client wins.
     const mergedPayload = {
       ...payload,
       workSessions: mergeWorkSessions(
@@ -211,6 +252,10 @@ app.put("/api/content", async (req, res) => {
       scheduledTaskHeartbeats: mergeHeartbeats(
         existing.content.scheduledTaskHeartbeats,
         payload.scheduledTaskHeartbeats,
+      ),
+      dailyTop3: mergeDailyTop3(
+        existing.content.dailyTop3,
+        payload.dailyTop3,
       ),
     };
     const normalizedPayload = normalizeContentRecord(mergedPayload);
