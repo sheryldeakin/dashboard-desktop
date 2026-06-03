@@ -4956,7 +4956,9 @@ button:focus-visible {
 
 .home-today-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* First three cells are numeric (short content); last cell holds a
+     project name (long content) and gets ~1.4× the space. */
+  grid-template-columns: 1fr 1fr 1fr 1.4fr;
 }
 
 /* Each cell is now an <a>. Reset link styling, add subtle hover tint.
@@ -5035,11 +5037,20 @@ button:focus-visible {
   opacity: 0.7;
 }
 
-/* Top-project cell holds a name, not a number — drop tabular-nums and
-   the tight tracking so it reads as text. */
+/* Top-project cell holds a name, not a number — drop tabular-nums and the
+   tight tracking so it reads as text, and shrink to a calmer "supporting
+   info" size. Names like "Second Brain" / "AAAI Submission" need horizontal
+   room the dashboard-energy 30px stat size can't give in a 4-column 680px
+   grid. 20px keeps it legible without forcing ellipsis on every project. */
 .home-today-num-text {
   font-variant-numeric: normal;
   letter-spacing: 0;
+  font-size: 20px;
+  font-weight: 500;
+  /* The numeric cells set line-height: 1; bump it back up here so the
+     text cell's baseline aligns visually with the bigger numbers above
+     the label row. */
+  line-height: 1.2;
 }
 
 .home-today-num-secondary {
