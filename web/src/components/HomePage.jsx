@@ -408,15 +408,42 @@ function useTodayStats(content) {
       rightNow = { kind: "idle", label: "No sessions yet today", detail: null };
     }
 
-    // Project mix: top 4 + "Other" — for the rail mini-bar
+    // Project mix: top 4 + "Other" — for the rail mini-bar.
+    // Most auto-created projects share the same default color, which made
+    // the stacked bar look like one solid block. Assign palette colors by
+    // position (after sorting) so segments are always visibly distinct.
+    // Respect a stored color only if it's non-default; otherwise palette.
+    const PROJMIX_PALETTE = [
+      "#5a7e5f", // sage
+      "#8a6940", // tan
+      "#4a5a70", // slate
+      "#c45c4a", // warn / coral
+      "#7a5b9c", // muted purple
+      "#5c8aa8", // muted blue
+      "#8aa05c", // olive
+    ];
+    const PROJMIX_DEFAULT_COLORS = new Set([
+      "#b66e35",  // app-wide default accent — treat as "no real color set"
+      "",
+      null,
+      undefined,
+    ]);
+
     const projectMix = [...byProject.entries()]
-      .map(([pid, ms]) => ({
-        id: pid,
-        name: projectMap.get(pid)?.name || "Other",
-        color: projectMap.get(pid)?.color || "#999",
-        ms,
-      }))
-      .sort((a, b) => b.ms - a.ms);
+      .map(([pid, ms]) => {
+        const storedColor = projectMap.get(pid)?.color;
+        return {
+          id: pid,
+          name: projectMap.get(pid)?.name || "Other",
+          storedColor: PROJMIX_DEFAULT_COLORS.has(storedColor) ? null : storedColor,
+          ms,
+        };
+      })
+      .sort((a, b) => b.ms - a.ms)
+      .map((p, i) => ({
+        ...p,
+        color: p.storedColor || PROJMIX_PALETTE[i % PROJMIX_PALETTE.length],
+      }));
     const mixTop = projectMix.slice(0, 4);
     const mixRest = projectMix.slice(4);
     if (mixRest.length) {
