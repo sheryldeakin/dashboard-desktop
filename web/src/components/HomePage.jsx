@@ -9,7 +9,6 @@ import {
   parseIsoMs,
   createDefaultTask,
 } from "../utils/taskUtils.js";
-import ChatDrawer from "./ChatDrawer.jsx";
 
 /* /home — daily-driver landing.
    Sections: header (date + deadline countdown), today's Top 3 (editable),
@@ -614,6 +613,185 @@ function HourRibbonCard({ byHour }) {
   );
 }
 
+/* ── Chats card (rail) ──
+   List of user-configured claude.ai/code remote-control session URLs.
+   Each entry: { id, label, url }. Stored in localStorage so they're
+   per-device — the URLs you bookmark on your work laptop are different
+   from the ones on your home machine.
+
+   Recommended usage: in a terminal, run `claude remote-control --name
+   "<label>"` in the directory you want Claude to have context on
+   (vault, dashboard repo, writing project, etc.). Copy the session URL
+   it prints. Add it here. The chat stays available as long as that
+   local process keeps running. Clicking opens it in a new tab.
+
+   No auth on these links — anyone who can load /home can click them
+   and join your live Claude session. GATE THE DASHBOARD with Vercel
+   Password Protection (or Cloudflare Access) before relying on this. */
+
+const CHATS_STORAGE_KEY = "dashboard_chat_links_v1";
+
+function loadStoredChats() {
+  try {
+    const raw = localStorage.getItem(CHATS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((c) => c && typeof c.url === "string" && typeof c.label === "string");
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredChats(chats) {
+  try {
+    localStorage.setItem(CHATS_STORAGE_KEY, JSON.stringify(chats));
+  } catch (e) {
+    console.warn("Failed to persist chat links:", e);
+  }
+}
+
+function ChatsCard() {
+  const [chats, setChats] = useState(() => loadStoredChats());
+  const [addingOpen, setAddingOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState({ label: "", url: "" });
+
+  function persist(next) {
+    setChats(next);
+    saveStoredChats(next);
+  }
+
+  function startAdd() {
+    setDraft({ label: "", url: "" });
+    setEditingId(null);
+    setAddingOpen(true);
+  }
+
+  function startEdit(chat) {
+    setDraft({ label: chat.label, url: chat.url });
+    setEditingId(chat.id);
+    setAddingOpen(true);
+  }
+
+  function commitDraft(e) {
+    e?.preventDefault();
+    const label = draft.label.trim();
+    const url = draft.url.trim();
+    if (!label || !url) return;
+    if (!/^https?:\/\//i.test(url)) {
+      alert("URL must start with http:// or https://");
+      return;
+    }
+    if (editingId) {
+      persist(chats.map((c) => (c.id === editingId ? { ...c, label, url } : c)));
+    } else {
+      persist([...chats, { id: `chat-${Date.now()}`, label, url }]);
+    }
+    setAddingOpen(false);
+    setEditingId(null);
+    setDraft({ label: "", url: "" });
+  }
+
+  function remove(id) {
+    if (!window.confirm("Remove this chat link?")) return;
+    persist(chats.filter((c) => c.id !== id));
+  }
+
+  return (
+    <section className="home-rail-card">
+      <div className="home-rail-card-title">
+        Chats
+        <button
+          type="button"
+          className="home-chats-add"
+          onClick={startAdd}
+          title="Add a chat link"
+          aria-label="Add a chat link"
+        >
+          +
+        </button>
+      </div>
+
+      {chats.length === 0 && !addingOpen && (
+        <p className="home-rail-empty">
+          Run <code>claude remote-control --name "X"</code> in a terminal, copy the
+          session URL, and click <strong>+</strong> to pin it here.
+        </p>
+      )}
+
+      {chats.length > 0 && (
+        <ul className="home-chats-list">
+          {chats.map((c) => (
+            <li key={c.id} className="home-chats-row">
+              <a
+                href={c.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="home-chats-link"
+                title={c.url}
+              >
+                <span className="home-chats-dot" aria-hidden="true" />
+                {c.label}
+              </a>
+              <button
+                type="button"
+                className="home-chats-edit"
+                onClick={() => startEdit(c)}
+                title="Edit"
+                aria-label={`Edit ${c.label}`}
+              >
+                ✎
+              </button>
+              <button
+                type="button"
+                className="home-chats-edit home-chats-remove"
+                onClick={() => remove(c.id)}
+                title="Remove"
+                aria-label={`Remove ${c.label}`}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {addingOpen && (
+        <form className="home-chats-form" onSubmit={commitDraft}>
+          <input
+            type="text"
+            className="home-chats-input"
+            placeholder="Label (e.g. Vault chat)"
+            value={draft.label}
+            onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+            autoFocus
+          />
+          <input
+            type="url"
+            className="home-chats-input home-chats-input-url"
+            placeholder="https://claude.ai/code/…"
+            value={draft.url}
+            onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+          />
+          <div className="home-chats-form-actions">
+            <button type="submit" className="home-chats-btn">
+              {editingId ? "Update" : "Add"}
+            </button>
+            <button
+              type="button"
+              className="home-chats-btn home-chats-btn-ghost"
+              onClick={() => { setAddingOpen(false); setEditingId(null); }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
 /* ── Header — stable "Today" anchor + the date. Countdown lives in the
    rail's CountdownCard now, so the header can stay calm. */
 function HomeHeader() {
@@ -1063,6 +1241,7 @@ export default function HomePage() {
         </div>
 
         <aside className="home-rail">
+          <ChatsCard />
           <RightNowCard rightNow={todayStats.rightNow} />
           <CountdownCard content={content} />
           <ProjectMixCard mix={todayStats.projectMix} totalMs={todayStats.focusedMs} />
@@ -1074,7 +1253,6 @@ export default function HomePage() {
       </div>
 
       <SnapshotPill loadedAtMs={loadedAtMs} />
-      <ChatDrawer />
     </main>
   );
 }
