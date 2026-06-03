@@ -451,14 +451,19 @@ function fmtHrMin(ms) {
 }
 
 /* ── Today snapshot strip (main column, above Top 3) ──
-   4-cell grid with hairline dividers between cells. Each cell: number
-   on top, small uppercase label below. Link to the deep view sits below
-   the grid, right-aligned. */
+   4-cell grid with hairline dividers. Whole strip is a link to the
+   /stats?tab=today deep view — hover reveals a small arrow in the
+   corner; subtle background tint signals interactivity. aria-label
+   describes the link so screen readers don't read "2h45mFocused5..." */
 function TodaySnapshot({ stats }) {
   const topName = stats.topProject?.name || "—";
   const topMs = stats.topProject ? fmtHrMin(stats.topProject.ms) : "";
   return (
-    <section className="home-today-snapshot">
+    <a
+      href="/stats?tab=today"
+      className="home-today-snapshot"
+      aria-label="Open today's full breakdown in stats"
+    >
       <div className="home-today-grid">
         <div className="home-today-cell">
           <span className="home-today-num">{fmtHrMin(stats.focusedMs)}</span>
@@ -489,10 +494,8 @@ function TodaySnapshot({ stats }) {
           </span>
         </div>
       </div>
-      <a href="/stats?tab=today" className="home-today-link">
-        full breakdown →
-      </a>
-    </section>
+      <span className="home-today-arrow" aria-hidden="true">↗</span>
+    </a>
   );
 }
 
