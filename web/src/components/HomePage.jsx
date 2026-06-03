@@ -415,6 +415,7 @@ function useTodayStats(content) {
     const todayKey = localDayKey(todayMs);
     const yesterdayKeyStr = localDayKey(yesterdayMs);
     const msByDay = new Map();  // dayKey → totalActiveMs across all projects
+    const msByDayProject = new Map();  // dayKey → Map(projectId → ms) for stacked week bars
 
     // Yesterday accumulators (mirror of today's; same shape so the snapshot
     // strip can compute deltas uniformly).
@@ -442,6 +443,14 @@ function useTodayStats(content) {
       // and we already break them into hour buckets for the ribbon below.
       const startKey = localDayKey(start);
       msByDay.set(startKey, (msByDay.get(startKey) || 0) + active);
+      // Also bucket by (day, project) so the week-recap bars can be
+      // stacked into project-colored segments without re-walking sessions.
+      let dayProjects = msByDayProject.get(startKey);
+      if (!dayProjects) {
+        dayProjects = new Map();
+        msByDayProject.set(startKey, dayProjects);
+      }
+      dayProjects.set(pid, (dayProjects.get(pid) || 0) + active);
 
       // Yesterday roll-up
       if (start >= yesterdayMs && start < todayMs) {
@@ -594,11 +603,52 @@ function useTodayStats(content) {
     // msByDay histogram built above so we don't walk workSessions again.
     // Single-letter labels (M T W T F S S) since we have 7 columns to fit.
     const weekdayLetters = ["S", "M", "T", "W", "T", "F", "S"];
+
+    // Stable per-project colors across the 7 days. Computed once from the
+    // total ms each project contributed all week so a project's color
+    // doesn't flip if its rank shifts between days. Falls back to the
+    // shared palette (same as today's project-mix card) for unset/default
+    // project colors so the week and the today rail-card agree visually.
+    const weekProjectTotals = new Map();
+    for (let i = 6; i >= 0; i--) {
+      const key = localDayKey(todayMs - i * MS_PER_DAY);
+      const dayProjects = msByDayProject.get(key);
+      if (!dayProjects) continue;
+      for (const [pid, ms] of dayProjects) {
+        weekProjectTotals.set(pid, (weekProjectTotals.get(pid) || 0) + ms);
+      }
+    }
+    const weekProjectColors = new Map();
+    [...weekProjectTotals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([pid], idx) => {
+        const stored = projectMap.get(pid)?.color;
+        const useStored = stored && !PROJMIX_DEFAULT_COLORS.has(stored);
+        weekProjectColors.set(
+          pid,
+          useStored ? stored : PROJMIX_PALETTE[idx % PROJMIX_PALETTE.length]
+        );
+      });
+
     const weekDays = [];
     for (let i = 6; i >= 0; i--) {
       const dayMs = todayMs - i * MS_PER_DAY;
       const key = localDayKey(dayMs);
       const d = new Date(dayMs);
+      const dayProjects = msByDayProject.get(key);
+      // Sort segments largest → smallest so the most significant project
+      // visually anchors the bottom of the bar (CSS uses column-reverse to
+      // stack with first-in-array at the visual bottom).
+      const segments = dayProjects
+        ? [...dayProjects.entries()]
+            .map(([pid, ms]) => ({
+              id: pid,
+              name: projectMap.get(pid)?.name || "Unassigned",
+              color: weekProjectColors.get(pid) || "rgba(0,0,0,0.25)",
+              ms,
+            }))
+            .sort((a, b) => b.ms - a.ms)
+        : [];
       weekDays.push({
         dayKey: key,
         dayLabel: weekdayLetters[d.getDay()],
@@ -609,10 +659,23 @@ function useTodayStats(content) {
         }),
         focusedMs: msByDay.get(key) || 0,
         isToday: i === 0,
+        segments,
       });
     }
     const weekTotalMs = weekDays.reduce((sum, d) => sum + d.focusedMs, 0);
     const weekActiveDays = weekDays.filter((d) => d.focusedMs > 0).length;
+
+    // Project legend for the week (top projects by total week ms, with
+    // their assigned colors). Lets the WeekRecap render a small key.
+    const weekLegend = [...weekProjectTotals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([pid, ms]) => ({
+        id: pid,
+        name: projectMap.get(pid)?.name || "Unassigned",
+        color: weekProjectColors.get(pid),
+        ms,
+      }));
 
     return {
       focusedMs,
@@ -636,6 +699,7 @@ function useTodayStats(content) {
       weekDays,
       weekTotalMs,
       weekActiveDays,
+      weekLegend,
     };
   }, [content]);
 }
@@ -1381,7 +1445,7 @@ function UnfinishedSection({
    Why a 7-day window (not Mon-Sun calendar week): the rolling window
    is what dashboards like Stripe and GitHub use because it always shows
    you the same amount of history regardless of what day you load it. */
-function WeekRecap({ weekDays, weekTotalMs, weekActiveDays }) {
+function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend }) {
   const peak = Math.max(...weekDays.map((d) => d.focusedMs), 1);
   const hasAny = weekTotalMs > 0;
   return (
@@ -1403,17 +1467,37 @@ function WeekRecap({ weekDays, weekTotalMs, weekActiveDays }) {
         <div className="home-week-bars">
           {weekDays.map((d) => {
             const heightPct = (d.focusedMs / peak) * 100;
+            // Build a one-line tooltip with the per-project breakdown so
+            // hover gives the same info as the legend without forcing the
+            // user to glance back and forth.
+            const tooltipBreakdown = d.segments
+              .map((s) => `${s.name} ${fmtHrMin(s.ms)}`)
+              .join(" · ");
+            const title = d.focusedMs > 0
+              ? `${d.fullLabel} — ${fmtHrMin(d.focusedMs)}${tooltipBreakdown ? `\n${tooltipBreakdown}` : ""}`
+              : `${d.fullLabel} — no focused time`;
             return (
               <div
                 key={d.dayKey}
                 className={`home-week-col${d.isToday ? " is-today" : ""}${d.focusedMs > 0 ? " has-any" : ""}`}
-                title={`${d.fullLabel} — ${fmtHrMin(d.focusedMs)}`}
+                title={title}
               >
                 <div className="home-week-bar-wrap">
                   <div
                     className="home-week-bar"
                     style={{ height: `${Math.max(3, heightPct)}%` }}
-                  />
+                  >
+                    {d.segments.map((s) => (
+                      <div
+                        key={s.id}
+                        className="home-week-bar-seg"
+                        style={{
+                          flexBasis: `${(s.ms / d.focusedMs) * 100}%`,
+                          background: s.color,
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
                 <div className="home-week-label">{d.dayLabel}</div>
                 <div className="home-week-time">
@@ -1423,6 +1507,17 @@ function WeekRecap({ weekDays, weekTotalMs, weekActiveDays }) {
             );
           })}
         </div>
+        {hasAny && weekLegend.length > 0 && (
+          <ul className="home-week-legend">
+            {weekLegend.map((p) => (
+              <li key={p.id} className="home-week-legend-row">
+                <span className="home-week-legend-dot" style={{ background: p.color }} />
+                <span className="home-week-legend-name">{p.name}</span>
+                <span className="home-week-legend-ms">{fmtHrMin(p.ms)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {!hasAny && (
           <p className="home-empty home-week-empty">
             No focused time logged this week yet.
@@ -1793,6 +1888,7 @@ export default function HomePage() {
             weekDays={todayStats.weekDays}
             weekTotalMs={todayStats.weekTotalMs}
             weekActiveDays={todayStats.weekActiveDays}
+            weekLegend={todayStats.weekLegend}
           />
         </div>
 

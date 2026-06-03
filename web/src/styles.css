@@ -5959,29 +5959,49 @@ button:focus-visible {
   border-bottom: 1px solid var(--rule-soft);
 }
 
+/* Bar is now a flex stack of project-colored segments. column-reverse
+   means the FIRST element in DOM order sits at the visual BOTTOM, which
+   is where we want the largest project (segments are sorted desc).
+   The grey background only shows on empty days (no segments rendered)
+   or behind a tiny min-height stub. */
 .home-week-bar {
   width: 100%;
-  background: rgba(var(--accent-tan-rgb), 0.22);
+  display: flex;
+  flex-direction: column-reverse;
+  background: rgba(0, 0, 0, 0.04);
   border-radius: 3px 3px 0 0;
-  transition: background var(--motion-fast) ease;
+  overflow: hidden;
   min-height: 3px;
+  transition: box-shadow var(--motion-fast) ease;
 }
 
-.home-week-col.has-any .home-week-bar {
-  background: rgba(var(--accent-tan-rgb), 0.55);
+.home-week-bar-seg {
+  width: 100%;
+  flex-shrink: 0;
+  flex-grow: 0;
+  /* Subtle separator between adjacent segments. Same-color segments
+     wouldn't have a visible boundary; this gives them one without
+     adding visual noise on colorful bars. */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
+/* The visual TOP segment is the LAST DOM child (column-reverse). Round
+   the top corners there. The bar's own border-radius handles edges for
+   single-segment bars. */
+.home-week-bar-seg:last-child {
+  box-shadow: none;
+  border-radius: 3px 3px 0 0;
+}
+
+/* Today's accent: a soft sage outline around the bar, not a fill colour.
+   Keeps the segment colors intact while still telling you which day is
+   "now". On hover the outline tightens for a small payoff. */
 .home-week-col.is-today .home-week-bar {
-  background: var(--accent-sage);
-}
-
-.home-week-recap:hover .home-week-col.has-any .home-week-bar {
-  background: rgba(var(--accent-tan-rgb), 0.7);
+  box-shadow: 0 0 0 1.5px rgba(var(--accent-sage-rgb), 0.4);
 }
 
 .home-week-recap:hover .home-week-col.is-today .home-week-bar {
-  background: var(--accent-sage);
-  box-shadow: 0 0 0 1.5px rgba(var(--accent-sage-rgb), 0.25);
+  box-shadow: 0 0 0 1.5px var(--accent-sage);
 }
 
 .home-week-label {
@@ -6015,6 +6035,49 @@ button:focus-visible {
 .home-week-empty {
   margin: 12px 0 0;
   text-align: center;
+}
+
+/* Project legend under the bars — same dot + name + ms triplet as the
+   today project-mix card, just at section-scale (the bars span more
+   horizontal room so the legend can go wider too).
+   Wrap and use a comfortable gap so 3-5 projects sit on one or two rows
+   without crowding. */
+.home-week-legend {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.home-week-legend-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.home-week-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.home-week-legend-name {
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+.home-week-legend-ms {
+  color: var(--ink-muted);
 }
 
 /* Unfinished row — was warn-tinted box; now just a plain row with a thin
