@@ -451,36 +451,44 @@ function fmtHrMin(ms) {
 }
 
 /* ── Today snapshot strip (main column, above Top 3) ──
-   Glance answer to "how's today going?" — focused / sessions / done / top. */
+   4-cell grid with hairline dividers between cells. Each cell: number
+   on top, small uppercase label below. Link to the deep view sits below
+   the grid, right-aligned. */
 function TodaySnapshot({ stats }) {
+  const topName = stats.topProject?.name || "—";
+  const topMs = stats.topProject ? fmtHrMin(stats.topProject.ms) : "";
   return (
     <section className="home-today-snapshot">
-      <div className="home-today-stat">
-        <span className="home-today-stat-num">{fmtHrMin(stats.focusedMs)}</span>
-        <span className="home-today-stat-label">focused</span>
-      </div>
-      <div className="home-today-stat">
-        <span className="home-today-stat-num">{stats.sessionCount}</span>
-        <span className="home-today-stat-label">
-          {stats.sessionCount === 1 ? "session" : "sessions"}
-        </span>
-      </div>
-      <div className="home-today-stat">
-        <span className="home-today-stat-num">
-          {stats.done}<span className="home-today-stat-of">/{stats.total}</span>
-        </span>
-        <span className="home-today-stat-label">done</span>
-      </div>
-      {stats.topProject && (
-        <div className="home-today-stat home-today-stat-wide">
-          <span className="home-today-stat-num home-today-stat-text">
-            {stats.topProject.name}
-          </span>
-          <span className="home-today-stat-label">
-            top · {fmtHrMin(stats.topProject.ms)}
+      <div className="home-today-grid">
+        <div className="home-today-cell">
+          <span className="home-today-num">{fmtHrMin(stats.focusedMs)}</span>
+          <span className="home-today-label">Focused</span>
+        </div>
+        <div className="home-today-cell">
+          <span className="home-today-num">{stats.sessionCount}</span>
+          <span className="home-today-label">
+            {stats.sessionCount === 1 ? "Session" : "Sessions"}
           </span>
         </div>
-      )}
+        <div className="home-today-cell">
+          <span className="home-today-num">
+            {stats.done}
+            <span className="home-today-num-secondary">/{stats.total}</span>
+          </span>
+          <span className="home-today-label">Done</span>
+        </div>
+        <div className="home-today-cell">
+          <span
+            className="home-today-num home-today-num-text"
+            title={topName}
+          >
+            {topName}
+          </span>
+          <span className="home-today-label">
+            Top{topMs ? ` · ${topMs}` : ""}
+          </span>
+        </div>
+      </div>
       <a href="/stats?tab=today" className="home-today-link">
         full breakdown →
       </a>

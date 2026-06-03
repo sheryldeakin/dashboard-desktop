@@ -4879,17 +4879,12 @@ button:focus-visible {
 }
 
 /* ── Today snapshot strip (top of main column) ─────────────────────────
-   Glance summary: focused / sessions / done / top project. Sits above
-   Top 3 as a status header. Numbers are the focal point; labels muted.
-   The first .home-section after this gets its top divider naturally. */
+   4-cell grid with hairline dividers between cells. Each cell stacks
+   number-on-top, uppercase-label-below. Link to /stats?tab=today sits
+   below the grid, right-aligned, muted. */
 .home-today-snapshot {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 20px 28px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--rule);
-  margin-bottom: 0;
 }
 
 /* First .home-section after the snapshot strip shouldn't double-up the
@@ -4900,64 +4895,100 @@ button:focus-visible {
   border-top: none;
 }
 
-.home-today-stat {
+.home-today-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Hairline dividers between cells (right border, last cell has none).
+   --rule-soft so it doesn't compete with the section divider below. */
+.home-today-cell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  padding: 4px 16px;
   min-width: 0;
+  border-right: 1px solid var(--rule-soft);
 }
 
-.home-today-stat-wide {
-  flex: 1 1 140px;
-  min-width: 0;
+.home-today-cell:first-child {
+  padding-left: 0;
 }
 
-.home-today-stat-num {
-  font-size: 20px;
+.home-today-cell:last-child {
+  padding-right: 0;
+  border-right: none;
+}
+
+.home-today-num {
+  font-size: 22px;
   font-weight: 600;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   line-height: 1.1;
-}
-
-.home-today-stat-text {
-  font-variant-numeric: normal;
-  letter-spacing: 0;
+  /* truncate gracefully when content (top project name) is too wide */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  display: block;
 }
 
-.home-today-stat-of {
+/* Top-project cell holds a name, not a number — drop tabular-nums and
+   the tight tracking so it reads as text. */
+.home-today-num-text {
+  font-variant-numeric: normal;
+  letter-spacing: 0;
+}
+
+.home-today-num-secondary {
   font-weight: 500;
   font-size: 14px;
   color: var(--ink-muted);
   margin-left: 1px;
 }
 
-.home-today-stat-label {
-  font-size: 11px;
+.home-today-label {
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--ink-muted);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .home-today-link {
-  margin-left: auto;
-  font-size: 12px;
+  display: block;
+  margin-top: 12px;
+  font-size: 11px;
   color: var(--ink-muted);
   text-decoration: none;
-  align-self: center;
-  white-space: nowrap;
+  text-align: right;
 }
 
 .home-today-link:hover {
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* On narrow main columns the 4 cells stack to 2x2 so the numbers stay
+   legible instead of getting squeezed to 50px wide. */
+@media (max-width: 520px) {
+  .home-today-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .home-today-cell:nth-child(2) {
+    border-right: none;
+    padding-right: 0;
+  }
+  .home-today-cell:nth-child(3) {
+    padding-left: 0;
+  }
+  .home-today-cell:nth-child(1),
+  .home-today-cell:nth-child(2) {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-soft);
+    margin-bottom: 4px;
+  }
 }
 
 /* ── Right now (rail card) ─────────────────────────────────────────── */
