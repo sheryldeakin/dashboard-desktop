@@ -5948,12 +5948,17 @@ button:focus-visible {
   min-width: 0;
 }
 
-/* The bar lives inside a fixed-height wrap so all 7 columns share the
+/* The bar lives inside a flexible-height wrap so all 7 columns share the
    same baseline. The bar grows from the bottom; height % is calculated
-   from each day's focused-ms relative to the 7-day peak. */
+   from each day's focused-ms relative to the 7-day peak.
+
+   Height scales with viewport height: ~80px on a 768px-tall monitor,
+   ~108px on 1080p, ~130px on 1200p, capped at 140px so 4K displays
+   don't make the chart visually dominate the page. vh (not vw) because
+   this is a vertical dimension — tall monitors get tall bars. */
 .home-week-bar-wrap {
   width: 100%;
-  height: 72px;
+  height: clamp(80px, 10vh, 140px);
   display: flex;
   align-items: flex-end;
   border-bottom: 1px solid var(--rule-soft);
