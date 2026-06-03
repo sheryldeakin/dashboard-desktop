@@ -882,7 +882,10 @@ export function createRecurringTaskFromCompleted(task, referenceDate = getTodayK
 // Returns null when there's no usable stored content (fresh browser, cleared cache,
 // incognito, or corrupt JSON). Callers decide the fallback — critically, "no local
 // content" must never be treated as data that can overwrite the remote DB.
-function loadContent() {
+// Exported so pages (DashboardPage etc.) can hydrate state synchronously
+// from cache in useState initializer, avoiding a flash of DEFAULT_CONTENT
+// before the async loadAndHydratePreferredContent() completes.
+export function loadContent() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;

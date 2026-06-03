@@ -32,6 +32,7 @@ import {
   createHistoryEntry,
   removeLatestHistoryEntry,
   applyDailyRollover,
+  loadContent,
   loadAndHydratePreferredContent,
   formatDeadlineLocal,
   formatDuration,
@@ -100,11 +101,17 @@ function useCountdown(deadlineIso = DEADLINE_ISO, startIso = START_ISO) {
 }
 
 function DashboardPage() {
-  const [content, setContent] = useState(cloneContent(DEFAULT_CONTENT));
+  // Lazy initializer reads localStorage synchronously so the first paint
+  // already shows the user's cached content, avoiding a flash of the
+  // hardcoded DEFAULT_CONTENT seed before the async remote fetch resolves.
+  // When there's no cache (incognito, cleared storage, schema-version
+  // wipe, new device), we still need *something* in state so countdown
+  // computations don't crash — we fall back to DEFAULT_CONTENT but flip
+  // `loaded=false` so the JSX renders empty placeholders instead of the
+  // seed values, then the API fetch in useEffect populates real data.
+  const [content, setContent] = useState(() => loadContent() ?? cloneContent(DEFAULT_CONTENT));
+  const [loaded, setLoaded] = useState(() => loadContent() !== null);
   const countdown = useCountdown(content.deadlineDate, content.startDate);
-  const [dragTaskId, setDragTaskId] = useState("");
-  const [queueDropActive, setQueueDropActive] = useState(false);
-  const [backlogDropActive, setBacklogDropActive] = useState(false);
   const [status, setStatus] = useState("");
 
   // Inline-editing state
@@ -158,21 +165,48 @@ function DashboardPage() {
     () => content.todaysTasks.filter((task) => taskMatchesSidebarSection(task, "today", todayKey, defaultProjectId)),
     [content.todaysTasks, todayKey, defaultProjectId]
   );
-  const backlogTasks = useMemo(
-    () =>
-      content.todaysTasks.filter(
-        (task) => !task.done && !taskMatchesSidebarSection(task, "today", todayKey, defaultProjectId)
-      ),
-    [content.todaysTasks, todayKey, defaultProjectId]
-  );
   const queueCount = dashboardTasks.length;
-  const backlogCount = backlogTasks.length;
+
+  // When localStorage cache was empty (incognito, cleared, schema-bump
+  // wipe, new device), `content` is the DEFAULT_CONTENT seed — which is
+  // hardcoded placeholder data, not the user's. Don't render those seed
+  // values; show blanks until the API fetch resolves. The card chrome
+  // and structure render exactly the same — only visible data is gated.
+  const display = loaded
+    ? {
+        title: content.title,
+        phase: content.phase,
+        deadlineText: countdown.deadlineText,
+        daysRemaining: countdown.daysRemaining,
+        hoursRemaining: countdown.hoursRemaining,
+        minutesRemaining: countdown.minutesRemaining,
+        secondsRemaining: countdown.secondsRemaining,
+        percentElapsed: countdown.percentElapsed,
+        tasks: dashboardTasks,
+        queueCount,
+        emptyMessage: "No tasks in Today queue.",
+      }
+    : {
+        title: "",
+        phase: "",
+        deadlineText: "",
+        daysRemaining: "—",
+        hoursRemaining: "--",
+        minutesRemaining: "--",
+        secondsRemaining: "--",
+        percentElapsed: "0%",
+        tasks: [],
+        queueCount: 0,
+        emptyMessage: "Loading…",
+      };
 
   useEffect(() => {
     let isMounted = true;
 
-    loadAndHydratePreferredContent().then((loaded) => {
-      if (isMounted) setContent(loaded);
+    loadAndHydratePreferredContent().then((next) => {
+      if (!isMounted) return;
+      setContent(next);
+      setLoaded(true);
     });
 
     return () => {
@@ -202,12 +236,6 @@ function DashboardPage() {
       persistContent(next);
       return next;
     });
-  }
-
-  function clearDragState() {
-    setDragTaskId("");
-    setQueueDropActive(false);
-    setBacklogDropActive(false);
   }
 
   function handleTaskAction(taskId, action) {
@@ -277,97 +305,10 @@ function DashboardPage() {
     });
   }
 
-  function handleBacklogDragStart(event, taskId) {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", taskId);
-    setDragTaskId(taskId);
-  }
-
-  function handleBacklogDragEnd() {
-    clearDragState();
-  }
-
-  function handleQueueDragOver(event) {
-    if (!dragTaskId) return;
-    event.preventDefault();
-    if (!queueDropActive) setQueueDropActive(true);
-    if (backlogDropActive) setBacklogDropActive(false);
-  }
-
-  function handleQueueDragLeave(event) {
-    if (event.currentTarget.contains(event.relatedTarget)) return;
-    setQueueDropActive(false);
-  }
-
-  function handleQueueDrop(event) {
-    event.preventDefault();
-    const sourceTaskId = dragTaskId || event.dataTransfer.getData("text/plain");
-    clearDragState();
-
-    if (!sourceTaskId) return;
-
-    const nowIso = new Date().toISOString();
-
-    updateDashboardContent((previous) => {
-      const sourceIndex = previous.todaysTasks.findIndex((task) => task.id === sourceTaskId);
-      if (sourceIndex < 0) return previous;
-      const sourceTask = previous.todaysTasks[sourceIndex];
-      if (sourceTask.done || sourceTask.inTodayQueue) return previous;
-      const movedTask = {
-        ...sourceTask,
-        inTodayQueue: true,
-        updatedAt: nowIso,
-      };
-      const remaining = [...previous.todaysTasks.slice(0, sourceIndex), ...previous.todaysTasks.slice(sourceIndex + 1)];
-      const next = {
-        ...previous,
-        todaysTasks: [movedTask, ...remaining],
-      };
-      return next;
-    });
-    setStatus("Moved task to Today queue.");
-  }
-
-  function handleBacklogDropZoneDragOver(event) {
-    if (!dragTaskId) return;
-    event.preventDefault();
-    if (!backlogDropActive) setBacklogDropActive(true);
-    if (queueDropActive) setQueueDropActive(false);
-  }
-
-  function handleBacklogDropZoneDragLeave(event) {
-    if (event.currentTarget.contains(event.relatedTarget)) return;
-    setBacklogDropActive(false);
-  }
-
-  function handleBacklogDropZoneDrop(event) {
-    event.preventDefault();
-    const sourceTaskId = dragTaskId || event.dataTransfer.getData("text/plain");
-    clearDragState();
-
-    if (!sourceTaskId) return;
-
-    const nowIso = new Date().toISOString();
-
-    updateDashboardContent((previous) => {
-      const sourceIndex = previous.todaysTasks.findIndex((task) => task.id === sourceTaskId);
-      if (sourceIndex < 0) return previous;
-      const sourceTask = previous.todaysTasks[sourceIndex];
-      if (!sourceTask.inTodayQueue) return previous;
-      const movedTask = {
-        ...sourceTask,
-        inTodayQueue: false,
-        updatedAt: nowIso,
-      };
-      const remaining = [...previous.todaysTasks.slice(0, sourceIndex), ...previous.todaysTasks.slice(sourceIndex + 1)];
-      const next = {
-        ...previous,
-        todaysTasks: [movedTask, ...remaining],
-      };
-      return next;
-    });
-    setStatus("Removed task from Today queue.");
-  }
+  // Drag-and-drop between Today's Queue and a backlog list used to live here.
+  // The backlog block was removed from the display so the right column stays
+  // a stable height (otherwise it pushed the centered countdown down as the
+  // queue grew). Manage which tasks are in Today's Queue via /todo or /admin.
 
   return (
     <main className="page">
@@ -403,7 +344,7 @@ function DashboardPage() {
                   onKeyDown={(e) => handleEditKeyDown(e, "title")}
                 />
               ) : (
-                <h1 className="cs-title cs-editable" onClick={() => startEditing("title")} title="Click to edit">{content.title}</h1>
+                <h1 className="cs-title cs-editable" onClick={() => startEditing("title")} title="Click to edit">{display.title}</h1>
               )}
               <div className="cs-meta">
                 {editingField === "deadline" ? (
@@ -419,7 +360,7 @@ function DashboardPage() {
                 ) : (
                   <span className="cs-pill cs-editable" onClick={() => startEditing("deadline")} title="Click to edit deadline">
                     <span className="cs-dot" />
-                    <span>{countdown.deadlineText}</span>
+                    <span>{display.deadlineText}</span>
                   </span>
                 )}
               </div>
@@ -436,31 +377,31 @@ function DashboardPage() {
                     onKeyDown={(e) => handleEditKeyDown(e, "phase")}
                   />
                 ) : (
-                  <span className="cs-meta-value cs-editable" onClick={() => startEditing("phase")} title="Click to edit">{content.phase}</span>
+                  <span className="cs-meta-value cs-editable" onClick={() => startEditing("phase")} title="Click to edit">{display.phase}</span>
                 )}
               </div>
               <div className="cs-small">
                 <span>Timeline Elapsed</span>
-                <span>{countdown.percentElapsed}</span>
+                <span>{display.percentElapsed}</span>
               </div>
               <div className="cs-bar">
-                <div className="cs-fill" style={{ width: countdown.percentElapsed }} />
+                <div className="cs-fill" style={{ width: display.percentElapsed }} />
               </div>
             </section>
 
             <section className="cs-center">
-              <div className="cs-days">{countdown.daysRemaining}</div>
+              <div className="cs-days">{display.daysRemaining}</div>
               <div className="cs-days-label">Days Remaining</div>
               <div
                 className="cs-subtime"
-                aria-label={`${countdown.hoursRemaining} hours ${countdown.minutesRemaining} minutes ${countdown.secondsRemaining} seconds`}
+                aria-label={`${display.hoursRemaining} hours ${display.minutesRemaining} minutes ${display.secondsRemaining} seconds`}
               >
                 <div className="cs-subtime-values">
-                  <span>{countdown.hoursRemaining}</span>
+                  <span>{display.hoursRemaining}</span>
                   <span className="cs-subtime-sep">:</span>
-                  <span>{countdown.minutesRemaining}</span>
+                  <span>{display.minutesRemaining}</span>
                   <span className="cs-subtime-sep">:</span>
-                  <span>{countdown.secondsRemaining}</span>
+                  <span>{display.secondsRemaining}</span>
                 </div>
                 <div className="cs-subtime-labels">
                   <span>Hrs</span>
@@ -474,22 +415,15 @@ function DashboardPage() {
               <div className="cs-meta-block">
                 <div className="cs-list-head">
                   <span className="cs-meta-key">Today's Queue</span>
-                  <span className="cs-list-count">{queueCount}</span>
+                  <span className="cs-list-count">{display.queueCount}</span>
                 </div>
-                <p className="cs-helper">Drag tasks from below into this list.</p>
-                <ul
-                  className={`cs-task-list${queueDropActive ? " is-drop-target" : ""}`}
-                  onDragOver={handleQueueDragOver}
-                  onDragLeave={handleQueueDragLeave}
-                  onDrop={handleQueueDrop}
-                >
-                  {queueDropActive ? <li className="cs-drop-hint">Drop here to add to Today queue</li> : null}
-                  {dashboardTasks.length === 0 ? (
+                <ul className="cs-task-list">
+                  {display.tasks.length === 0 ? (
                     <li className="cs-task-row">
-                      <span className="cs-task-text">No tasks in Today queue.</span>
+                      <span className="cs-task-text">{display.emptyMessage}</span>
                     </li>
                   ) : (
-                    dashboardTasks.map((task) => {
+                    display.tasks.map((task) => {
                     const runtime = getLiveDurations(task, countdown.nowMs);
                     const hasProgress =
                       task.timer.totalWorkMs > 0 || task.timer.totalRestMs > 0 || task.timer.sessions.length > 0;
@@ -507,10 +441,7 @@ function DashboardPage() {
                     return (
                       <li
                         key={task.id}
-                        className={`cs-task-row${task.done ? " is-done" : ""}${dragTaskId === task.id ? " is-dragging" : ""}`}
-                        draggable={!task.done}
-                        onDragStart={(event) => handleBacklogDragStart(event, task.id)}
-                        onDragEnd={handleBacklogDragEnd}
+                        className={`cs-task-row${task.done ? " is-done" : ""}`}
                       >
                       <label className={`cs-task-item${task.done ? " is-done" : ""}`}>
                         <input
@@ -627,44 +558,6 @@ function DashboardPage() {
                     );
                   })
                 )}
-                </ul>
-              </div>
-              <div className="cs-meta-block">
-                <div className="cs-list-head">
-                  <span className="cs-meta-key">Other Tasks</span>
-                  <span className="cs-list-count">{backlogCount}</span>
-                </div>
-                <p className="cs-helper">Drag tasks here to remove them from Today queue.</p>
-                <ul
-                  className={`cs-backlog-list${backlogDropActive ? " is-drop-target" : ""}`}
-                  onDragOver={handleBacklogDropZoneDragOver}
-                  onDragLeave={handleBacklogDropZoneDragLeave}
-                  onDrop={handleBacklogDropZoneDrop}
-                >
-                  {backlogDropActive ? <li className="cs-drop-hint">Drop here to remove from Today queue</li> : null}
-                  {backlogTasks.length === 0 ? (
-                    <li className="cs-drop-hint">Everything is already in Today.</li>
-                  ) : (
-                    backlogTasks.map((task) => {
-                      const detailParts = [getProjectName(content.projects, task.projectId), formatPriority(task.priority)];
-                      if (task.dueDate) detailParts.push(`Due ${task.dueDate}`);
-                      if (task.recurrence.type !== "none") detailParts.push(formatRecurrence(task.recurrence));
-
-                      return (
-                        <li
-                          key={task.id}
-                          className={`cs-backlog-row${dragTaskId === task.id ? " is-dragging" : ""}`}
-                          draggable
-                          onDragStart={(event) => handleBacklogDragStart(event, task.id)}
-                          onDragEnd={handleBacklogDragEnd}
-                          title="Drag to Today queue"
-                        >
-                          <span className="cs-backlog-text">{task.text}</span>
-                          <span className="cs-backlog-meta">{detailParts.join(" | ")}</span>
-                        </li>
-                      );
-                    })
-                  )}
                 </ul>
               </div>
               <p className="cs-status-text">{status}</p>

@@ -169,8 +169,18 @@ body {
   grid-template-columns: 1.3fr 1.6fr 1.3fr;
   gap: 24px;
   height: 100%;
+  /* align-items centers each cell's content within its row.
+     align-content centers the ROW itself within the 336px content area
+     (card 400px - 40px top padding - 24px bottom padding). Without
+     align-content the row sticks to the top, so the days number drifts
+     as the right column grows or shrinks. */
   align-items: center;
-  padding: 40px 32px 24px;
+  align-content: center;
+  /* Symmetric vertical padding so the centered row is also visually
+     centered in the card. (Was 40/24 — off-center by 8px downward.)
+     Top links + clock are absolute on .cs-card at y=14, occupy ~18px,
+     so 32px padding still leaves a comfortable gap below them. */
+  padding: 32px;
 }
 
 .cs-left {
@@ -317,7 +327,9 @@ input.cs-inline-edit.cs-meta-value {
   list-style: none;
   display: grid;
   gap: 8px;
-  max-height: 300px;
+  /* Capped just under cs-right's max-height (220px) minus the list-head
+     row. Scrolls internally once more items than fit. */
+  max-height: 180px;
   overflow: auto;
   padding-right: 4px;
 }
@@ -659,8 +671,12 @@ input.cs-inline-edit.cs-meta-value {
 
 .cs-right {
   display: grid;
-  gap: 10px;
-  align-content: start;
+  gap: 8px;
+  align-content: center;
+  /* Cap the column close to the left column's natural height so the
+     centered countdown stays put. The queue list scrolls internally. */
+  max-height: 220px;
+  min-height: 0;
 }
 
 .cs-small {
