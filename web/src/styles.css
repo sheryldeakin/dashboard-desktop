@@ -4528,12 +4528,26 @@ button:focus-visible {
 
 .stats-pcard {
   border: 1px solid rgba(182, 139, 97, 0.22);
+  border-left: 3px solid rgba(182, 139, 97, 0.4);
   border-radius: 10px;
   padding: 14px 16px;
   background: rgba(255, 255, 255, 0.5);
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Small 8px colored dot used next to a project name in stats breakdowns
+   and project-grid card headers. Same shape/size as the legend dots on
+   /home's project-mix card for visual consistency app-wide. */
+.stats-project-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: 1px;
+  flex-shrink: 0;
 }
 
 .stats-pcard-head {

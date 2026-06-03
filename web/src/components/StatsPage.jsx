@@ -95,6 +95,27 @@ function computeStats(content) {
   const tasks = content.todaysTasks || [];
   const projects = content.projects || [];
   const projectName = new Map(projects.map((p) => [p.id, p.name]));
+
+  // Project-color resolution. Use the stored color when it's a real
+  // choice (not the app-default tan), else pick from the same palette
+  // used by /home's project-mix card so colors stay consistent
+  // app-wide. The migration on 2026-06-03 backfilled most projects, but
+  // brand-new projects auto-created post-migration may still hit the
+  // default until the script's pick_unused_color runs.
+  const PROJECT_COLOR_PALETTE = [
+    "#5a7e5f", "#8a6940", "#4a5a70", "#c45c4a",
+    "#7a5b9c", "#5c8aa8", "#8aa05c", "#9c6a8a", "#a05c5c",
+  ];
+  const PROJECT_DEFAULT_COLORS = new Set(["#b66e35", "", null, undefined]);
+  const projectColor = new Map(
+    projects.map((p, i) => {
+      const stored = p.color;
+      const color = !PROJECT_DEFAULT_COLORS.has(stored)
+        ? stored
+        : PROJECT_COLOR_PALETTE[i % PROJECT_COLOR_PALETTE.length];
+      return [p.id, color];
+    })
+  );
   const taskTimer = extractTaskTimerIntervals(tasks);
   const claude = extractClaudeIntervals(content.workSessions);
   const focusPomos = (content.pomodoro?.history || []).filter((e) => e.type === "focus");
@@ -207,6 +228,7 @@ function computeStats(content) {
   const claudeByProject = [...claudeByProjectMap.entries()]
     .map(([pid, x]) => ({
       label: projectName.get(pid) || "Unknown",
+      color: projectColor.get(pid),
       ms: x.ms,
       sessions: x.sessions,
       avgMsgs: x.sessions ? Math.round(x.messages / x.sessions) : 0,
@@ -230,7 +252,11 @@ function computeStats(content) {
   }
   const focusByProject = [...focusByProjectMap.entries()]
     .sort((a, b) => b[1] - a[1])
-    .map(([pid, ms]) => ({ label: projectName.get(pid) || "Unknown", value: ms }));
+    .map(([pid, ms]) => ({
+      label: projectName.get(pid) || "Unknown",
+      color: projectColor.get(pid),
+      value: ms,
+    }));
 
   // Per-project "% Claude-assisted" — of total task_timer ms for project P,
   // what fraction overlapped with any Claude session in project P?
@@ -259,6 +285,7 @@ function computeStats(content) {
       const assist = projectAssist.get(pid);
       return {
         label: projectName.get(pid) || "Unknown",
+        color: projectColor.get(pid),
         open: x.open,
         done: x.done,
         total: x.open + x.done,
@@ -328,6 +355,7 @@ function computeStats(content) {
     .map((s) => ({
       ...s,
       projectName: projectName.get(s.projectId) || "Unknown",
+      color: projectColor.get(s.projectId),
       combinedMs: s.taskMs + s.claudeOutsideMs,
       assistPct: s.taskMs > 0 ? Math.round((s.absorbedMs / s.taskMs) * 100) : null,
     }))
@@ -413,15 +441,24 @@ function BreakdownBars({ rows, formatRight, emptyMsg }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
     <div className="stats-breakdown">
-      {rows.map((r) => (
-        <div key={r.label} className="stats-breakdown-row">
-          <span className="stats-breakdown-label" title={r.label}>{r.label}</span>
-          <div className="stats-breakdown-bar-wrap">
-            <div className="stats-breakdown-bar" style={{ width: `${(r.value / max) * 100}%` }} />
+      {rows.map((r) => {
+        // Project-based rows have `color`; tag-based rows don't (and
+        // get the default bar color from the stylesheet).
+        const barStyle = { width: `${(r.value / max) * 100}%` };
+        if (r.color) barStyle.background = r.color;
+        return (
+          <div key={r.label} className="stats-breakdown-row">
+            <span className="stats-breakdown-label" title={r.label}>
+              {r.color && <span className="stats-project-dot" style={{ background: r.color }} />}
+              {r.label}
+            </span>
+            <div className="stats-breakdown-bar-wrap">
+              <div className="stats-breakdown-bar" style={barStyle} />
+            </div>
+            <span className="stats-breakdown-value">{formatRight(r.value)}</span>
           </div>
-          <span className="stats-breakdown-value">{formatRight(r.value)}</span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -433,7 +470,10 @@ function ProjectTaskSplit({ rows }) {
     <div className="stats-breakdown">
       {rows.map((r) => (
         <div key={r.label} className="stats-breakdown-row">
-          <span className="stats-breakdown-label" title={r.label}>{r.label}</span>
+          <span className="stats-breakdown-label" title={r.label}>
+            {r.color && <span className="stats-project-dot" style={{ background: r.color }} />}
+            {r.label}
+          </span>
           <div className="stats-breakdown-bar-wrap stats-split-bar-wrap">
             {r.open > 0 && (
               <div className="stats-split-open" style={{ width: `${(r.open / max) * 100}%` }} title={`${r.open} open`} />
@@ -461,11 +501,17 @@ function ClaudeProjectRows({ rows }) {
   const max = Math.max(1, ...rows.map((r) => r.ms));
   return (
     <div className="stats-breakdown">
-      {rows.map((r) => (
+      {rows.map((r) => {
+        const barStyle = { width: `${(r.ms / max) * 100}%` };
+        if (r.color) barStyle.background = r.color;
+        return (
         <div key={r.label} className="stats-breakdown-row stats-breakdown-row-2line">
-          <span className="stats-breakdown-label">{r.label}</span>
+          <span className="stats-breakdown-label">
+            {r.color && <span className="stats-project-dot" style={{ background: r.color }} />}
+            {r.label}
+          </span>
           <div className="stats-breakdown-bar-wrap">
-            <div className="stats-breakdown-bar" style={{ width: `${(r.ms / max) * 100}%` }} />
+            <div className="stats-breakdown-bar" style={barStyle} />
           </div>
           <span className="stats-breakdown-value">
             {fmtDuration(r.ms)}
@@ -474,7 +520,8 @@ function ClaudeProjectRows({ rows }) {
             </span>
           </span>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -664,10 +711,16 @@ function ProjectGridCard({ card }) {
     else if (m < 60 * 24) lastAgo = `${Math.floor(m / 60)}h ago`;
     else lastAgo = `${Math.floor(m / (60 * 24))}d ago`;
   }
+  // Project-color left-bar so the card identifies its project at a glance,
+  // matching the Chats / Top-3 / unfinished row patterns elsewhere.
+  const cardStyle = card.color ? { borderLeftColor: card.color } : null;
   return (
-    <div className="stats-pcard">
+    <div className="stats-pcard" style={cardStyle}>
       <div className="stats-pcard-head">
-        <span className="stats-pcard-name">{card.projectName}</span>
+        <span className="stats-pcard-name">
+          {card.color && <span className="stats-project-dot" style={{ background: card.color }} />}
+          {card.projectName}
+        </span>
         <span className="stats-pcard-total">{fmtDuration(card.combinedMs)}</span>
       </div>
       <div className="stats-pcard-bars">
