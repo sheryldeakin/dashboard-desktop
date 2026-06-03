@@ -4903,7 +4903,11 @@ button:focus-visible {
    - Internal 8-point rhythm (in .home-section etc) stays fixed — pro
      apps keep vertical rhythm constant, only the page chrome breathes. */
 .home-page {
-  max-width: clamp(720px, 92vw, 1300px);
+  /* Was hard-capped at 1300px — that left ultrawide monitors with awkward
+     side margins. Now grows to 1800px so the page uses more of the
+     monitor proportionally; still has a sane upper bound so a 4K display
+     doesn't stretch line lengths past readability. */
+  max-width: clamp(720px, 92vw, 1800px);
   margin: 0 auto;
   padding: clamp(24px, 3vw, 40px) clamp(24px, 4vw, 56px) clamp(32px, 4vw, 56px);
 }
@@ -4926,11 +4930,16 @@ button:focus-visible {
   }
 }
 
-/* Inner reading-width cap on the main column. Without this, on a 1920px
-   monitor the Top 3 input rows stretch to ~700px+ which feels lost. Cap
-   keeps line lengths in the comfortable 60-75ch range. */
+/* Reading-width cap on the main column. Earlier this was a hard 680px;
+   that left the snapshot strip too narrow for full project names at the
+   stat font size ("Second Brain" got cut even on wide monitors). Now
+   scales with viewport so wider monitors get proportionally more room.
+   The cap is generous enough that snapshot cells comfortably hold typical
+   project names at 30px, while still keeping Top 3 inputs from stretching
+   into a thousand-pixel wasteland on ultrawide monitors.
+   At 1280px viewport ≈ 800px cap; at 1920px ≈ 1152px; at 2560px ≈ 1200px. */
 .home-main > * {
-  max-width: 680px;
+  max-width: clamp(800px, 60vw, 1200px);
 }
 
 /* ── Today snapshot strip (top of main column) ─────────────────────────
@@ -4956,9 +4965,10 @@ button:focus-visible {
 
 .home-today-grid {
   display: grid;
-  /* First three cells are numeric (short content); last cell holds a
-     project name (long content) and gets ~1.4× the space. */
-  grid-template-columns: 1fr 1fr 1fr 1.4fr;
+  /* Equal-width cells. Now that the main column isn't hard-capped at
+     680px the last cell has enough room for typical project names at
+     the full stat font size. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* Each cell is now an <a>. Reset link styling, add subtle hover tint.
@@ -5038,19 +5048,11 @@ button:focus-visible {
 }
 
 /* Top-project cell holds a name, not a number — drop tabular-nums and the
-   tight tracking so it reads as text, and shrink to a calmer "supporting
-   info" size. Names like "Second Brain" / "AAAI Submission" need horizontal
-   room the dashboard-energy 30px stat size can't give in a 4-column 680px
-   grid. 20px keeps it legible without forcing ellipsis on every project. */
+   tight tracking so it reads as text. Same size and weight as the numeric
+   cells so all four read with equal weight. */
 .home-today-num-text {
   font-variant-numeric: normal;
   letter-spacing: 0;
-  font-size: 20px;
-  font-weight: 500;
-  /* The numeric cells set line-height: 1; bump it back up here so the
-     text cell's baseline aligns visually with the bigger numbers above
-     the label row. */
-  line-height: 1.2;
 }
 
 .home-today-num-secondary {
