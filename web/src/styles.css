@@ -4883,7 +4883,7 @@ button:focus-visible {
    number-on-top, uppercase-label-below. Link to /stats?tab=today sits
    below the grid, right-aligned, muted. */
 .home-today-snapshot {
-  padding-bottom: 20px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--rule);
 }
 
@@ -4957,7 +4957,7 @@ button:focus-visible {
 
 .home-today-link {
   display: block;
-  margin-top: 12px;
+  margin-top: 4px;
   font-size: 11px;
   color: var(--ink-muted);
   text-decoration: none;
