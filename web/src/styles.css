@@ -4934,52 +4934,16 @@ button:focus-visible {
 }
 
 /* ── Today snapshot strip (top of main column) ─────────────────────────
-   4-cell grid with hairline dividers between cells. Each cell stacks
-   number-on-top, uppercase-label-below. Link to /stats?tab=today sits
-   below the grid, right-aligned, muted. */
-/* Whole strip is the link target. Reset link styling, add subtle hover
-   background, and reveal the corner arrow on hover/focus. */
+   Per-cell links — each cell deep-links to a relevant stats drill-down.
+   Numbers are bigger + lighter weight to give the strip "dashboard"
+   energy; a tiny vs-yesterday delta sits beneath each label.
+   Cells are individually hover-able with a subtle background tint;
+   nothing wraps the whole strip anymore. */
 .home-today-snapshot {
   display: block;
   position: relative;
-  padding: 8px 12px 16px;
-  margin: -8px -12px 0;
+  padding: 4px 0 16px;
   border-bottom: 1px solid var(--rule);
-  border-radius: 6px 6px 0 0;
-  color: inherit;
-  text-decoration: none;
-  transition: background var(--motion-fast) ease;
-}
-
-.home-today-snapshot:hover {
-  background: var(--rule-soft);
-}
-
-.home-today-snapshot:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-  background: var(--rule-soft);
-}
-
-.home-today-arrow {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  font-size: 13px;
-  line-height: 1;
-  color: var(--ink-muted);
-  opacity: 0;
-  transform: translate(2px, -2px);
-  transition: opacity var(--motion-fast) ease,
-              transform var(--motion-fast) ease;
-  pointer-events: none;
-}
-
-.home-today-snapshot:hover .home-today-arrow,
-.home-today-snapshot:focus-visible .home-today-arrow {
-  opacity: 1;
-  transform: translate(0, 0);
-  color: var(--ink);
 }
 
 /* First .home-section after the snapshot strip shouldn't double-up the
@@ -4995,37 +4959,80 @@ button:focus-visible {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-/* Hairline dividers between cells (right border, last cell has none).
-   --rule-soft so it doesn't compete with the section divider below. */
+/* Each cell is now an <a>. Reset link styling, add subtle hover tint.
+   Hairline dividers between cells (right border, last cell has none). */
 .home-today-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 16px;
+  gap: 6px;
+  padding: 10px 16px;
   min-width: 0;
   border-right: 1px solid var(--rule-soft);
+  color: inherit;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background var(--motion-fast) ease;
 }
 
 .home-today-cell:first-child {
-  padding-left: 0;
+  padding-left: 4px;
 }
 
 .home-today-cell:last-child {
-  padding-right: 0;
+  padding-right: 4px;
   border-right: none;
 }
 
+.home-today-cell:hover {
+  background: var(--rule-soft);
+}
+
+.home-today-cell:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  background: var(--rule-soft);
+}
+
+/* Bigger + lighter for dashboard energy. The weight drop (600 → 500) is
+   what shifts it from "tight numeric" to "headline stat". */
 .home-today-num {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: clamp(26px, 2.4vw, 32px);
+  font-weight: 500;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
+  letter-spacing: -0.02em;
+  line-height: 1;
   /* truncate gracefully when content (top project name) is too wide */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Vs-yesterday delta sits below the label. Muted by default; sage for
+   "up", coral for "down", plain for neutral. Tabular nums + tight tracking
+   so deltas stack vertically. */
+.home-today-delta {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: var(--ink-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-today-delta.is-up {
+  color: var(--accent-sage);
+}
+
+.home-today-delta.is-down {
+  color: var(--accent-warn);
+}
+
+.home-today-delta.is-neutral {
+  color: var(--ink-muted);
+  opacity: 0.7;
 }
 
 /* Top-project cell holds a name, not a number — drop tabular-nums and
@@ -5389,14 +5396,15 @@ button:focus-visible {
 .home-rail {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
   min-width: 0;
 }
 
 /* Rail card — same hairline-divider pattern as main sections so the page
-   reads cohesively across columns. */
+   reads cohesively across columns. Slightly more breathing room around the
+   title hairline (12 → 14) so icon-bearing titles don't crowd. */
 .home-rail-card {
-  padding: 16px 0 0;
+  padding: 20px 0 0;
   border-top: 1px solid var(--rule);
 }
 
@@ -5405,15 +5413,54 @@ button:focus-visible {
   padding-top: 0;
 }
 
+/* Title is a flex row now so the icon + label sit on one line. The
+   bottom hairline lives on the same row so it spans the full width. */
 .home-rail-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-muted);
-  margin-bottom: 12px;
-  padding-bottom: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--rule-soft);
+}
+
+/* Variant: title row that also holds a trailing action (e.g. Chats "+"
+   button). justify-content: space-between pushes the action to the right. */
+.home-rail-card-title-row {
+  justify-content: flex-start;
+}
+
+.home-rail-card-title-row > button {
+  margin-left: auto;
+}
+
+/* Icon wrap is a tiny inline-flex so the SVG aligns with the cap height
+   of the uppercase title. The SVG itself uses currentColor + matches the
+   title's muted ink, then bumps to full ink on hover for a quiet payoff. */
+.home-rail-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--ink-muted);
+}
+
+.home-rail-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.home-rail-card:hover .home-rail-icon-wrap {
+  color: var(--ink);
+  transition: color var(--motion-fast) ease;
 }
 
 /* Schedule card title doubles as a fold-out toggle. Border-bottom lives
@@ -5494,22 +5541,79 @@ button:focus-visible {
   margin: 0;
 }
 
-/* Clean app-style header: stable "Today" anchor + secondary date/countdown
-   subhead. Countdown is just an inline chip — disappears gracefully if no
-   deadline is set. */
+/* Headline pass — "Today" sits as the page anchor at a real heading weight.
+   Below it, a chip row carries weekday · date · focused-so-far · streak.
+   The streak chip uses the accent color to draw a small amount of attention
+   (it's the only nudgy element in the header). Spacing scales with viewport
+   so the header always commands the top of the page. */
 .home-header {
-  margin-bottom: 32px;
+  margin-bottom: clamp(28px, 3vw, 40px);
 }
 
 .home-page-title {
-  font-size: 24px;
+  font-size: clamp(28px, 3vw, 36px);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: var(--ink);
-  margin: 0 0 4px;
-  line-height: 1.2;
+  margin: 0 0 8px;
+  line-height: 1.1;
 }
 
+.home-header-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.home-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.home-chip strong {
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-chip-sep {
+  color: var(--ink-muted);
+  opacity: 0.5;
+}
+
+/* "Focused so far" chip stays the same weight as other chips — it's just
+   the implicit headline metric, not a separate emphasized element. */
+.home-chip-stat {
+  /* (intentionally no extra styling — restraint reads as polish) */
+}
+
+/* Streak chip — the only chip with its own pill background. Sage when
+   active; uses currentColor on the flame so it auto-matches. */
+.home-chip-streak {
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  background: rgba(var(--accent-sage-rgb), 0.13);
+  color: var(--accent-sage);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.home-chip-streak strong {
+  color: var(--accent-sage);
+}
+
+.home-chip-streak svg {
+  margin-right: 4px;
+  position: relative;
+  top: 0.5px;
+}
+
+/* Subhead kept for backwards compat in case anything still references it. */
 .home-subhead {
   font-size: 13px;
   color: var(--ink-muted);
@@ -5660,12 +5764,13 @@ button:focus-visible {
 .home-top3-input {
   border: none;
   background: transparent;
-  font-size: 15px;
+  font-size: 17px;
   font-family: inherit;
-  padding: 4px 0;
+  padding: 6px 0;
   border-radius: 0;
   color: var(--ink);
   width: 100%;
+  letter-spacing: -0.005em;
 }
 
 .home-top3-input::placeholder {
@@ -5680,10 +5785,53 @@ button:focus-visible {
   box-shadow: inset 0 -1px 0 rgba(var(--accent-tan-rgb), 0.5);
 }
 
+/* Today's intent — the "Theme" line below the Top 3 list. Reads as a
+   journal entry, not a form field. Tiny uppercase label on the left,
+   underlined input on the right. Empty placeholder asks the question
+   in italic so it doesn't read as a placeholder you forgot to fill. */
+.home-intent {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-left: 3px solid rgba(var(--accent-tan-rgb), 0.25);
+}
+
+.home-intent-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  flex-shrink: 0;
+}
+
+.home-intent-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 2px 0;
+  color: var(--ink);
+  width: 100%;
+}
+
+.home-intent-input::placeholder {
+  color: rgba(0, 0, 0, 0.3);
+  font-style: italic;
+}
+
+.home-intent-input:focus {
+  outline: none;
+  box-shadow: inset 0 -1px 0 rgba(var(--accent-tan-rgb), 0.5);
+}
+
 .home-top3-footnote {
   font-size: 11px;
   color: var(--ink-muted);
-  margin: 8px 0 0;
+  margin: 14px 0 0;
 }
 
 .home-top3-footnote code {

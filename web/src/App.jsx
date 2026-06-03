@@ -205,7 +205,19 @@ function DashboardPage() {
 
     loadAndHydratePreferredContent().then((next) => {
       if (!isMounted) return;
-      setContent(next);
+      // Only re-render when the fetched content actually differs from the
+      // already-rendered state. Without this, React paints a redundant
+      // re-render after every reload — even when the API returns byte-
+      // identical data to what we hydrated from localStorage — which
+      // shows up as a tiny visible flicker on the display.
+      setContent((prev) => {
+        try {
+          if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+        } catch {
+          // fall through and accept next
+        }
+        return next;
+      });
       setLoaded(true);
     });
 

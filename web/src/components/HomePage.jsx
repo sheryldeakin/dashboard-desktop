@@ -90,6 +90,69 @@ function useHeartbeatRows(heartbeats) {
   });
 }
 
+/* ── Rail-card title icons ──
+   Inline 14×14 SVGs, currentColor + 1.6px stroke. Sit before each card
+   title so the rail can be scanned by shape instead of by reading every
+   uppercase label. All paths designed to feel related (stroke-based,
+   rounded caps/joins, same visual weight) — they read as a set. */
+const RAIL_ICONS = {
+  rightNow: (
+    <svg viewBox="0 0 16 16" className="home-rail-icon" aria-hidden="true">
+      <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="8" cy="8" r="2" fill="currentColor" />
+    </svg>
+  ),
+  deadline: (
+    <svg viewBox="0 0 16 16" className="home-rail-icon" aria-hidden="true">
+      <path d="M3.5 2v12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3.5 3h8l-2 2.5L11.5 8h-8" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" fill="none" />
+    </svg>
+  ),
+  projects: (
+    <svg viewBox="0 0 16 16" className="home-rail-icon" aria-hidden="true">
+      <path d="M8 2a6 6 0 1 0 6 6H8V2z" fill="currentColor" opacity="0.45" />
+      <path d="M8 2v6h6A6 6 0 0 0 8 2z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  ),
+  hours: (
+    <svg viewBox="0 0 16 16" className="home-rail-icon" aria-hidden="true">
+      <path d="M2.5 13V7M6 13V4M9.5 13V8M13 13V6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
+  peak: (
+    <svg viewBox="0 0 16 16" className="home-rail-icon" aria-hidden="true">
+      <path
+        d="M8 2c.4 1.4-.8 2.6 0 4 .7 1.2 2.5.7 2.5 2.8 0 1.9-1.8 3.4-3.8 3.4S2.9 10.7 2.9 8.8c0-1.8 1.2-2.5 1.9-3.4C5.4 4.4 5.4 3.5 5 2.6c1.1.4 1.9 1.1 2.3 2.3"
+        fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round"
+      />
+    </svg>
+  ),
+  upNext: (
+    <svg viewBox="0 0 16 16" className="home-rail-icon" aria-hidden="true">
+      <path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
+  chats: (
+    <svg viewBox="0 0 16 16" className="home-rail-icon" aria-hidden="true">
+      <path d="M2.5 3.5h11v7h-5l-3 2.5v-2.5h-3v-7z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  ),
+  schedule: (
+    <svg viewBox="0 0 16 16" className="home-rail-icon" aria-hidden="true">
+      <path d="M1.5 8h2.5l1.5-3 2 6 1.5-3h5.5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" fill="none" />
+    </svg>
+  ),
+};
+
+function RailCardTitle({ icon, children, className = "" }) {
+  return (
+    <div className={`home-rail-card-title ${className}`.trim()}>
+      {icon && <span className="home-rail-icon-wrap">{icon}</span>}
+      <span>{children}</span>
+    </div>
+  );
+}
+
 /* Banner sits above the layout grid (full width). Only renders if at least
    one heartbeat is stale — otherwise the page should feel calm. */
 function ScheduleBanner({ rows }) {
@@ -131,7 +194,10 @@ function ScheduleHealthCard({ rows }) {
         onClick={() => setOpen((p) => !p)}
         aria-expanded={open}
       >
-        <span className="home-rail-card-title">Schedule</span>
+        <span className="home-rail-card-title home-rail-card-title-row">
+          <span className="home-rail-icon-wrap">{RAIL_ICONS.schedule}</span>
+          <span>Schedule</span>
+        </span>
         <span className={`home-status-pill${staleCount === 0 ? " is-ok" : " is-warn"}`}>
           {staleCount === 0 ? "● all running" : `⚠ ${staleCount} stale`}
         </span>
@@ -226,7 +292,7 @@ function PeakHourCard({ workSessions }) {
   }
   return (
     <section className="home-rail-card">
-      <div className="home-rail-card-title">Peak hour</div>
+      <RailCardTitle icon={RAIL_ICONS.peak}>Peak hour</RailCardTitle>
       <div className="home-rail-stat">
         <span className="home-rail-stat-num">{peak.hour}:00</span>
         <span className="home-rail-stat-unit">avg {peak.avgMinPerActiveDay}m</span>
@@ -256,7 +322,7 @@ function UpNextCard({ tasks }) {
   if (!items.length) {
     return (
       <section className="home-rail-card">
-        <div className="home-rail-card-title">Up next</div>
+        <RailCardTitle icon={RAIL_ICONS.upNext}>Up next</RailCardTitle>
         <p className="home-rail-empty">Nothing due. Add a date in /todo to surface here.</p>
       </section>
     );
@@ -306,7 +372,7 @@ function CountdownCard({ content }) {
   const title = content.title || "submission";
   return (
     <section className="home-rail-card">
-      <div className="home-rail-card-title">Deadline</div>
+      <RailCardTitle icon={RAIL_ICONS.deadline}>Deadline</RailCardTitle>
       <div className="home-rail-stat">
         <span className="home-rail-stat-num">{daysLeft}</span>
         <span className="home-rail-stat-unit">{daysLeft === 1 ? "day" : "days"} left</span>
@@ -319,18 +385,42 @@ function CountdownCard({ content }) {
 /* ── Today snapshot computation ──
    One pass over workSessions / tasks / pomodoro state, returns everything
    the rail cards + snapshot strip need. Keeps the components dumb-render-only
-   and avoids walking workSessions five times. */
+   and avoids walking workSessions five times.
+   Also produces yesterday's mirror stats (focusedMs / sessionCount / done /
+   topProject) for the snapshot strip's "vs yesterday" delta, plus a streak
+   count of consecutive days ending today/yesterday with any focused time. */
 function useTodayStats(content) {
   return useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayMs = today.getTime();
     const tomorrowMs = todayMs + MS_PER_DAY;
+    const yesterdayMs = todayMs - MS_PER_DAY;
 
     // Project lookup: id → {name, color}
     const projectMap = new Map(
       (content.projects || []).map((p) => [p.id, { name: p.name, color: p.color }])
     );
+
+    // Local-day key (YYYY-MM-DD) for the start-of-local-day timestamp.
+    // Used to build a histogram of focused ms by day, which feeds both the
+    // yesterday comparison and the streak walk.
+    function localDayKey(ms) {
+      const d = new Date(ms);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    const todayKey = localDayKey(todayMs);
+    const yesterdayKeyStr = localDayKey(yesterdayMs);
+    const msByDay = new Map();  // dayKey → totalActiveMs across all projects
+
+    // Yesterday accumulators (mirror of today's; same shape so the snapshot
+    // strip can compute deltas uniformly).
+    let yFocusedMs = 0;
+    let ySessionCount = 0;
+    const yByProject = new Map();
 
     // Today's work sessions
     let focusedMs = 0;
@@ -343,12 +433,27 @@ function useTodayStats(content) {
       const start = parseIsoMs(ws.startedAt);
       const end = parseIsoMs(ws.endedAt);
       if (start === null || end === null) continue;
-      if (start >= tomorrowMs || end < todayMs) continue;
 
       const active = ws.activeMs || Math.max(0, end - start);
+      const pid = ws.projectId || "";
+
+      // Bucket the session into msByDay using its start-day. Good enough
+      // for streak/yesterday roll-ups; cross-midnight sessions are rare
+      // and we already break them into hour buckets for the ribbon below.
+      const startKey = localDayKey(start);
+      msByDay.set(startKey, (msByDay.get(startKey) || 0) + active);
+
+      // Yesterday roll-up
+      if (start >= yesterdayMs && start < todayMs) {
+        yFocusedMs += active;
+        ySessionCount += 1;
+        yByProject.set(pid, (yByProject.get(pid) || 0) + active);
+      }
+
+      if (start >= tomorrowMs || end < todayMs) continue;
+
       focusedMs += active;
       sessionCount += 1;
-      const pid = ws.projectId || "";
       byProject.set(pid, (byProject.get(pid) || 0) + active);
       if (end > (lastSessionEnd || 0)) lastSessionEnd = end;
 
@@ -455,6 +560,36 @@ function useTodayStats(content) {
       });
     }
 
+    // Yesterday's top project (for snapshot's vs-yesterday in the "Top" cell)
+    let yTopProject = null;
+    for (const [pid, ms] of yByProject) {
+      if (!yTopProject || ms > yTopProject.ms) {
+        yTopProject = { id: pid, name: projectMap.get(pid)?.name || "Unknown", ms };
+      }
+    }
+
+    // Yesterday's "done" count from taskHistory (workSessions don't track
+    // completions; taskHistory does). Match entries by date string.
+    const yDone = (content.taskHistory || []).filter(
+      (h) => h.completedAtDate === yesterdayKeyStr
+    ).length;
+
+    // Streak: count consecutive prior days with any focused time. If today
+    // already has focused time, the streak includes today. Otherwise we
+    // start at yesterday so the streak doesn't drop just because you
+    // haven't started yet — pro dashboards typically work this way.
+    let streak = 0;
+    let cursorMs = focusedMs > 0 ? todayMs : yesterdayMs;
+    while (true) {
+      const key = localDayKey(cursorMs);
+      const ms = msByDay.get(key) || 0;
+      if (ms <= 0) break;
+      streak += 1;
+      cursorMs -= MS_PER_DAY;
+      // Safety: cap at 365 to avoid infinite loops if data is weird
+      if (streak > 365) break;
+    }
+
     return {
       focusedMs,
       sessionCount,
@@ -465,6 +600,14 @@ function useTodayStats(content) {
       projectMix: mixTop,
       byHour,
       hasAnyToday: focusedMs > 0,
+      // New: comparison data
+      yesterday: {
+        focusedMs: yFocusedMs,
+        sessionCount: ySessionCount,
+        done: yDone,
+        topProject: yTopProject,
+      },
+      streak,
     };
   }, [content]);
 }
@@ -478,51 +621,92 @@ function fmtHrMin(ms) {
 }
 
 /* ── Today snapshot strip (main column, above Top 3) ──
-   4-cell grid with hairline dividers. Whole strip is a link to the
-   /stats?tab=today deep view — hover reveals a small arrow in the
-   corner; subtle background tint signals interactivity. aria-label
-   describes the link so screen readers don't read "2h45mFocused5..." */
+   4-cell grid with hairline dividers. Each cell is now its own link to a
+   relevant /stats?tab=... drill-down. Numbers are bigger + lighter weight
+   (dashboard energy) with a tiny "vs yesterday" delta beneath. Deltas use
+   muted sage/coral so they read as supporting info, not alerts. */
+function formatDeltaMs(todayMs, yMs) {
+  const diff = todayMs - yMs;
+  if (Math.abs(diff) < MS_PER_MIN) return { sign: "neutral", label: "same as yesterday" };
+  const sign = diff > 0 ? "up" : "down";
+  return { sign, label: `${diff > 0 ? "+" : "−"}${fmtHrMin(Math.abs(diff))} vs yesterday` };
+}
+function formatDeltaInt(today, y, singular = "") {
+  const diff = today - y;
+  if (diff === 0) return { sign: "neutral", label: "same as yesterday" };
+  const sign = diff > 0 ? "up" : "down";
+  const unit = singular ? ` ${Math.abs(diff) === 1 ? singular : singular + "s"}` : "";
+  return { sign, label: `${diff > 0 ? "+" : "−"}${Math.abs(diff)}${unit} vs yesterday` };
+}
+
+function SnapshotCell({ href, value, label, secondary, delta, isText = false, title }) {
+  return (
+    <a className="home-today-cell" href={href} title={title || label}>
+      <span className={`home-today-num${isText ? " home-today-num-text" : ""}`}>
+        {value}
+        {secondary && <span className="home-today-num-secondary">{secondary}</span>}
+      </span>
+      <span className="home-today-label">{label}</span>
+      {delta && (
+        <span className={`home-today-delta is-${delta.sign}`}>{delta.label}</span>
+      )}
+    </a>
+  );
+}
+
 function TodaySnapshot({ stats }) {
+  const y = stats.yesterday;
   const topName = stats.topProject?.name || "—";
   const topMs = stats.topProject ? fmtHrMin(stats.topProject.ms) : "";
+
+  // Per-cell deltas — only show when there's something to compare against.
+  const focusedDelta = y.focusedMs > 0 || stats.focusedMs > 0
+    ? formatDeltaMs(stats.focusedMs, y.focusedMs) : null;
+  const sessionsDelta = y.sessionCount > 0 || stats.sessionCount > 0
+    ? formatDeltaInt(stats.sessionCount, y.sessionCount, "session") : null;
+  const doneDelta = y.done > 0 || stats.done > 0
+    ? formatDeltaInt(stats.done, y.done, "task") : null;
+  // Top-project delta is qualitative — show "same project" vs "switched"
+  const topDelta = (() => {
+    if (!y.topProject && !stats.topProject) return null;
+    if (!y.topProject) return { sign: "up", label: "new today" };
+    if (!stats.topProject) return { sign: "down", label: `was ${y.topProject.name}` };
+    if (y.topProject.id === stats.topProject.id) return { sign: "neutral", label: "same as yesterday" };
+    return { sign: "up", label: `was ${y.topProject.name}` };
+  })();
+
   return (
-    <a
-      href="/stats?tab=today"
-      className="home-today-snapshot"
-      aria-label="Open today's full breakdown in stats"
-    >
+    <section className="home-today-snapshot" aria-label="Today snapshot — each cell links to a stats drill-down">
       <div className="home-today-grid">
-        <div className="home-today-cell">
-          <span className="home-today-num">{fmtHrMin(stats.focusedMs)}</span>
-          <span className="home-today-label">Focused</span>
-        </div>
-        <div className="home-today-cell">
-          <span className="home-today-num">{stats.sessionCount}</span>
-          <span className="home-today-label">
-            {stats.sessionCount === 1 ? "Session" : "Sessions"}
-          </span>
-        </div>
-        <div className="home-today-cell">
-          <span className="home-today-num">
-            {stats.done}
-            <span className="home-today-num-secondary">/{stats.total}</span>
-          </span>
-          <span className="home-today-label">Done</span>
-        </div>
-        <div className="home-today-cell">
-          <span
-            className="home-today-num home-today-num-text"
-            title={topName}
-          >
-            {topName}
-          </span>
-          <span className="home-today-label">
-            Top{topMs ? ` · ${topMs}` : ""}
-          </span>
-        </div>
+        <SnapshotCell
+          href="/stats?tab=today"
+          value={fmtHrMin(stats.focusedMs)}
+          label="Focused"
+          delta={focusedDelta}
+        />
+        <SnapshotCell
+          href="/stats?tab=today"
+          value={stats.sessionCount}
+          label={stats.sessionCount === 1 ? "Session" : "Sessions"}
+          delta={sessionsDelta}
+        />
+        <SnapshotCell
+          href="/stats?tab=today"
+          value={stats.done}
+          secondary={`/${stats.total}`}
+          label="Done"
+          delta={doneDelta}
+        />
+        <SnapshotCell
+          href="/stats?tab=projects"
+          value={topName}
+          label={`Top${topMs ? ` · ${topMs}` : ""}`}
+          delta={topDelta}
+          isText
+          title={topName}
+        />
       </div>
-      <span className="home-today-arrow" aria-hidden="true">↗</span>
-    </a>
+    </section>
   );
 }
 
@@ -535,7 +719,7 @@ function RightNowCard({ rightNow }) {
     : "is-idle";
   return (
     <section className="home-rail-card">
-      <div className="home-rail-card-title">Right now</div>
+      <RailCardTitle icon={RAIL_ICONS.rightNow}>Right now</RailCardTitle>
       <div className="home-rightnow">
         <span className={`home-rightnow-dot ${dotClass}`} />
         <span className="home-rightnow-text">{rightNow.label}</span>
@@ -554,7 +738,7 @@ function ProjectMixCard({ mix, totalMs }) {
   }
   return (
     <section className="home-rail-card">
-      <div className="home-rail-card-title">Today by project</div>
+      <RailCardTitle icon={RAIL_ICONS.projects}>Today by project</RailCardTitle>
       <div className="home-projmix-bar">
         {mix.map((p) => (
           <div
@@ -617,7 +801,7 @@ function HourRibbonCard({ byHour }) {
 
   return (
     <section className="home-rail-card">
-      <div className="home-rail-card-title">Today by hour</div>
+      <RailCardTitle icon={RAIL_ICONS.hours}>Today by hour</RailCardTitle>
       <div className="home-hour-ribbon" ref={containerRef}>
         {bars.map((b) => (
           <div
@@ -727,8 +911,9 @@ function ChatsCard() {
 
   return (
     <section className="home-rail-card">
-      <div className="home-rail-card-title">
-        Chats
+      <div className="home-rail-card-title home-rail-card-title-row">
+        <span className="home-rail-icon-wrap">{RAIL_ICONS.chats}</span>
+        <span>Chats</span>
         <button
           type="button"
           className="home-chats-add"
@@ -819,13 +1004,55 @@ function ChatsCard() {
   );
 }
 
-/* ── Header — stable "Today" anchor + the date. Countdown lives in the
-   rail's CountdownCard now, so the header can stay calm. */
-function HomeHeader() {
+/* ── Header — "Today" headline + a row of metadata chips.
+   Chips are: weekday · date · focused-so-far (when > 0) · streak (when ≥ 2).
+   Streak is the small motivation hook — a flame icon + day count. The
+   focused-so-far chip is the quiet "you've already done X" reinforcement
+   that pro dashboards use as the implicit headline metric.
+   Countdown lives in the rail's CountdownCard so the header stays calm. */
+function FlameIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" focusable="false">
+      <path
+        d="M8 1.5c.5 1.5-1 3 0 5 .8 1.6 3 .8 3 3.5 0 2.5-2.3 4.5-5 4.5S1 12.5 1 10c0-2.4 1.6-3.3 2.5-4.5C4.4 4.3 4.5 3 4 2c1.5.5 2.5 1.5 3 3 .5-1.5 1-2.5 1-3.5z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function HomeHeader({ stats }) {
+  const now = new Date();
+  const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
+  const date = now.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const focusedSoFar = stats?.focusedMs > 0 ? fmtHrMin(stats.focusedMs) : null;
+  const streak = stats?.streak >= 2 ? stats.streak : null;
+
   return (
     <header className="home-header">
       <h1 className="home-page-title">Today</h1>
-      <div className="home-subhead">{formatDateLong()}</div>
+      <div className="home-header-chips" role="group" aria-label="Today summary">
+        <span className="home-chip">{weekday}</span>
+        <span className="home-chip-sep" aria-hidden="true">·</span>
+        <span className="home-chip">{date}</span>
+        {focusedSoFar && (
+          <>
+            <span className="home-chip-sep" aria-hidden="true">·</span>
+            <span className="home-chip home-chip-stat">
+              <strong>{focusedSoFar}</strong> focused
+            </span>
+          </>
+        )}
+        {streak && (
+          <span
+            className="home-chip home-chip-streak"
+            title={`${streak} consecutive days with focused time`}
+          >
+            <FlameIcon />
+            <span><strong>{streak}</strong> day streak</span>
+          </span>
+        )}
+      </div>
     </header>
   );
 }
@@ -855,6 +1082,61 @@ function SnapshotPill({ loadedAtMs }) {
       >
         ↻ refresh
       </button>
+    </div>
+  );
+}
+
+/* ── Today's intent ──
+   One-line "theme" / north star for the day. Lives below the Top 3 list,
+   above the footnote. Stored in localStorage keyed by date — per-device,
+   no backend round-trip, no schema change. Survives reloads, rolls over
+   at midnight when the date key changes. Empty state = placeholder
+   prompt, not a wall of UI. */
+const INTENT_STORAGE_PREFIX = "home_intent_";
+
+function loadIntent(dateKey) {
+  try {
+    return localStorage.getItem(INTENT_STORAGE_PREFIX + dateKey) || "";
+  } catch {
+    return "";
+  }
+}
+function saveIntent(dateKey, value) {
+  try {
+    if (value) localStorage.setItem(INTENT_STORAGE_PREFIX + dateKey, value);
+    else localStorage.removeItem(INTENT_STORAGE_PREFIX + dateKey);
+  } catch (e) {
+    console.warn("Failed to persist today's intent:", e);
+  }
+}
+
+function TodayIntent() {
+  const dateKey = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  const [value, setValue] = useState(() => loadIntent(dateKey));
+
+  function onChange(e) {
+    const next = e.target.value;
+    setValue(next);
+    saveIntent(dateKey, next);
+  }
+
+  return (
+    <div className="home-intent">
+      <label className="home-intent-label" htmlFor="home-intent-input">
+        Theme
+      </label>
+      <input
+        id="home-intent-input"
+        type="text"
+        className="home-intent-input"
+        placeholder="What's the thread that ties today together?"
+        value={value}
+        onChange={onChange}
+        maxLength={120}
+      />
     </div>
   );
 }
@@ -925,6 +1207,7 @@ function Top3Editor({ dailyTop3, tasks, onSlotChange }) {
           );
         })}
       </ul>
+      <TodayIntent />
       <p className="home-top3-footnote">
         Each filled slot becomes a task tagged <code>#top-3</code> — focus, timer,
         and history work like any other task. Edits sync to today's daily
@@ -1393,7 +1676,7 @@ export default function HomePage() {
       {/* Banner sits full-width above the grid — only renders on failure. */}
       <ScheduleBanner rows={heartbeatRows} />
 
-      <HomeHeader />
+      <HomeHeader stats={todayStats} />
 
       <div className="home-layout">
         <div className="home-main">
