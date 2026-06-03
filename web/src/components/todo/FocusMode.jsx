@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { formatDuration, formatClock, getLiveDurations } from "../../utils/taskUtils.js";
+import { useTick } from "../../hooks/useTick.js";
 
 /* ── Theme / Character / Environment presets ── */
 
@@ -1313,6 +1314,14 @@ export default function FocusMode({
 
   // These must be above early return to satisfy Rules of Hooks
   const timerRunning = task?.timer?.status === "running";
+  const timerPaused = task?.timer?.status === "paused";
+  const pomodoroLive = pomodoroRun.status === "running" || pomodoroRun.status === "paused";
+
+  // Drive a 1Hz re-render so the work-timer display stays fresh even when
+  // this window is unfocused (small dashboard monitor case). Worker-backed
+  // so Chrome's main-thread throttling doesn't freeze the display. Only
+  // ticks while something is actually counting.
+  useTick(open && (timerRunning || timerPaused || pomodoroLive));
 
   if (!open || !task) return null;
 
