@@ -860,14 +860,24 @@ function SnapshotPill({ loadedAtMs }) {
 }
 
 /* ── Today's Top 3 (editable) ── */
-function Top3Editor({ dailyTop3, onSlotChange }) {
+function Top3Editor({ dailyTop3, tasks, onSlotChange }) {
   const slots = dailyTop3.slots;
+  // Quick lookup from taskId → task so we can render running/paused state
+  // for each slot's backing task and color the dot accordingly.
+  const taskById = useMemo(
+    () => new Map((tasks || []).map((t) => [t.id, t])),
+    [tasks]
+  );
   return (
     <section className="home-section">
       <h2 className="home-section-title">Today's Top 3</h2>
       <ul className="home-top3-list">
         {[0, 1, 2].map((i) => {
           const s = slots[i];
+          const linkedTask = s.promotedTaskId ? taskById.get(s.promotedTaskId) : null;
+          const timerStatus = linkedTask?.timer?.status;
+          const isRunning = timerStatus === "running";
+          const isPaused = timerStatus === "paused";
           return (
             <li key={i} className={`home-top3-slot${s.done ? " is-done" : ""}`}>
               <span className="home-top3-num">{i + 1}.</span>
@@ -894,12 +904,31 @@ function Top3Editor({ dailyTop3, onSlotChange }) {
                 value={s.text}
                 onChange={(e) => onSlotChange(i, { text: e.target.value })}
               />
+              {linkedTask && (isRunning || isPaused) && (
+                <span
+                  className={`home-top3-timerdot${isRunning ? " is-running" : " is-paused"}`}
+                  title={isRunning ? "Timer running" : "Timer paused"}
+                  aria-label={isRunning ? "Timer running" : "Timer paused"}
+                />
+              )}
+              {linkedTask && !s.done && (
+                <a
+                  href={`/todo?focus=1&taskId=${encodeURIComponent(linkedTask.id)}`}
+                  className="home-top3-focus"
+                  title="Open in focus mode"
+                  aria-label={`Focus on "${s.text}"`}
+                >
+                  Focus →
+                </a>
+              )}
             </li>
           );
         })}
       </ul>
       <p className="home-top3-footnote">
-        Edits sync to today's daily note <code>## Top 3</code> section. Check the box from either side.
+        Each filled slot becomes a task tagged <code>#top-3</code> — focus, timer,
+        and history work like any other task. Edits sync to today's daily
+        note <code>## Top 3</code> section.
       </p>
     </section>
   );
@@ -1119,17 +1148,132 @@ export default function HomePage() {
   function updateSlot(idx, partial) {
     const nowIso = new Date().toISOString();
     const today = todayKey();
-    const slots = content.dailyTop3.slots.map((s, i) =>
-      i === idx ? { ...s, ...partial, updatedAt: nowIso } : s
-    );
-    // Defensive: always stamp date=today on any edit, so a stale date from
-    // a pre-rollover load can't cause sync-top3 to treat the app as
-    // "off-day" and wipe the edit. Belt-and-suspenders w/ the rollover
-    // useEffect below.
+    const slot = content.dailyTop3.slots[idx];
+    let newSlot = { ...slot, ...partial, updatedAt: nowIso };
+
+    // ── Auto-promote each Top 3 slot to a real task ──
+    // The first edit that gives a slot text creates a task with #top-3
+    // tag, lands it in todaysTasks, and stores the task id on the slot.
+    // Subsequent edits sync slot.text/done to the linked task so vault
+    // sync + history rollup + timer + focus mode all work transparently.
+    //
+    // If the slot is cleared (text → ""), we un-link from the task but
+    // DO NOT delete it — user might have time logged or want to find it
+    // in /todo. They can delete from there if they really want it gone.
+    let nextTasks = content.todaysTasks || [];
+
+    const cleared = partial.text !== undefined && partial.text.trim() === "";
+    if (cleared && newSlot.promotedTaskId) {
+      newSlot.promotedTaskId = null;
+    } else if (newSlot.text && newSlot.text.trim() && !newSlot.promotedTaskId) {
+      // First time this slot has text — create the backing task.
+      const defaultProjectId =
+        (content.projects && content.projects[0] && content.projects[0].id) || "";
+      const newTask = createDefaultTask({
+        id: newId("task"),
+        text: newSlot.text.trim(),
+        projectId: defaultProjectId,
+        done: !!newSlot.done,
+        inTodayQueue: true,
+        tags: ["top-3", `from-${today}`],
+        completedAt: newSlot.done ? nowIso : null,
+      });
+      newSlot.promotedTaskId = newTask.id;
+      nextTasks = [...nextTasks, newTask];
+    } else if (newSlot.promotedTaskId) {
+      // Slot already linked — sync text + done to the task.
+      nextTasks = nextTasks.map((t) => {
+        if (t.id !== newSlot.promotedTaskId) return t;
+        const next = { ...t };
+        if (partial.text !== undefined) next.text = newSlot.text.trim();
+        if (partial.done !== undefined) {
+          next.done = !!newSlot.done;
+          if (next.done && !t.completedAt) next.completedAt = nowIso;
+          if (!next.done && t.completedAt) next.completedAt = null;
+        }
+        return next;
+      });
+    }
+
+    const slots = content.dailyTop3.slots.map((s, i) => (i === idx ? newSlot : s));
     patchContent({
       dailyTop3: { ...content.dailyTop3, date: today, slots, updatedAt: nowIso },
+      todaysTasks: nextTasks,
     });
   }
+
+  // ── Lazy backfill + reconcile of slot ↔ task linkage ──
+  //
+  // BACKFILL: slots that existed before the auto-task feature shipped
+  // have text but no promotedTaskId. Create the backing task once so
+  // Focus + Timer + history rollup just start working.
+  //
+  // RECONCILE: if the task got marked done in /todo (or its timer
+  // rolled it into history), the slot.done should reflect that on the
+  // next /home load. Same for text edits made directly on the task.
+  //
+  // Runs after every content load; patchContent inside re-renders, but
+  // the second pass sees no work to do and exits early. Stable.
+  useEffect(() => {
+    if (!loaded) return;
+    const slots = content.dailyTop3?.slots || [];
+    const tasksById = new Map((content.todaysTasks || []).map((t) => [t.id, t]));
+    const today = todayKey();
+    const defaultProjectId =
+      (content.projects && content.projects[0] && content.projects[0].id) || "";
+
+    let drift = false;
+    let nextTasks = content.todaysTasks || [];
+    const nextSlots = slots.map((s) => {
+      const slotText = (s.text || "").trim();
+
+      // BACKFILL: filled slot with no linked task → create one
+      if (slotText && !s.promotedTaskId) {
+        const newTask = createDefaultTask({
+          id: newId("task"),
+          text: slotText,
+          projectId: defaultProjectId,
+          done: !!s.done,
+          inTodayQueue: true,
+          tags: ["top-3", `from-${today}`],
+          completedAt: s.done ? new Date().toISOString() : null,
+        });
+        drift = true;
+        nextTasks = [...nextTasks, newTask];
+        return {
+          ...s,
+          promotedTaskId: newTask.id,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      // RECONCILE: slot is linked; if task drifted from slot, pull task state in.
+      if (s.promotedTaskId) {
+        const t = tasksById.get(s.promotedTaskId);
+        if (!t) return s; // task missing (deleted) — leave slot alone
+        const taskDone = !!t.done;
+        const slotDone = !!s.done;
+        if (taskDone === slotDone && (t.text || "").trim() === slotText) return s;
+        drift = true;
+        return {
+          ...s,
+          done: taskDone,
+          text: (t.text || "").trim() || s.text,
+          completedAt: taskDone ? (t.completedAt || s.completedAt) : null,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      return s;
+    });
+
+    if (drift) {
+      patchContent({
+        dailyTop3: { ...content.dailyTop3, slots: nextSlots, updatedAt: new Date().toISOString() },
+        todaysTasks: nextTasks,
+      });
+    }
+  }, [loaded, content.todaysTasks]);
 
   function updateHistorySlot(dayDate, slotIdx, partial) {
     const history = content.dailyTop3History.map((h) =>
@@ -1255,7 +1399,11 @@ export default function HomePage() {
         <div className="home-main">
           <TodaySnapshot stats={todayStats} />
 
-          <Top3Editor dailyTop3={content.dailyTop3} onSlotChange={updateSlot} />
+          <Top3Editor
+            dailyTop3={content.dailyTop3}
+            tasks={content.todaysTasks}
+            onSlotChange={updateSlot}
+          />
 
           <UnfinishedSection
             history={content.dailyTop3History}
