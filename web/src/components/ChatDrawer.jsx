@@ -74,23 +74,69 @@ npm start</pre>
   );
 }
 
-function ModeToggle({ mode, onSwitch, disabled }) {
-  const isVault = mode === "vault";
-  const next = isVault ? "web" : "vault";
-  const label = isVault ? "🔒 Vault" : "🌐 Web";
-  const tooltip = isVault
-    ? "Vault mode: Claude can read your vault + dashboard, search the web. No URL fetches (defense against vault-exfil). Click to switch to Web mode."
-    : "Web mode: Claude can fetch + search the web. No vault access. Click to switch to Vault mode.";
+const MODE_OPTIONS = [
+  { id: "strict", label: "🔐 Strict", help: "Read · Grep · Glob. No web at all — most private." },
+  { id: "vault",  label: "🔒 Vault",  help: "Read · Grep · Glob · WebSearch. Vault + dashboard." },
+  { id: "web",    label: "🌐 Web",    help: "WebFetch · WebSearch. No vault." },
+  { id: "apply",  label: "✏️ Apply",  help: "Plan/Apply with git checkpoint. Writes scoped to vault." },
+];
+
+function ModeSelect({ mode, onSwitch, disabled }) {
   return (
-    <button
-      type="button"
+    <select
       className={`home-chat-mode home-chat-mode-${mode}`}
-      onClick={() => onSwitch(next)}
-      title={tooltip}
+      value={mode}
+      onChange={(e) => onSwitch(e.target.value)}
       disabled={disabled}
+      title={MODE_OPTIONS.find((m) => m.id === mode)?.help || ""}
     >
-      {label}
-    </button>
+      {MODE_OPTIONS.map((m) => (
+        <option key={m.id} value={m.id}>{m.label}</option>
+      ))}
+    </select>
+  );
+}
+
+function PlanCardActions({ onApply, onDiscard, disabled }) {
+  return (
+    <div className="home-chat-plan-actions">
+      <button
+        type="button"
+        className="home-chat-btn home-chat-btn-apply"
+        onClick={onApply}
+        disabled={disabled}
+      >
+        Apply
+      </button>
+      <button
+        type="button"
+        className="home-chat-btn home-chat-btn-ghost"
+        onClick={onDiscard}
+        disabled={disabled}
+      >
+        Discard
+      </button>
+    </div>
+  );
+}
+
+function ApplyResultExtras({ msg, onRevert }) {
+  return (
+    <div className="home-chat-apply-extras">
+      {msg.diffStat && (
+        <pre className="home-chat-diffstat">{msg.diffStat}</pre>
+      )}
+      {msg.preSha && (
+        <button
+          type="button"
+          className="home-chat-btn home-chat-btn-ghost home-chat-btn-revert"
+          onClick={() => onRevert(msg.preSha)}
+          title={`Revert vault to ${msg.preSha.slice(0,7)} (git reset --hard)`}
+        >
+          ↺ Revert this turn
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -99,6 +145,7 @@ export default function ChatDrawer() {
   const [input, setInput] = useState("");
   const {
     status, messages, thinking, mode, switchMode,
+    pendingPlanMsgId, applyPlan, discardPlan, revert,
     sendPrompt, interrupt, setManualToken, retry,
   } = useChatBridge();
 
@@ -141,7 +188,7 @@ export default function ChatDrawer() {
         <StatusDot status={status} />
         <span className="home-chat-status">{statusLabel(status)}</span>
         {status === "connected" && (
-          <ModeToggle mode={mode} onSwitch={switchMode} disabled={thinking} />
+          <ModeSelect mode={mode} onSwitch={switchMode} disabled={thinking} />
         )}
         {!open && status === "connected" && (
           <input
@@ -174,14 +221,34 @@ export default function ChatDrawer() {
                     dashboard repo.
                   </p>
                 )}
-                {messages.map((m) => (
-                  <div key={m.id} className={`home-chat-msg home-chat-msg-${m.role}`}>
-                    <div className="home-chat-msg-role">
-                      {m.role === "user" ? "You" : m.role === "assistant" ? "Claude" : "System"}
+                {messages.map((m) => {
+                  const isPlan = m.kind === "plan";
+                  const isApply = m.kind === "apply";
+                  const isLivePlan = isPlan && m.id === pendingPlanMsgId;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`home-chat-msg home-chat-msg-${m.role}${isPlan ? " home-chat-msg-plan" : ""}${isApply ? " home-chat-msg-apply" : ""}`}
+                    >
+                      <div className="home-chat-msg-role">
+                        {m.role === "user" ? "You"
+                          : m.role === "assistant" ? (isPlan ? "Claude — Plan" : isApply ? "Claude — Apply" : "Claude")
+                          : "System"}
+                      </div>
+                      <div className="home-chat-msg-text">{m.text}</div>
+                      {isLivePlan && (
+                        <PlanCardActions
+                          onApply={applyPlan}
+                          onDiscard={discardPlan}
+                          disabled={thinking}
+                        />
+                      )}
+                      {isApply && (
+                        <ApplyResultExtras msg={m} onRevert={revert} />
+                      )}
                     </div>
-                    <div className="home-chat-msg-text">{m.text}</div>
-                  </div>
-                ))}
+                  );
+                })}
                 {thinking && (
                   <div className="home-chat-msg home-chat-msg-assistant home-chat-msg-thinking">
                     <div className="home-chat-msg-role">Claude</div>
@@ -195,7 +262,13 @@ export default function ChatDrawer() {
               <form className="home-chat-input-row" onSubmit={handleSubmit}>
                 <textarea
                   className="home-chat-input"
-                  placeholder={status === "connected" ? "Message Claude (Enter to send, Shift+Enter for newline)" : "Connect first…"}
+                  placeholder={
+                    status !== "connected" ? "Connect first…"
+                    : mode === "apply" ? "Describe the change you want — Claude will plan first, then apply on click"
+                    : mode === "web" ? "Search or fetch the web…"
+                    : mode === "strict" ? "Ask about your vault (no web access)…"
+                    : "Message Claude (Enter to send, Shift+Enter for newline)"
+                  }
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}

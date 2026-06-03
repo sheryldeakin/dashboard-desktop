@@ -33,12 +33,15 @@ function wsUrlFor(baseHttp, token) {
 export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState(null);
-  const [messages, setMessages] = useState([]); // {id, role:'user'|'assistant'|'system', text, mode, t}
+  const [messages, setMessages] = useState([]); // {id, role, text, mode, t, kind?, preSha?, diffStat?}
   const [thinking, setThinking] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const [mode, setMode] = useState("vault"); // 'vault' | 'web'
+  const [mode, setMode] = useState("vault"); // 'strict' | 'vault' | 'web' | 'apply'
+  /* Apply-mode state: when a plan completes, we remember the message id
+     so the UI knows which card is the live "Apply / Discard" affordance. */
+  const [pendingPlanMsgId, setPendingPlanMsgId] = useState(null);
   const wsRef = useRef(null);
-  const currentTurnRef = useRef(null); // {assistantBuffer, started}
+  const currentTurnRef = useRef(null); // {assistantBuffer, started, phase}
 
   const connectWith = useCallback((token) => {
     if (!token) {
@@ -103,14 +106,18 @@ export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
   const handleEvent = useCallback((msg) => {
     const { kind, payload } = msg;
     if (kind === "pong") return;
-    if (kind === "start") {
+    if (kind === "start" || kind === "apply-start") {
       setThinking(true);
-      currentTurnRef.current = { assistantBuffer: "", started: Date.now() };
+      currentTurnRef.current = {
+        assistantBuffer: "",
+        started: Date.now(),
+        phase: payload?.phase, // 'plan' | 'execute' | undefined
+        preSha: payload?.preSha,
+      };
       return;
     }
     if (kind === "claude") {
       const t = payload?.type;
-      // Accumulate text from assistant events; show only when turn ends.
       if (t === "assistant" && payload.message?.content) {
         const text = payload.message.content
           .map((c) => (c.type === "text" ? c.text : ""))
@@ -122,7 +129,6 @@ export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
       return;
     }
     if (kind === "stderr") {
-      // Surface stderr only on failure end; for now log it
       console.warn("[chat-bridge stderr]", payload);
       return;
     }
@@ -132,10 +138,73 @@ export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
       setThinking(false);
       if (payload?.sessionId) setSessionId(payload.sessionId);
       const text = turn?.assistantBuffer?.trim() || "(no reply)";
+      const id = `a-${Date.now()}`;
+      // For apply-plan turns, mark as a "plan" message so the UI shows
+      // Apply/Discard buttons. plan-ready event flags the live one.
+      const isPlan = turn?.phase === "plan";
       setMessages((prev) => [
         ...prev,
-        { id: `a-${Date.now()}`, role: "assistant", text, t: Date.now() },
+        {
+          id,
+          role: "assistant",
+          text,
+          mode,
+          kind: isPlan ? "plan" : (turn?.phase === "execute" ? "apply" : undefined),
+          t: Date.now(),
+        },
       ]);
+      return;
+    }
+    if (kind === "plan-ready") {
+      // Marks the most recent plan message as the live one (Apply available).
+      setMessages((prev) => {
+        // find most recent plan message and mark it pending
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].kind === "plan") {
+            setPendingPlanMsgId(prev[i].id);
+            return prev;
+          }
+        }
+        return prev;
+      });
+      return;
+    }
+    if (kind === "plan-discarded") {
+      setPendingPlanMsgId(null);
+      setMessages((prev) => [
+        ...prev,
+        { id: `s-${Date.now()}`, role: "system", text: "Plan discarded.", t: Date.now() },
+      ]);
+      return;
+    }
+    if (kind === "apply-complete") {
+      // Mark the apply result message with the preSha so Revert is available.
+      setPendingPlanMsgId(null);
+      setMessages((prev) => {
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i--) {
+          if (next[i].kind === "apply") {
+            next[i] = {
+              ...next[i],
+              preSha: payload.preSha,
+              diffStat: payload.diffStat,
+            };
+            break;
+          }
+        }
+        return next;
+      });
+      return;
+    }
+    if (kind === "revert-complete") {
+      setMessages((prev) => [
+        ...prev,
+        { id: `r-${Date.now()}`, role: "system", text: `Reverted to checkpoint ${payload.sha.slice(0,7)}.`, t: Date.now() },
+      ]);
+      // Strip the preSha from the last apply message so Revert button hides
+      setMessages((prev) => prev.map((m) =>
+        m.preSha === payload.sha ? { ...m, preSha: null } : m
+      ));
       return;
     }
     if (kind === "error") {
@@ -156,7 +225,7 @@ export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
       ]);
       return;
     }
-  }, []);
+  }, [mode]);
 
   // Initial connect attempt
   useEffect(() => {
@@ -189,26 +258,51 @@ export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
     ws.send(JSON.stringify({ type: "prompt", text: trimmed, mode }));
   }, [mode]);
 
+  const MODE_DESCRIPTIONS = {
+    strict: "Strict mode (Read · Grep · Glob). No web access at all — most private.",
+    vault:  "Vault mode (Read · Grep · Glob · WebSearch). Local + search.",
+    web:    "Web mode (WebFetch · WebSearch). No vault access — no exfil path.",
+    apply:  "Apply mode (Plan → Apply with git checkpoint). Writes are scoped to the vault.",
+  };
+
   /* Switching modes: the bridge resets its session on receipt of a prompt
      with a different mode, so context can't leak across. We also drop a
      system message in the transcript so the user sees the switch happened. */
   const switchMode = useCallback((next) => {
-    if (next !== "vault" && next !== "web") return;
+    if (!["strict", "vault", "web", "apply"].includes(next)) return;
     if (next === mode) return;
     setMode(next);
+    setPendingPlanMsgId(null);
     setMessages((prev) => [
       ...prev,
       {
         id: `m-${Date.now()}`,
         role: "system",
-        text: next === "vault"
-          ? "Switched to vault mode (Read · Grep · Glob · WebSearch). Fresh session — Claude no longer sees prior web-mode context."
-          : "Switched to web mode (WebFetch · WebSearch). Fresh session — Claude no longer sees your vault or prior vault-mode context.",
+        text: `Switched to ${MODE_DESCRIPTIONS[next]} Fresh session.`,
         mode: next,
         t: Date.now(),
       },
     ]);
   }, [mode]);
+
+  const applyPlan = useCallback(() => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "apply" }));
+    setPendingPlanMsgId(null);
+  }, []);
+
+  const discardPlan = useCallback(() => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "discard-plan" }));
+  }, []);
+
+  const revert = useCallback((sha) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "revert", sha }));
+  }, []);
 
   const interrupt = useCallback(() => {
     const ws = wsRef.current;
@@ -237,6 +331,10 @@ export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
     sessionId,
     mode,
     switchMode,
+    pendingPlanMsgId,
+    applyPlan,
+    discardPlan,
+    revert,
     sendPrompt,
     interrupt,
     setManualToken,
