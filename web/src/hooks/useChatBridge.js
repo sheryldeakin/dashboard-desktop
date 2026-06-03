@@ -33,9 +33,10 @@ function wsUrlFor(baseHttp, token) {
 export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState(null);
-  const [messages, setMessages] = useState([]); // {id, role:'user'|'assistant'|'system', text, t}
+  const [messages, setMessages] = useState([]); // {id, role:'user'|'assistant'|'system', text, mode, t}
   const [thinking, setThinking] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  const [mode, setMode] = useState("vault"); // 'vault' | 'web'
   const wsRef = useRef(null);
   const currentTurnRef = useRef(null); // {assistantBuffer, started}
 
@@ -183,10 +184,31 @@ export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
     }
     setMessages((prev) => [
       ...prev,
-      { id: `u-${Date.now()}`, role: "user", text: trimmed, t: Date.now() },
+      { id: `u-${Date.now()}`, role: "user", text: trimmed, mode, t: Date.now() },
     ]);
-    ws.send(JSON.stringify({ type: "prompt", text: trimmed }));
-  }, []);
+    ws.send(JSON.stringify({ type: "prompt", text: trimmed, mode }));
+  }, [mode]);
+
+  /* Switching modes: the bridge resets its session on receipt of a prompt
+     with a different mode, so context can't leak across. We also drop a
+     system message in the transcript so the user sees the switch happened. */
+  const switchMode = useCallback((next) => {
+    if (next !== "vault" && next !== "web") return;
+    if (next === mode) return;
+    setMode(next);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `m-${Date.now()}`,
+        role: "system",
+        text: next === "vault"
+          ? "Switched to vault mode (Read · Grep · Glob · WebSearch). Fresh session — Claude no longer sees prior web-mode context."
+          : "Switched to web mode (WebFetch · WebSearch). Fresh session — Claude no longer sees your vault or prior vault-mode context.",
+        mode: next,
+        t: Date.now(),
+      },
+    ]);
+  }, [mode]);
 
   const interrupt = useCallback(() => {
     const ws = wsRef.current;
@@ -213,6 +235,8 @@ export function useChatBridge({ baseUrl = DEFAULT_URL } = {}) {
     messages,
     thinking,
     sessionId,
+    mode,
+    switchMode,
     sendPrompt,
     interrupt,
     setManualToken,

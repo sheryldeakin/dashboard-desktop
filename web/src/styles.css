@@ -5186,6 +5186,49 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+/* Mode pill — sage tone for Vault (the safe-default mode), slate for
+   Web (the explicit web-access mode). Click toggles. */
+.home-chat-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--motion-fast) ease;
+}
+
+.home-chat-mode-vault {
+  background: rgba(var(--accent-sage-rgb), 0.14);
+  color: var(--accent-sage);
+  border-color: rgba(var(--accent-sage-rgb), 0.25);
+}
+
+.home-chat-mode-vault:hover:not(:disabled) {
+  background: rgba(var(--accent-sage-rgb), 0.22);
+}
+
+.home-chat-mode-web {
+  background: rgba(var(--accent-slate-rgb), 0.14);
+  color: var(--accent-slate);
+  border-color: rgba(var(--accent-slate-rgb), 0.25);
+}
+
+.home-chat-mode-web:hover:not(:disabled) {
+  background: rgba(var(--accent-slate-rgb), 0.22);
+}
+
+.home-chat-mode:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .home-chat-quickinput {
   flex: 1;
   min-width: 0;

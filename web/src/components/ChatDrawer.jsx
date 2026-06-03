@@ -74,12 +74,32 @@ npm start</pre>
   );
 }
 
+function ModeToggle({ mode, onSwitch, disabled }) {
+  const isVault = mode === "vault";
+  const next = isVault ? "web" : "vault";
+  const label = isVault ? "🔒 Vault" : "🌐 Web";
+  const tooltip = isVault
+    ? "Vault mode: Claude can read your vault + dashboard, search the web. No URL fetches (defense against vault-exfil). Click to switch to Web mode."
+    : "Web mode: Claude can fetch + search the web. No vault access. Click to switch to Vault mode.";
+  return (
+    <button
+      type="button"
+      className={`home-chat-mode home-chat-mode-${mode}`}
+      onClick={() => onSwitch(next)}
+      title={tooltip}
+      disabled={disabled}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function ChatDrawer() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const {
-    status, messages, thinking, sendPrompt, interrupt,
-    setManualToken, retry,
+    status, messages, thinking, mode, switchMode,
+    sendPrompt, interrupt, setManualToken, retry,
   } = useChatBridge();
 
   const scrollRef = useRef(null);
@@ -120,11 +140,14 @@ export default function ChatDrawer() {
         </button>
         <StatusDot status={status} />
         <span className="home-chat-status">{statusLabel(status)}</span>
+        {status === "connected" && (
+          <ModeToggle mode={mode} onSwitch={switchMode} disabled={thinking} />
+        )}
         {!open && status === "connected" && (
           <input
             type="text"
             className="home-chat-quickinput"
-            placeholder="Ask Claude…"
+            placeholder={mode === "vault" ? "Ask Claude about your vault…" : "Search/fetch the web…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onFocus={() => setOpen(true)}
