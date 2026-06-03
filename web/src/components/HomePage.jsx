@@ -316,6 +316,292 @@ function CountdownCard({ content }) {
   );
 }
 
+/* ── Today snapshot computation ──
+   One pass over workSessions / tasks / pomodoro state, returns everything
+   the rail cards + snapshot strip need. Keeps the components dumb-render-only
+   and avoids walking workSessions five times. */
+function useTodayStats(content) {
+  return useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const tomorrowMs = todayMs + MS_PER_DAY;
+
+    // Project lookup: id → {name, color}
+    const projectMap = new Map(
+      (content.projects || []).map((p) => [p.id, { name: p.name, color: p.color }])
+    );
+
+    // Today's work sessions
+    let focusedMs = 0;
+    let sessionCount = 0;
+    const byProject = new Map();   // projectId → ms
+    const byHour = Array(24).fill(0);  // ms per hour bucket
+    let lastSessionEnd = null;
+
+    for (const ws of content.workSessions || []) {
+      const start = parseIsoMs(ws.startedAt);
+      const end = parseIsoMs(ws.endedAt);
+      if (start === null || end === null) continue;
+      if (start >= tomorrowMs || end < todayMs) continue;
+
+      const active = ws.activeMs || Math.max(0, end - start);
+      focusedMs += active;
+      sessionCount += 1;
+      const pid = ws.projectId || "";
+      byProject.set(pid, (byProject.get(pid) || 0) + active);
+      if (end > (lastSessionEnd || 0)) lastSessionEnd = end;
+
+      // Distribute into hour buckets (proportional)
+      const factor = end > start ? active / (end - start) : 0;
+      let cursor = Math.max(start, todayMs);
+      const wsEnd = Math.min(end, tomorrowMs);
+      while (cursor < wsEnd) {
+        const d = new Date(cursor);
+        const hr = d.getHours();
+        const boundary = new Date(
+          d.getFullYear(), d.getMonth(), d.getDate(), hr + 1, 0, 0
+        ).getTime();
+        const segEnd = Math.min(wsEnd, boundary);
+        byHour[hr] += (segEnd - cursor) * factor;
+        cursor = segEnd;
+      }
+    }
+
+    // Top project today
+    let topProject = null;
+    for (const [pid, ms] of byProject) {
+      if (!topProject || ms > topProject.ms) {
+        topProject = { id: pid, name: projectMap.get(pid)?.name || "Unknown", ms };
+      }
+    }
+
+    // Today's task progress
+    const todays = content.todaysTasks || [];
+    const total = todays.length;
+    const done = todays.filter((t) => t.done).length;
+
+    // Right now: pomodoro running > task timer running > task timer paused > idle
+    let rightNow = null;
+    const pomo = content.pomodoro || {};
+    const runningTask = todays.find((t) => t.timer?.status === "running");
+    const pausedTask = todays.find((t) => t.timer?.status === "paused");
+
+    if (runningTask) {
+      const startedAt = parseIsoMs(runningTask.timer?.startedAt);
+      const elapsedMs = startedAt ? Date.now() - startedAt : 0;
+      rightNow = {
+        kind: "running",
+        label: runningTask.text,
+        detail: `${Math.floor(elapsedMs / MS_PER_MIN)}m in`,
+      };
+    } else if (pausedTask) {
+      rightNow = { kind: "paused", label: pausedTask.text, detail: "paused" };
+    } else if (lastSessionEnd) {
+      const minSince = Math.floor((Date.now() - lastSessionEnd) / MS_PER_MIN);
+      rightNow = {
+        kind: "idle",
+        label: `Last session ended ${minSince}m ago`,
+        detail: null,
+      };
+    } else {
+      rightNow = { kind: "idle", label: "No sessions yet today", detail: null };
+    }
+
+    // Project mix: top 4 + "Other" — for the rail mini-bar
+    const projectMix = [...byProject.entries()]
+      .map(([pid, ms]) => ({
+        id: pid,
+        name: projectMap.get(pid)?.name || "Other",
+        color: projectMap.get(pid)?.color || "#999",
+        ms,
+      }))
+      .sort((a, b) => b.ms - a.ms);
+    const mixTop = projectMix.slice(0, 4);
+    const mixRest = projectMix.slice(4);
+    if (mixRest.length) {
+      mixTop.push({
+        id: "__other",
+        name: "Other",
+        color: "rgba(0,0,0,0.25)",
+        ms: mixRest.reduce((sum, p) => sum + p.ms, 0),
+      });
+    }
+
+    return {
+      focusedMs,
+      sessionCount,
+      done,
+      total,
+      topProject,
+      rightNow,
+      projectMix: mixTop,
+      byHour,
+      hasAnyToday: focusedMs > 0,
+    };
+  }, [content]);
+}
+
+function fmtHrMin(ms) {
+  const min = Math.floor(ms / MS_PER_MIN);
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/* ── Today snapshot strip (main column, above Top 3) ──
+   Glance answer to "how's today going?" — focused / sessions / done / top. */
+function TodaySnapshot({ stats }) {
+  return (
+    <section className="home-today-snapshot">
+      <div className="home-today-stat">
+        <span className="home-today-stat-num">{fmtHrMin(stats.focusedMs)}</span>
+        <span className="home-today-stat-label">focused</span>
+      </div>
+      <div className="home-today-stat">
+        <span className="home-today-stat-num">{stats.sessionCount}</span>
+        <span className="home-today-stat-label">
+          {stats.sessionCount === 1 ? "session" : "sessions"}
+        </span>
+      </div>
+      <div className="home-today-stat">
+        <span className="home-today-stat-num">
+          {stats.done}<span className="home-today-stat-of">/{stats.total}</span>
+        </span>
+        <span className="home-today-stat-label">done</span>
+      </div>
+      {stats.topProject && (
+        <div className="home-today-stat home-today-stat-wide">
+          <span className="home-today-stat-num home-today-stat-text">
+            {stats.topProject.name}
+          </span>
+          <span className="home-today-stat-label">
+            top · {fmtHrMin(stats.topProject.ms)}
+          </span>
+        </div>
+      )}
+      <a href="/stats?tab=today" className="home-today-link">
+        full breakdown →
+      </a>
+    </section>
+  );
+}
+
+/* ── Right now (rail) ── */
+function RightNowCard({ rightNow }) {
+  if (!rightNow) return null;
+  const dotClass =
+    rightNow.kind === "running" ? "is-running"
+    : rightNow.kind === "paused" ? "is-paused"
+    : "is-idle";
+  return (
+    <section className="home-rail-card">
+      <div className="home-rail-card-title">Right now</div>
+      <div className="home-rightnow">
+        <span className={`home-rightnow-dot ${dotClass}`} />
+        <span className="home-rightnow-text">{rightNow.label}</span>
+      </div>
+      {rightNow.detail && (
+        <div className="home-rail-hint">{rightNow.detail}</div>
+      )}
+    </section>
+  );
+}
+
+/* ── Today by project (rail mini-bar) ── */
+function ProjectMixCard({ mix, totalMs }) {
+  if (!mix || mix.length === 0 || totalMs === 0) {
+    return null;
+  }
+  return (
+    <section className="home-rail-card">
+      <div className="home-rail-card-title">Today by project</div>
+      <div className="home-projmix-bar">
+        {mix.map((p) => (
+          <div
+            key={p.id}
+            className="home-projmix-seg"
+            style={{
+              width: `${(p.ms / totalMs) * 100}%`,
+              background: p.color,
+            }}
+            title={`${p.name}: ${fmtHrMin(p.ms)}`}
+          />
+        ))}
+      </div>
+      <ul className="home-projmix-list">
+        {mix.map((p) => (
+          <li key={p.id} className="home-projmix-row">
+            <span className="home-projmix-dot" style={{ background: p.color }} />
+            <span className="home-projmix-name">{p.name}</span>
+            <span className="home-projmix-ms">{fmtHrMin(p.ms)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/* ── Hour ribbon (rail, adaptive width) ──
+   Shows N hours centered around current; N adapts to rail width via a
+   ResizeObserver. Min 8 hours, max 16. Bar height ∝ activity that hour,
+   normalized to today's peak. Current hour outlined. */
+function HourRibbonCard({ byHour }) {
+  const containerRef = useRef(null);
+  const [hourCount, setHourCount] = useState(12);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        const w = e.contentRect.width;
+        // ~16px per bar incl. gap is a comfortable minimum
+        const n = Math.max(8, Math.min(16, Math.floor(w / 16)));
+        setHourCount(n);
+      }
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const peak = Math.max(...byHour, 1);
+  const currentHr = new Date().getHours();
+  const halfWindow = Math.floor(hourCount / 2);
+  const startHr = Math.max(0, Math.min(24 - hourCount, currentHr - halfWindow));
+  const endHr = startHr + hourCount;
+
+  const bars = [];
+  for (let h = startHr; h < endHr; h++) {
+    const heightPct = (byHour[h] / peak) * 100;
+    bars.push({ hr: h, heightPct, isCurrent: h === currentHr, hasAny: byHour[h] > 0 });
+  }
+
+  return (
+    <section className="home-rail-card">
+      <div className="home-rail-card-title">Today by hour</div>
+      <div className="home-hour-ribbon" ref={containerRef}>
+        {bars.map((b) => (
+          <div
+            key={b.hr}
+            className={`home-hour-col${b.isCurrent ? " is-current" : ""}${b.hasAny ? " has-any" : ""}`}
+            title={`${b.hr}:00 — ${fmtHrMin(byHour[b.hr])}`}
+          >
+            <div
+              className="home-hour-bar"
+              style={{ height: `${Math.max(4, b.heightPct)}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="home-hour-labels">
+        <span>{startHr}:00</span>
+        <span>{endHr - 1}:00</span>
+      </div>
+    </section>
+  );
+}
+
 /* ── Header — stable "Today" anchor + the date. Countdown lives in the
    rail's CountdownCard now, so the header can stay calm. */
 function HomeHeader() {
@@ -677,6 +963,7 @@ export default function HomePage() {
   // content from DEFAULT_CONTENT has scheduledTaskHeartbeats normalized, so
   // the call is safe before the loaded-guard below.
   const heartbeatRows = useHeartbeatRows(content.scheduledTaskHeartbeats);
+  const todayStats = useTodayStats(content);
 
   if (!loaded) {
     return (
@@ -695,6 +982,8 @@ export default function HomePage() {
 
       <div className="home-layout">
         <div className="home-main">
+          <TodaySnapshot stats={todayStats} />
+
           <Top3Editor dailyTop3={content.dailyTop3} onSlotChange={updateSlot} />
 
           <UnfinishedSection
@@ -708,7 +997,10 @@ export default function HomePage() {
         </div>
 
         <aside className="home-rail">
+          <RightNowCard rightNow={todayStats.rightNow} />
           <CountdownCard content={content} />
+          <ProjectMixCard mix={todayStats.projectMix} totalMs={todayStats.focusedMs} />
+          <HourRibbonCard byHour={todayStats.byHour} />
           <PeakHourCard workSessions={content.workSessions} />
           <UpNextCard tasks={content.todaysTasks} />
           <ScheduleHealthCard rows={heartbeatRows} />

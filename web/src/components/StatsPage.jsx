@@ -1215,7 +1215,13 @@ function SnapshotIndicator({ loadedAtMs }) {
 export default function StatsPage() {
   const [content, setContent] = useState(() => cloneContent(DEFAULT_CONTENT));
   const [loaded, setLoaded] = useState(false);
-  const [tab, setTab] = useState("overview");
+  // Read ?tab= from URL on mount so deep-links from /home (and elsewhere)
+  // open the right tab. Valid tab ids come from TABS — invalid falls back
+  // to overview.
+  const [tab, setTab] = useState(() => {
+    const urlTab = new URLSearchParams(window.location.search).get("tab");
+    return TABS.some((t) => t.id === urlTab) ? urlTab : "overview";
+  });
   const [loadedAtMs, setLoadedAtMs] = useState(Date.now());
 
   useEffect(() => {

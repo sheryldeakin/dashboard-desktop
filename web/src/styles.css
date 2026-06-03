@@ -4878,6 +4878,235 @@ button:focus-visible {
   max-width: 680px;
 }
 
+/* ── Today snapshot strip (top of main column) ─────────────────────────
+   Glance summary: focused / sessions / done / top project. Sits above
+   Top 3 as a status header. Numbers are the focal point; labels muted.
+   The first .home-section after this gets its top divider naturally. */
+.home-today-snapshot {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 20px 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0;
+}
+
+/* First .home-section after the snapshot strip shouldn't double-up the
+   divider; the strip already provides one. */
+.home-today-snapshot + .home-section {
+  margin-top: 24px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.home-today-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.home-today-stat-wide {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.home-today-stat-num {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.home-today-stat-text {
+  font-variant-numeric: normal;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.home-today-stat-of {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--ink-muted);
+  margin-left: 1px;
+}
+
+.home-today-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+.home-today-link {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-decoration: none;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.home-today-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Right now (rail card) ─────────────────────────────────────────── */
+.home-rightnow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.home-rightnow-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.home-rightnow-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.home-rightnow-dot.is-running {
+  background: var(--accent-sage);
+  box-shadow: 0 0 0 3px rgba(var(--accent-sage-rgb), 0.18);
+  animation: home-pulse 2s ease-in-out infinite;
+}
+
+.home-rightnow-dot.is-paused {
+  background: var(--accent-tan);
+}
+
+.home-rightnow-dot.is-idle {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+@keyframes home-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(var(--accent-sage-rgb), 0.18); }
+  50%      { box-shadow: 0 0 0 5px rgba(var(--accent-sage-rgb), 0.08); }
+}
+
+/* ── Project mix mini-bar (rail card) ──────────────────────────────── */
+.home-projmix-bar {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--rule-soft);
+  margin-bottom: 10px;
+}
+
+.home-projmix-seg {
+  height: 100%;
+  transition: opacity 120ms;
+}
+
+.home-projmix-seg:hover {
+  opacity: 0.85;
+}
+
+.home-projmix-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.home-projmix-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.home-projmix-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.home-projmix-name {
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-projmix-ms {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Hour ribbon (rail card, adaptive) ──────────────────────────────
+   Bars normalize to today's peak; current hour outlined. Width adapts
+   via ResizeObserver (see HourRibbonCard.jsx). */
+.home-hour-ribbon {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 36px;
+  margin-bottom: 6px;
+}
+
+.home-hour-col {
+  flex: 1 1 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 2px;
+  position: relative;
+}
+
+.home-hour-col.is-current {
+  outline: 1px solid var(--accent-tan);
+  outline-offset: 1px;
+}
+
+.home-hour-bar {
+  width: 100%;
+  background: var(--rule);
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+  transition: background 120ms;
+}
+
+.home-hour-col.has-any .home-hour-bar {
+  background: rgba(var(--accent-sage-rgb), 0.65);
+}
+
+.home-hour-col:hover .home-hour-bar {
+  background: var(--accent-sage);
+}
+
+.home-hour-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .home-main {
   min-width: 0;
 }
