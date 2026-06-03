@@ -846,6 +846,55 @@ export default function HomePage() {
     };
   }, []);
 
+  // Lazy rollover: if dailyTop3.date is older than today (post-midnight
+  // load), push the old day into history and reset dailyTop3 to today.
+  // Without this, the carry-from-yesterday UX writes today's text into a
+  // dailyTop3 still stamped with yesterday's date — and sync-top3 then
+  // wipes it on its next run via the date-mismatch wholesale replace.
+  // Runs once after load when condition is true; the patchContent inside
+  // updates dailyTop3.date so the condition stops firing.
+  useEffect(() => {
+    if (!loaded) return;
+    const today = todayKey();
+    const currentDate = content.dailyTop3?.date;
+    if (!currentDate || currentDate === today) return;
+
+    const slotsHaveContent = (content.dailyTop3.slots || []).some(
+      (s) => (s.text || "").trim(),
+    );
+    const alreadyInHistory = (content.dailyTop3History || []).some(
+      (h) => h.date === currentDate,
+    );
+    const newHistory = slotsHaveContent && !alreadyInHistory
+      ? [
+          ...(content.dailyTop3History || []),
+          {
+            date: currentDate,
+            slots: content.dailyTop3.slots,
+            updatedAt: content.dailyTop3.updatedAt,
+          },
+        ]
+      : content.dailyTop3History;
+
+    const nowIso = new Date().toISOString();
+    const freshSlots = Array.from({ length: 3 }, () => ({
+      text: "",
+      done: false,
+      updatedAt: nowIso,
+      completedAt: null,
+      dropped: false,
+      droppedAt: null,
+      carriedToDate: null,
+      promoted: false,
+      promotedTaskId: null,
+    }));
+
+    patchContent({
+      dailyTop3: { date: today, slots: freshSlots, updatedAt: nowIso },
+      dailyTop3History: newHistory,
+    });
+  }, [loaded, content.dailyTop3?.date]);
+
   // Save: merge incoming patch into pristineRef base, normalize, persist
   // (debounced) and update local state. The pristine merge ensures we don't
   // wipe fields HomePage doesn't track (workSessions, todaysTasks, etc.).
@@ -863,11 +912,16 @@ export default function HomePage() {
 
   function updateSlot(idx, partial) {
     const nowIso = new Date().toISOString();
+    const today = todayKey();
     const slots = content.dailyTop3.slots.map((s, i) =>
       i === idx ? { ...s, ...partial, updatedAt: nowIso } : s
     );
+    // Defensive: always stamp date=today on any edit, so a stale date from
+    // a pre-rollover load can't cause sync-top3 to treat the app as
+    // "off-day" and wipe the edit. Belt-and-suspenders w/ the rollover
+    // useEffect below.
     patchContent({
-      dailyTop3: { ...content.dailyTop3, slots, updatedAt: nowIso },
+      dailyTop3: { ...content.dailyTop3, date: today, slots, updatedAt: nowIso },
     });
   }
 
@@ -914,7 +968,7 @@ export default function HomePage() {
         : h
     );
     patchContent({
-      dailyTop3: { ...content.dailyTop3, slots, updatedAt: nowIso },
+      dailyTop3: { ...content.dailyTop3, date: todayKeyStr, slots, updatedAt: nowIso },
       dailyTop3History: history,
     });
   }
