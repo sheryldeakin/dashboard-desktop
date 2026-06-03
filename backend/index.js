@@ -177,12 +177,27 @@ function mergeDailyTop3History(existing, incoming) {
   return [...map.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
 }
 
-// Heartbeats: merge by key, incoming overrides for that task. Without this, a
-// /todo save (which doesn't know about heartbeats) would wipe the field every
-// time a script PUT'd its heartbeat just before. Same data-loss class as the
-// workSessions clobber we fixed earlier.
+// Heartbeats: per-key newest-timestamp-wins. The naive spread version was
+// vulnerable to a stale-snapshot clobber: a long-open /home tab autosaves
+// with pristineRef-loaded heartbeats from when the tab opened (could be
+// 30+ min ago). A fresh script-written heartbeat (e.g. sync-top3 at 22:10)
+// would get overwritten by the autosave's stale 21:40 value, and the
+// "stale" banner would re-trigger on the dashboard within minutes.
+// Fix: only let an incoming value overwrite existing if it's actually
+// newer. Same class as the dailyTop3 per-slot updatedAt fix.
 function mergeHeartbeats(existing, incoming) {
-  return { ...(existing || {}), ...(incoming || {}) };
+  const e = existing && typeof existing === "object" ? existing : {};
+  const i = incoming && typeof incoming === "object" ? incoming : {};
+  const out = { ...e };
+  for (const [key, val] of Object.entries(i)) {
+    const iMs = isoToMs(val);
+    if (iMs === null) continue; // malformed incoming → skip, don't pollute
+    const eMs = isoToMs(out[key]);
+    if (eMs === null || iMs > eMs) {
+      out[key] = val;
+    }
+  }
+  return out;
 }
 
 // dailyTop3: per-slot merge using slot.updatedAt as the last-write-wins signal.
