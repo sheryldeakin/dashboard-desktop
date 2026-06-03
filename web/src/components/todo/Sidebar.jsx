@@ -32,6 +32,7 @@ export default function Sidebar({
   onProjectDrop,
 }) {
   const sectionIcons = {
+    top3: "★",
     today: "☀",
     inbox: "✉",
     planned: "📅",

@@ -41,6 +41,7 @@ export const PRIORITY_RANK = {
 };
 export const RECURRENCE_TYPES = ["none", "daily", "weekly", "monthly"];
 export const TODO_SIDEBAR_SECTIONS = [
+  { id: "top3", label: "Top 3", description: "Tasks promoted from today's Top 3 priorities." },
   { id: "today", label: "Today", description: "Items currently in today queue." },
   { id: "inbox", label: "Inbox", description: "Non-queue tasks in Inbox." },
   { id: "planned", label: "Planned", description: "Non-queue tasks due in future." },
@@ -832,6 +833,12 @@ export function taskMatchesSidebarSection(task, sectionId, todayKey, defaultProj
 
   if (sectionId === "today") {
     return Boolean(task.inTodayQueue);
+  }
+  // Top 3 is a separate axis from inTodayQueue — a top-3 task IS in the
+  // today queue too (so it shows in both sections). Checked before the
+  // inTodayQueue early-out below.
+  if (sectionId === "top3") {
+    return Array.isArray(task.tags) && task.tags.includes("top-3");
   }
   if (task.inTodayQueue) return false;
   if (sectionId === "inbox") {
