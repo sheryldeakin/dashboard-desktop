@@ -53,6 +53,43 @@ function formatDateLong(d = new Date()) {
   });
 }
 
+/* Mix a hex/rgb color toward white by `amount` (0 = original, 1 = pure
+   white). Returns a solid rgb() string so adjacent segments don't bleed
+   through each other (rgba alpha would let the bar's grey background show
+   between them). Used for large-area fills like the week-recap bars,
+   where the saturated palette reads as abrasive vs. small color dots.
+   Falls back to the original color string if the format isn't hex/rgb. */
+function softenColor(color, amount = 0.45) {
+  if (!color || typeof color !== "string") return color;
+  let r, g, b;
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length === 6) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+    } else {
+      return color;
+    }
+  } else if (color.startsWith("rgb")) {
+    const m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (!m) return color;
+    r = parseInt(m[1], 10);
+    g = parseInt(m[2], 10);
+    b = parseInt(m[3], 10);
+  } else {
+    return color;
+  }
+  const mR = Math.round(r + (255 - r) * amount);
+  const mG = Math.round(g + (255 - g) * amount);
+  const mB = Math.round(b + (255 - b) * amount);
+  return `rgb(${mR}, ${mG}, ${mB})`;
+}
+
 /* ── Schedule heartbeat status ── */
 // Expected cadence per script + the multiplier at which we call it "stale".
 // Stale threshold = expected × 2 — gives one missed run worth of grace before
@@ -639,14 +676,21 @@ function useTodayStats(content) {
       // Sort segments largest → smallest so the most significant project
       // visually anchors the bottom of the bar (CSS uses column-reverse to
       // stack with first-in-array at the visual bottom).
+      // Bar fills use softenColor() — saturated colors feel abrasive at
+      // bar-fill scale vs. small-dot scale. The legend below the bars
+      // keeps the full-saturation color as the "key" so users can match
+      // a softened bar segment back to the saturated dot.
       const segments = dayProjects
         ? [...dayProjects.entries()]
-            .map(([pid, ms]) => ({
-              id: pid,
-              name: projectMap.get(pid)?.name || "Unassigned",
-              color: weekProjectColors.get(pid) || "rgba(0,0,0,0.25)",
-              ms,
-            }))
+            .map(([pid, ms]) => {
+              const baseColor = weekProjectColors.get(pid) || "rgba(0,0,0,0.25)";
+              return {
+                id: pid,
+                name: projectMap.get(pid)?.name || "Unassigned",
+                color: softenColor(baseColor, 0.45),
+                ms,
+              };
+            })
             .sort((a, b) => b.ms - a.ms)
         : [];
       weekDays.push({
