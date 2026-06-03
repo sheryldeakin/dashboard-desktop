@@ -1568,10 +1568,13 @@ button:focus-visible {
   color: var(--ink);
 }
 
-/* ----- App shell with left sidebar (currently used by /home only) ----- */
+/* ----- App shell with left sidebar (currently used by /home only) -----
+   Sidebar width scales modestly with viewport: 180px on small monitors,
+   ~220px on wide ones. Keeps the proportion of nav-vs-content feeling
+   right whether you're on a 13" laptop or a 27" external. */
 .app-shell {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: clamp(180px, 14vw, 220px) 1fr;
   min-height: 100vh;
 }
 
@@ -4838,19 +4841,26 @@ button:focus-visible {
 
 /* ----- /home (daily-driver landing) ----- */
 
+/* Fluid container — scales naturally with viewport. clamp() means no
+   media queries for padding; only the layout-stack break needs one.
+   - Max-width 1300px lets wide monitors actually use the space.
+   - Outer padding scales 24px → 56px between ~600px and ~1400px viewport.
+   - Internal 8-point rhythm (in .home-section etc) stays fixed — pro
+     apps keep vertical rhythm constant, only the page chrome breathes. */
 .home-page {
-  max-width: 1040px;
+  max-width: clamp(720px, 92vw, 1300px);
   margin: 0 auto;
-  padding: 32px 32px 48px;
+  padding: clamp(24px, 3vw, 40px) clamp(24px, 4vw, 56px) clamp(32px, 4vw, 56px);
 }
 
-/* Two-column shell: main column (Top 3 + carryover) + right rail
-   (countdown, peak, up-next, schedule). Stacks on narrow screens so the
-   page still works on the small monitor. */
+/* Two-column shell: main column (Top 3 + carryover) + right rail. Gap
+   and rail width scale together so the proportions feel right at every
+   width. Rail grows from 240px on a 1280px monitor to ~320px at 1920px.
+   Stacks below 860px so the page still works on the small monitor. */
 .home-layout {
   display: grid;
-  grid-template-columns: 1fr 260px;
-  gap: 48px;
+  grid-template-columns: minmax(0, 1fr) clamp(240px, 20vw, 320px);
+  gap: clamp(32px, 4vw, 64px);
   align-items: start;
 }
 
@@ -4859,6 +4869,13 @@ button:focus-visible {
     grid-template-columns: 1fr;
     gap: 32px;
   }
+}
+
+/* Inner reading-width cap on the main column. Without this, on a 1920px
+   monitor the Top 3 input rows stretch to ~700px+ which feels lost. Cap
+   keeps line lengths in the comfortable 60-75ch range. */
+.home-main > * {
+  max-width: 680px;
 }
 
 .home-main {

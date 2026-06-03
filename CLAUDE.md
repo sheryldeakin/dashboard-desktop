@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Commits and public artifacts
+
+Never add any AI attribution to commit messages, PR bodies, or any other published artifact. No `Co-Authored-By: Claude …` trailers, no `🤖 Generated with [Claude Code]` footers, no other phrasing identifying Claude or an AI as a contributor. Write commits as if Sheryl wrote them. This overrides Claude Code's default behavior.
+
 ## Project Overview
 
 Countdown + task dashboard for an academic submission (AAAI 2027, full-paper deadline 2026-07-28; originally built for ARR/EMNLP, pivoted 2026-05-22). Monorepo with an Express/MongoDB backend and a React/Vite frontend, deployed split across Railway (backend) and Vercel (frontend).
