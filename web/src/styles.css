@@ -4918,7 +4918,11 @@ button:focus-visible {
    Stacks below 860px so the page still works on the small monitor. */
 .home-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(240px, 20vw, 320px);
+  /* Rail width bumped from clamp(240,20vw,320) → clamp(280,22vw,380) so
+     the rail sits closer to the SaaS convention of 20-30% of layout
+     width (was ~17% on wide monitors). Combined with the type-size pass
+     in rail-card text, the rail no longer feels visually demoted. */
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 22vw, 380px);
   gap: clamp(32px, 4vw, 64px);
   align-items: start;
 }
@@ -5024,7 +5028,7 @@ button:focus-visible {
    "up", coral for "down", plain for neutral. Tabular nums + tight tracking
    so deltas stack vertically. */
 .home-today-delta {
-  font-size: 10px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   color: var(--ink-muted);
@@ -5063,7 +5067,7 @@ button:focus-visible {
 }
 
 .home-today-label {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--ink-muted);
@@ -5170,7 +5174,7 @@ button:focus-visible {
   grid-template-columns: 10px 1fr auto;
   gap: 8px;
   align-items: center;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .home-projmix-dot {
@@ -5397,7 +5401,7 @@ button:focus-visible {
 .home-hour-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -5427,12 +5431,14 @@ button:focus-visible {
 }
 
 /* Title is a flex row now so the icon + label sit on one line. The
-   bottom hairline lives on the same row so it spans the full width. */
+   bottom hairline lives on the same row so it spans the full width.
+   12px (not 11) matches the SaaS convention for uppercase rail/section
+   labels and reads better next to the large stat numbers below. */
 .home-rail-card-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -5503,7 +5509,7 @@ button:focus-visible {
 /* Status pill — single source of truth for schedule health. Green dot
    when everything's fine; warn glyph + count when not. */
 .home-status-pill {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -5533,15 +5539,15 @@ button:focus-visible {
 }
 
 .home-rail-stat-unit {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-muted);
 }
 
 .home-rail-hint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-muted);
   margin-top: 4px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .home-rail-hint-good {
@@ -5549,9 +5555,10 @@ button:focus-visible {
 }
 
 .home-rail-empty {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-muted);
   margin: 0;
+  line-height: 1.45;
 }
 
 /* Headline pass — "Today" sits as the page anchor at a real heading weight.
@@ -5651,7 +5658,7 @@ button:focus-visible {
    under the title separates header from content (--rule-soft so it doesn't
    compete with the heavier --rule divider above each section). */
 .home-section-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -5760,7 +5767,7 @@ button:focus-visible {
 }
 
 .home-top3-num {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink-muted);
   text-align: right;
@@ -5812,7 +5819,7 @@ button:focus-visible {
 }
 
 .home-intent-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -5824,7 +5831,7 @@ button:focus-visible {
   flex: 1;
   border: none;
   background: transparent;
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
   padding: 2px 0;
   color: var(--ink);
@@ -5842,9 +5849,10 @@ button:focus-visible {
 }
 
 .home-top3-footnote {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-muted);
   margin: 14px 0 0;
+  line-height: 1.45;
 }
 
 .home-top3-footnote code {
@@ -6140,7 +6148,7 @@ button:focus-visible {
 
 .home-schedule-when {
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-muted);
   text-align: right;
 }
@@ -6151,7 +6159,7 @@ button:focus-visible {
 }
 
 .home-schedule-expected {
-  font-size: 10px;
+  font-size: 11px;
   color: rgba(0, 0, 0, 0.4);
   text-align: right;
 }
