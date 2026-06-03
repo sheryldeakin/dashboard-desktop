@@ -9,6 +9,7 @@ import {
   parseIsoMs,
   createDefaultTask,
 } from "../utils/taskUtils.js";
+import ChatDrawer from "./ChatDrawer.jsx";
 
 /* /home — daily-driver landing.
    Sections: header (date + deadline countdown), today's Top 3 (editable),
@@ -1073,6 +1074,7 @@ export default function HomePage() {
       </div>
 
       <SnapshotPill loadedAtMs={loadedAtMs} />
+      <ChatDrawer />
     </main>
   );
 }
