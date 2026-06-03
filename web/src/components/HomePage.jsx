@@ -590,6 +590,30 @@ function useTodayStats(content) {
       if (streak > 365) break;
     }
 
+    // Past 7 days (oldest → today) for the week-recap section. Reuses the
+    // msByDay histogram built above so we don't walk workSessions again.
+    // Single-letter labels (M T W T F S S) since we have 7 columns to fit.
+    const weekdayLetters = ["S", "M", "T", "W", "T", "F", "S"];
+    const weekDays = [];
+    for (let i = 6; i >= 0; i--) {
+      const dayMs = todayMs - i * MS_PER_DAY;
+      const key = localDayKey(dayMs);
+      const d = new Date(dayMs);
+      weekDays.push({
+        dayKey: key,
+        dayLabel: weekdayLetters[d.getDay()],
+        fullLabel: d.toLocaleDateString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        }),
+        focusedMs: msByDay.get(key) || 0,
+        isToday: i === 0,
+      });
+    }
+    const weekTotalMs = weekDays.reduce((sum, d) => sum + d.focusedMs, 0);
+    const weekActiveDays = weekDays.filter((d) => d.focusedMs > 0).length;
+
     return {
       focusedMs,
       sessionCount,
@@ -608,6 +632,10 @@ function useTodayStats(content) {
         topProject: yTopProject,
       },
       streak,
+      // Week recap for the section under UnfinishedSection
+      weekDays,
+      weekTotalMs,
+      weekActiveDays,
     };
   }, [content]);
 }
@@ -1341,6 +1369,70 @@ function UnfinishedSection({
   );
 }
 
+/* ── This week recap ──
+   7-bar focused-time chart for the past week, oldest → today. Each bar's
+   height is normalized to the peak of the 7 days (so even a quiet week
+   shows shape, not a flat line). Today's bar uses the sage accent so the
+   page's "you are here" cursor extends from the header into the chart.
+   Whole section is clickable to /stats?tab=time for the full breakdown.
+   When the week is genuinely empty we just show the chart-frame with
+   "No focused time logged this week yet." — no fake data, no skeleton.
+
+   Why a 7-day window (not Mon-Sun calendar week): the rolling window
+   is what dashboards like Stripe and GitHub use because it always shows
+   you the same amount of history regardless of what day you load it. */
+function WeekRecap({ weekDays, weekTotalMs, weekActiveDays }) {
+  const peak = Math.max(...weekDays.map((d) => d.focusedMs), 1);
+  const hasAny = weekTotalMs > 0;
+  return (
+    <section className="home-section">
+      <h2 className="home-section-title home-section-title-row">
+        <span>This week</span>
+        {hasAny && (
+          <span className="home-section-meta">
+            <strong>{fmtHrMin(weekTotalMs)}</strong> across {weekActiveDays}
+            {weekActiveDays === 1 ? " day" : " days"}
+          </span>
+        )}
+      </h2>
+      <a
+        href="/stats?tab=time"
+        className="home-week-recap"
+        aria-label="Open this week's breakdown in stats"
+      >
+        <div className="home-week-bars">
+          {weekDays.map((d) => {
+            const heightPct = (d.focusedMs / peak) * 100;
+            return (
+              <div
+                key={d.dayKey}
+                className={`home-week-col${d.isToday ? " is-today" : ""}${d.focusedMs > 0 ? " has-any" : ""}`}
+                title={`${d.fullLabel} — ${fmtHrMin(d.focusedMs)}`}
+              >
+                <div className="home-week-bar-wrap">
+                  <div
+                    className="home-week-bar"
+                    style={{ height: `${Math.max(3, heightPct)}%` }}
+                  />
+                </div>
+                <div className="home-week-label">{d.dayLabel}</div>
+                <div className="home-week-time">
+                  {d.focusedMs > 0 ? fmtHrMin(d.focusedMs) : "—"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {!hasAny && (
+          <p className="home-empty home-week-empty">
+            No focused time logged this week yet.
+          </p>
+        )}
+      </a>
+    </section>
+  );
+}
+
 /* ── Page ── */
 export default function HomePage() {
   const [content, setContent] = useState(() => cloneContent(DEFAULT_CONTENT));
@@ -1695,6 +1787,12 @@ export default function HomePage() {
             onDone={handleDone}
             onPromote={handlePromote}
             onDrop={handleDrop}
+          />
+
+          <WeekRecap
+            weekDays={todayStats.weekDays}
+            weekTotalMs={todayStats.weekTotalMs}
+            weekActiveDays={todayStats.weekActiveDays}
           />
         </div>
 

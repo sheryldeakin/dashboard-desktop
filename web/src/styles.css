@@ -5884,6 +5884,139 @@ button:focus-visible {
   border-top: 1px dashed rgba(var(--accent-tan-rgb), 0.2);
 }
 
+/* ── This week recap (main column, under UnfinishedSection) ──
+   7-column bar chart. Each column holds (bar wrap + day letter + time
+   label) stacked. Bars normalize to the 7-day peak so even a quiet week
+   shows shape. Today's bar uses the sage accent. Whole strip is the
+   link target (subtle hover background, no chrome). */
+.home-section-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Right-side metadata (e.g. "12h 30m across 5 days") on a section title.
+   Same uppercase tier but mixed-case + tabular numbers since it carries
+   a stat, not a label. */
+.home-section-meta {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-section-meta strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.home-week-recap {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  padding: 12px 8px;
+  margin: -4px -8px;
+  border-radius: 6px;
+  transition: background var(--motion-fast) ease;
+}
+
+.home-week-recap:hover {
+  background: var(--rule-soft);
+}
+
+.home-week-recap:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  background: var(--rule-soft);
+}
+
+.home-week-bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.home-week-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* The bar lives inside a fixed-height wrap so all 7 columns share the
+   same baseline. The bar grows from the bottom; height % is calculated
+   from each day's focused-ms relative to the 7-day peak. */
+.home-week-bar-wrap {
+  width: 100%;
+  height: 72px;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.home-week-bar {
+  width: 100%;
+  background: rgba(var(--accent-tan-rgb), 0.22);
+  border-radius: 3px 3px 0 0;
+  transition: background var(--motion-fast) ease;
+  min-height: 3px;
+}
+
+.home-week-col.has-any .home-week-bar {
+  background: rgba(var(--accent-tan-rgb), 0.55);
+}
+
+.home-week-col.is-today .home-week-bar {
+  background: var(--accent-sage);
+}
+
+.home-week-recap:hover .home-week-col.has-any .home-week-bar {
+  background: rgba(var(--accent-tan-rgb), 0.7);
+}
+
+.home-week-recap:hover .home-week-col.is-today .home-week-bar {
+  background: var(--accent-sage);
+  box-shadow: 0 0 0 1.5px rgba(var(--accent-sage-rgb), 0.25);
+}
+
+.home-week-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.home-week-col.is-today .home-week-label {
+  color: var(--accent-sage);
+}
+
+.home-week-time {
+  font-size: 11px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.home-week-col.is-today .home-week-time {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.home-week-empty {
+  margin: 12px 0 0;
+  text-align: center;
+}
+
 /* Unfinished row — was warn-tinted box; now just a plain row with a thin
    warn left-bar. The section header already labels these as needing
    attention; the row doesn't need to shout it twice. */
