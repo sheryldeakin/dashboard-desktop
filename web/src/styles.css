@@ -1620,7 +1620,9 @@ button:focus-visible {
 }
 
 .side-nav-brand {
-  font-size: 11px;
+  /* 12px matches the unified uppercase-label tier used by section/rail
+     titles on /home (was 11px, below the SaaS convention floor). */
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1644,20 +1646,24 @@ button:focus-visible {
 }
 
 .side-nav-link {
+  /* 14px matches GitHub/Stripe/Notion convention for left-nav primary
+     links — was 13px, which left the nav feeling smaller than the /home
+     right rail and undermined its role as the persistent global nav. */
   color: var(--ink-muted);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  padding: 8px 14px;
+  padding: 9px 14px;
   border-radius: 6px;
   transition: color var(--motion-fast) ease, background var(--motion-fast) ease;
 }
 
 /* System group links sit slightly smaller/quieter than primary nav so
-   they don't compete visually with the daily-driver routes. */
+   they don't compete visually with the daily-driver routes. 13px keeps
+   them in the "small body" tier — clearly secondary but still readable. */
 .side-nav-links-system .side-nav-link {
-  font-size: 12px;
-  padding: 6px 14px;
+  font-size: 13px;
+  padding: 7px 14px;
 }
 
 .side-nav-link:hover {
