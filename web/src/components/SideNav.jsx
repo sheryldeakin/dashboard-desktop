@@ -13,18 +13,76 @@
 
 import { useEffect, useState } from "react";
 
+/* Stroke-based icon set matching the /home rail icon family
+   (1.8px strokes, 16×16 viewBox, currentColor). Each link in the
+   nav gets one so the nav can be scanned by shape as well as label. */
+const NAV_ICONS = {
+  today: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" />
+      <path d="M5.5 2v3M10.5 2v3M2.5 7h11" />
+      <circle cx="8" cy="10" r="1.25" fill="currentColor" />
+    </svg>
+  ),
+  tasks: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="3.5" width="4" height="4" rx="0.8" />
+      <path d="M3 5.5l1 1 1.5-1.5" />
+      <path d="M8.5 5.5h5" />
+      <rect x="2.5" y="9.5" width="4" height="4" rx="0.8" />
+      <path d="M8.5 11.5h5" />
+    </svg>
+  ),
+  focus: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="8" cy="8" r="5.5" />
+      <circle cx="8" cy="8" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  stats: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2.5 13.5V10M6 13.5V6M9.5 13.5V8M13 13.5V3.5" />
+    </svg>
+  ),
+  history: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9" />
+      <path d="M2 2.5v3h3" />
+      <path d="M8 5v3.2l2 1.3" />
+    </svg>
+  ),
+  display: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="13" height="9" rx="1.5" />
+      <path d="M6 14h4M8 11.5V14" />
+    </svg>
+  ),
+  edit: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2.5 13.5h3l7-7-3-3-7 7z" />
+      <path d="M9.5 3.5l3 3" />
+    </svg>
+  ),
+  settings: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="8" cy="8" r="2" />
+      <path d="M8 1.5v1.6M8 12.9v1.6M2.5 8H.9M15.1 8h-1.6M3.6 3.6L2.5 2.5M13.5 13.5l-1.1-1.1M3.6 12.4L2.5 13.5M13.5 2.5l-1.1 1.1" />
+    </svg>
+  ),
+};
+
 const PRIMARY_LINKS = [
-  { href: "/home", label: "Today" },
-  { href: "/todo", label: "Tasks" },
-  { href: "/todo?focus=1", label: "Focus" },
-  { href: "/stats", label: "Stats" },
-  { href: "/history", label: "History" },
+  { href: "/home", label: "Today", icon: NAV_ICONS.today },
+  { href: "/todo", label: "Tasks", icon: NAV_ICONS.tasks },
+  { href: "/todo?focus=1", label: "Focus", icon: NAV_ICONS.focus },
+  { href: "/stats", label: "Stats", icon: NAV_ICONS.stats },
+  { href: "/history", label: "History", icon: NAV_ICONS.history },
 ];
 
 const SYSTEM_LINKS = [
-  { href: "/", label: "Display" },
-  { href: "/admin", label: "Edit" },
-  { href: "/settings", label: "Settings" },
+  { href: "/", label: "Display", icon: NAV_ICONS.display },
+  { href: "/admin", label: "Edit", icon: NAV_ICONS.edit },
+  { href: "/settings", label: "Settings", icon: NAV_ICONS.settings },
 ];
 
 function isActiveLink(href, path, isFocusActive) {
@@ -33,14 +91,15 @@ function isActiveLink(href, path, isFocusActive) {
   return path === href;
 }
 
-function Link({ href, label, active, onNavigate }) {
+function Link({ href, label, icon, active, onNavigate }) {
   return (
     <a
       href={href}
       className={active ? "side-nav-link is-active" : "side-nav-link"}
       onClick={onNavigate}
     >
-      {label}
+      {icon && <span className="side-nav-link-icon" aria-hidden="true">{icon}</span>}
+      <span className="side-nav-link-label">{label}</span>
     </a>
   );
 }
@@ -179,11 +238,12 @@ export default function SideNav() {
         <div className="side-nav-brand">Dashboard</div>
 
         <nav className="side-nav-links side-nav-links-primary">
-          {PRIMARY_LINKS.map(({ href, label }) => (
+          {PRIMARY_LINKS.map(({ href, label, icon }) => (
             <Link
               key={href}
               href={href}
               label={label}
+              icon={icon}
               active={isActiveLink(href, path, isFocusActive)}
               onNavigate={handleNavigate}
             />
@@ -191,11 +251,12 @@ export default function SideNav() {
         </nav>
 
         <nav className="side-nav-links side-nav-links-system">
-          {SYSTEM_LINKS.map(({ href, label }) => (
+          {SYSTEM_LINKS.map(({ href, label, icon }) => (
             <Link
               key={href}
               href={href}
               label={label}
+              icon={icon}
               active={isActiveLink(href, path, isFocusActive)}
               onNavigate={handleNavigate}
             />

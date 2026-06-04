@@ -1670,7 +1670,11 @@ button:focus-visible {
 .side-nav-link {
   /* Fluid: scales 13px at narrow viewports → 14px at wide. 14px matches
      the GitHub/Stripe/Notion convention; the floor keeps it readable in
-     a compressed window without forcing breakpoint media queries. */
+     a compressed window without forcing breakpoint media queries.
+     Now flex so the icon + label sit side-by-side with a small gap. */
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--ink-muted);
   text-decoration: none;
   font-size: clamp(13px, 0.3vw + 10.5px, 14px);
@@ -1678,6 +1682,35 @@ button:focus-visible {
   padding: 9px 14px;
   border-radius: 6px;
   transition: color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+/* Icon wrapper — fixed 16×16 box so labels align consistently. Inherits
+   color from the link (so hover/active drives icon color too). */
+.side-nav-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--ink-muted);
+  transition: color var(--motion-fast) ease;
+}
+
+.side-nav-link-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.side-nav-link:hover .side-nav-link-icon,
+.side-nav-link.is-active .side-nav-link-icon {
+  color: var(--ink);
+}
+
+.side-nav-link-label {
+  min-width: 0;
+  flex: 1;
 }
 
 /* System group links sit slightly smaller/quieter than primary nav so
@@ -5172,6 +5205,366 @@ button:focus-visible {
 .empty-state-action {
   margin-top: 4px;
 }
+
+/* ── Reusable: Chip ─────────────────────────────────────────────── */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.ui-chip--sm {
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  padding: 3px 0;
+}
+
+.ui-chip--md {
+  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
+  padding: 3px 0;
+}
+
+.ui-chip--default { color: var(--ink-muted); }
+.ui-chip--default strong { color: var(--ink); font-weight: 600; }
+
+.ui-chip--pill {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--ink);
+}
+
+.ui-chip--sage {
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  background: rgba(var(--accent-sage-rgb), 0.13);
+  color: var(--accent-sage);
+}
+
+.ui-chip--sage strong { color: var(--accent-sage); }
+
+.ui-chip--warn {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(var(--accent-warn-rgb), 0.13);
+  color: var(--accent-warn);
+}
+
+.ui-chip-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── Reusable: IconButton ─────────────────────────────────────── */
+.ui-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.ui-icon-btn svg {
+  display: block;
+}
+
+.ui-icon-btn--sm { width: 22px; height: 22px; }
+.ui-icon-btn--sm svg { width: 12px; height: 12px; }
+.ui-icon-btn--md { width: 28px; height: 28px; }
+.ui-icon-btn--md svg { width: 14px; height: 14px; }
+.ui-icon-btn--lg { width: 36px; height: 36px; }
+.ui-icon-btn--lg svg { width: 16px; height: 16px; }
+
+.ui-icon-btn--default:hover:not(:disabled) {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.ui-icon-btn--primary {
+  color: var(--accent-tan);
+}
+.ui-icon-btn--primary:hover:not(:disabled) {
+  color: var(--accent-tan);
+  background: rgba(var(--accent-tan-rgb), 0.12);
+}
+
+.ui-icon-btn--danger:hover:not(:disabled) {
+  color: var(--accent-warn);
+  background: rgba(var(--accent-warn-rgb), 0.08);
+}
+
+.ui-icon-btn--ghost {
+  border: 1px solid var(--rule);
+}
+.ui-icon-btn--ghost:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: rgba(var(--accent-tan-rgb), 0.4);
+  background: rgba(var(--accent-tan-rgb), 0.06);
+}
+
+.ui-icon-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ui-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ui-icon-btn.is-active {
+  color: var(--ink);
+  background: rgba(var(--accent-tan-rgb), 0.14);
+}
+
+/* ── Reusable: Section helpers ──────────────────────────────────── */
+/* Section uses the existing .home-section / .home-rail-card classes
+   so it slots into existing styles. The .ui-section-icon class is
+   only needed for the (rare) main-section-with-icon case — the rail
+   uses .home-rail-icon-wrap which already exists. */
+.ui-section-icon {
+  display: inline-flex;
+  align-items: center;
+  width: 14px;
+  height: 14px;
+  color: var(--ink-muted);
+  margin-right: 4px;
+}
+
+/* ── Reusable: Stat ───────────────────────────────────────────── */
+.ui-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ui-stat-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-stat-num--text {
+  font-variant-numeric: normal;
+  letter-spacing: 0;
+}
+
+.ui-stat-num-secondary {
+  font-weight: 500;
+  font-size: 0.65em;
+  color: var(--ink-muted);
+  margin-left: 1px;
+}
+
+.ui-stat--md .ui-stat-num { font-size: clamp(22px, 1vw + 10px, 28px); font-weight: 600; }
+.ui-stat--lg .ui-stat-num { font-size: clamp(26px, 2.4vw + 0px, 32px); }
+
+.ui-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.ui-stat--md .ui-stat-label { font-size: clamp(11px, 0.2vw + 9.5px, 13px); text-transform: none; letter-spacing: 0; }
+
+.ui-stat-delta {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: var(--ink-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-stat-delta.is-up { color: var(--accent-sage); }
+.ui-stat-delta.is-down { color: var(--accent-warn); }
+.ui-stat-delta.is-neutral { color: var(--ink-muted); opacity: 0.7; }
+
+/* ── Reusable: Tabs ───────────────────────────────────────────── */
+.ui-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 16px;
+}
+
+.ui-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: clamp(13px, 0.3vw + 10.5px, 14px);
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition:
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.ui-tab:hover {
+  color: var(--ink);
+}
+
+.ui-tab.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--accent-tan);
+}
+
+.ui-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ui-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Reusable: PageHeader ─────────────────────────────────────── */
+.ui-page-header {
+  margin-bottom: clamp(28px, 3vw, 40px);
+}
+
+.ui-page-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ui-page-header-title {
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 8px;
+  line-height: 1.1;
+}
+
+.ui-page-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ui-page-header-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
+  color: var(--ink-muted);
+}
+
+.ui-page-header-chip-slot {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── Reusable: EditableText ───────────────────────────────────── */
+.ui-editable {
+  cursor: pointer;
+  transition: background var(--motion-fast) ease;
+  border-radius: 3px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+
+.ui-editable:hover {
+  background: rgba(var(--accent-tan-rgb), 0.08);
+}
+
+.ui-editable:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ui-editable-input {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(var(--accent-tan-rgb), 0.5);
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: 0 -5px;
+}
+
+.ui-editable-input:focus {
+  outline: none;
+  border-color: var(--accent-tan);
+}
+
+.ui-editable-placeholder {
+  color: var(--ink-muted);
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* ── Reusable: Toast ──────────────────────────────────────────── */
+.ui-toast-stack {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  align-items: flex-end;
+}
+
+.ui-toast {
+  pointer-events: auto;
+  background: var(--ink);
+  color: rgba(255, 255, 255, 0.96);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  max-width: 360px;
+  animation: ui-toast-in 200ms var(--motion-ease);
+  cursor: pointer;
+}
+
+@keyframes ui-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ui-toast--success { background: var(--accent-sage); }
+.ui-toast--warn { background: var(--accent-tan); }
+.ui-toast--error { background: var(--accent-warn); }
 
 /* ── Reusable: Tooltip ─────────────────────────────────────────────
    Portal-rendered, theme-matched replacement for native title=.

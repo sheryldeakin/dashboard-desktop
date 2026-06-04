@@ -11,6 +11,10 @@ import {
 } from "../utils/taskUtils.js";
 import EmptyState from "./EmptyState.jsx";
 import Tooltip from "./Tooltip.jsx";
+import Stat from "./Stat.jsx";
+import RailCard from "./RailCard.jsx";
+import RelativeTime from "./RelativeTime.jsx";
+import Chip from "./Chip.jsx";
 
 /* Icon-button glyphs for UnfinishedSection row actions. Replaces the
    four "carry · done · promote · drop" text buttons. Each icon is paired
@@ -409,14 +413,13 @@ function PeakHourCard({ workSessions }) {
     when = `opens in ${peak.hour - currentHr}h`;
   }
   return (
-    <section className="home-rail-card">
-      <RailCardTitle icon={RAIL_ICONS.peak}>Peak hour</RailCardTitle>
-      <div className="home-rail-stat">
-        <span className="home-rail-stat-num">{peak.hour}:00</span>
-        <span className="home-rail-stat-unit">avg {peak.avgMinPerActiveDay}m</span>
-      </div>
+    <RailCard title="Peak hour" icon={RAIL_ICONS.peak}>
+      <Stat
+        value={`${peak.hour}:00`}
+        label={`avg ${peak.avgMinPerActiveDay}m`}
+      />
       <div className={`home-rail-hint home-rail-hint-${whenTone}`}>{when}</div>
-    </section>
+    </RailCard>
   );
 }
 
@@ -493,14 +496,9 @@ function CountdownCard({ content }) {
   if (daysLeft === null) return null;
   const title = content.title || "submission";
   return (
-    <section className="home-rail-card">
-      <RailCardTitle icon={RAIL_ICONS.deadline}>Deadline</RailCardTitle>
-      <div className="home-rail-stat">
-        <span className="home-rail-stat-num">{daysLeft}</span>
-        <span className="home-rail-stat-unit">{daysLeft === 1 ? "day" : "days"} left</span>
-      </div>
-      <div className="home-rail-hint">to {title}</div>
-    </section>
+    <RailCard title="Deadline" icon={RAIL_ICONS.deadline}>
+      <Stat value={daysLeft} label={`${daysLeft === 1 ? "day" : "days"} left to ${title}`} />
+    </RailCard>
   );
 }
 
@@ -1422,29 +1420,29 @@ function HomeHeader({ stats }) {
   const focusedSoFar = stats?.focusedMs > 0 ? fmtHrMin(stats.focusedMs) : null;
   const streak = stats?.streak >= 2 ? stats.streak : null;
 
+  // Canary use of the new Chip component. The home-header / home-page-title
+  // layout is preserved so we don't tackle the PageHeader migration yet
+  // (that involves moving the streak chip alongside an `actions` slot —
+  // worth doing when there's a reason to add page-level actions).
   return (
     <header className="home-header">
       <h1 className="home-page-title">Today</h1>
       <div className="home-header-chips" role="group" aria-label="Today summary">
-        <span className="home-chip">{weekday}</span>
+        <Chip>{weekday}</Chip>
         <span className="home-chip-sep" aria-hidden="true">·</span>
-        <span className="home-chip">{date}</span>
+        <Chip>{date}</Chip>
         {focusedSoFar && (
           <>
             <span className="home-chip-sep" aria-hidden="true">·</span>
-            <span className="home-chip home-chip-stat">
-              <strong>{focusedSoFar}</strong> focused
-            </span>
+            <Chip><strong>{focusedSoFar}</strong> focused</Chip>
           </>
         )}
         {streak && (
-          <span
-            className="home-chip home-chip-streak"
-            title={`${streak} consecutive days with focused time`}
-          >
-            <FlameIcon />
-            <span><strong>{streak}</strong> day streak</span>
-          </span>
+          <Tooltip content={`${streak} consecutive days with focused time`}>
+            <Chip tone="sage" icon={<FlameIcon />}>
+              <strong>{streak}</strong> day streak
+            </Chip>
+          </Tooltip>
         )}
       </div>
     </header>
@@ -1454,20 +1452,11 @@ function HomeHeader({ stats }) {
 /* ── Snapshot pill — fixed bottom-right so it doesn't fight the header anchor.
    Stays available, but quiet. ── */
 function SnapshotPill({ loadedAtMs }) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, []);
-  const loadedMin = Math.floor((now - loadedAtMs) / 60000);
-  const rel =
-    loadedMin < 1 ? "just now"
-    : loadedMin < 60 ? `${loadedMin}m ago`
-    : loadedMin < 60 * 24 ? `${Math.floor(loadedMin / 60)}h ago`
-    : `${Math.floor(loadedMin / 60 / 24)}d ago`;
   return (
     <div className="home-snapshot home-snapshot-fixed">
-      <span className="home-snapshot-label">Loaded {rel}</span>
+      <span className="home-snapshot-label">
+        Loaded <RelativeTime since={loadedAtMs} />
+      </span>
       <button
         type="button"
         className="home-snapshot-refresh"
