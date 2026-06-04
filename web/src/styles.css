@@ -5102,6 +5102,129 @@ button:focus-visible {
   50% { opacity: 0.45; }
 }
 
+/* ── Reusable: EmptyState ──────────────────────────────────────────
+   Used wherever we'd otherwise render a plain-text "Nothing here".
+   Two variants:
+     default → center-aligned with padding, used as section-level empty
+     inline  → no padding, left-aligned, fits inside compact contexts */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--ink-muted);
+}
+
+.empty-state--default {
+  align-items: center;
+  text-align: center;
+  padding: clamp(20px, 3vw, 32px) 16px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.015);
+  border: 1px dashed var(--rule-soft);
+}
+
+.empty-state--inline {
+  align-items: flex-start;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.empty-state-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  opacity: 0.6;
+  margin-bottom: 2px;
+}
+
+.empty-state-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.empty-state-message {
+  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.empty-state--default .empty-state-message {
+  color: var(--ink);
+}
+
+.empty-state--inline .empty-state-message {
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+.empty-state-hint {
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  color: var(--ink-muted);
+  line-height: 1.45;
+  max-width: 32ch;
+}
+
+.empty-state-action {
+  margin-top: 4px;
+}
+
+/* ── Reusable: Tooltip ─────────────────────────────────────────────
+   Portal-rendered, theme-matched replacement for native title=.
+   Position is set inline (fixed positioning relative to viewport).
+   The arrow is a 6px diamond rotated 45deg, positioned by placement. */
+.tooltip {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  background: var(--ink);
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  padding: 6px 10px;
+  border-radius: 6px;
+  max-width: 280px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  animation: tooltip-in 140ms var(--motion-ease);
+  /* Numbers in tooltips usually carry data — keep them aligned. */
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Arrow — 6px diamond, half hidden under the tooltip body. Centered on
+   the tooltip's horizontal midpoint via left: 50% + transform. */
+.tooltip-arrow {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--ink);
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.tooltip--top .tooltip-arrow {
+  bottom: -3px;
+}
+
+.tooltip--bottom .tooltip-arrow {
+  top: -3px;
+}
+
 /* Skeleton snapshot strip — keep the structure but neuter the link
    hover so the skeleton doesn't look interactive. */
 .home-today-snapshot--skel {
@@ -5408,16 +5531,20 @@ button:focus-visible {
    link out to claude.ai/code; click opens in a new tab. Configure via
    the + button. URLs stored in localStorage. */
 .home-chats-add {
-  float: right;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: 1px solid var(--rule);
-  border-radius: 3px;
+  border-radius: 5px;
   color: var(--ink-muted);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
   font-family: inherit;
   font-size: 13px;
   line-height: 1;
@@ -5571,8 +5698,20 @@ button:focus-visible {
   display: flex;
   align-items: flex-end;
   gap: 3px;
+  /* Default (rail) — compact strip. Main placement overrides below to
+     scale with viewport height, matching the week recap chart. */
   height: 36px;
   margin-bottom: 6px;
+}
+
+/* Main placement — scale bar height with viewport height, same formula
+   as the week-recap bar wrap so the two charts feel like siblings.
+   ~80px on a 768px-tall monitor → 140px cap at 1440px+. No bottom
+   margin since the axis labels live in the section title meta there. */
+.home-section--hour-ribbon .home-hour-ribbon {
+  height: clamp(80px, 10vh, 140px);
+  margin-bottom: 0;
+  gap: 4px;
 }
 
 .home-hour-col {
@@ -6487,36 +6626,55 @@ button:focus-visible {
   color: var(--ink-muted);
 }
 
+/* Icon-button variant — each unfinished-row action is now a 24px square
+   icon button. The icon glyph carries the meaning; the Tooltip carries
+   the verb. Muted by default, full ink on hover. */
 .home-unf-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: none;
   background: transparent;
   color: var(--ink-muted);
-  font-family: inherit;
-  font-size: 11px;
+  border-radius: 5px;
   cursor: pointer;
-  text-decoration: none;
-  transition: color 100ms;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.home-unf-action svg {
+  width: 14px;
+  height: 14px;
 }
 
 .home-unf-action:hover:not(:disabled) {
   color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.home-unf-action:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .home-unf-action:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 .home-unf-action-drop:hover:not(:disabled) {
   color: var(--accent-warn);
+  background: rgba(var(--accent-warn-rgb), 0.08);
 }
 
+/* Old text-button separators no longer rendered, but kept for safety
+   in case anything still references them. */
 .home-unf-sep {
-  color: rgba(0, 0, 0, 0.25);
-  user-select: none;
+  display: none;
 }
 
 .home-link-btn {

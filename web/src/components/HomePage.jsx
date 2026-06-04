@@ -9,6 +9,87 @@ import {
   parseIsoMs,
   createDefaultTask,
 } from "../utils/taskUtils.js";
+import EmptyState from "./EmptyState.jsx";
+import Tooltip from "./Tooltip.jsx";
+
+/* Icon-button glyphs for UnfinishedSection row actions. Replaces the
+   four "carry · done · promote · drop" text buttons. Each icon is paired
+   with a Tooltip so the action name + intent show on hover. */
+const UNFINISHED_ICONS = {
+  carry: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 8h9" />
+      <path d="M8.5 4.5L12 8l-3.5 3.5" />
+    </svg>
+  ),
+  done: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 8.5l3 3 7-7" />
+    </svg>
+  ),
+  promote: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12h7" />
+      <path d="M3 8h10" />
+      <path d="M3 4h10" />
+      <path d="M11.5 10.5L13.5 12l-2 1.5" />
+    </svg>
+  ),
+  drop: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 4l10 9" />
+      <path d="M13 4L3 13" />
+    </svg>
+  ),
+};
+
+/* Small icon set for EmptyState components. Stroke-based, currentColor,
+   matching the rail icon set's visual weight (1.8px strokes). Defined
+   once here so the empty states across the page read as siblings. */
+const EMPTY_ICONS = {
+  // Yesterday's loose ends, when nothing is left open.
+  pageClean: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 4h9l4 4v12H6z" />
+      <path d="M15 4v4h4" />
+      <path d="M9 13l2 2 4-4" />
+    </svg>
+  ),
+  // No upcoming tasks
+  calendar: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="6" width="16" height="14" rx="2" />
+      <path d="M8 4v4M16 4v4M4 11h16" />
+    </svg>
+  ),
+  // No focused time
+  hourglass: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 4h10M7 20h10" />
+      <path d="M7 4c0 5 5 5 5 8s-5 3-5 8" />
+      <path d="M17 4c0 5-5 5-5 8s5 3 5 8" />
+    </svg>
+  ),
+  // No active task / right now
+  pulse: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12h4l2-6 4 12 2-6h6" />
+    </svg>
+  ),
+  // No chats pinned
+  chat: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 5h16v11h-9l-4 3v-3H4z" />
+    </svg>
+  ),
+  // No projects today
+  projects: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3v9h9" />
+    </svg>
+  ),
+};
 
 /* /home — daily-driver landing.
    Sections: header (date + deadline countdown), today's Top 3 (editable),
@@ -360,7 +441,11 @@ function UpNextCard({ tasks }) {
     return (
       <section className="home-rail-card">
         <RailCardTitle icon={RAIL_ICONS.upNext}>Up next</RailCardTitle>
-        <p className="home-rail-empty">Nothing due. Add a date in /todo to surface here.</p>
+        <EmptyState
+          variant="inline"
+          message="Nothing due"
+          hint="Add a due date in /todo and it surfaces here."
+        />
       </section>
     );
   }
@@ -865,7 +950,7 @@ function TodaySnapshot({ stats }) {
           delta={doneDelta}
         />
         <SnapshotCell
-          href="/stats?tab=projects"
+          href="/stats?tab=today"
           value={topName}
           label={`Top${topMs ? ` · ${topMs}` : ""}`}
           delta={topDelta}
@@ -904,9 +989,28 @@ function RightNowCard({ rightNow }) {
      - placement="main"  → full .home-section with header row (label + total)
    Same data, same bar/list inside; only the outer wrapper + title differ. */
 function ProjectMixCard({ mix, totalMs, placement = "rail" }) {
-  if (!mix || mix.length === 0 || totalMs === 0) {
-    return null;
+  const hasAny = mix && mix.length > 0 && totalMs > 0;
+
+  // In rail placement we hide the card entirely when empty (one fewer
+  // distraction). In main placement we keep the section visible with an
+  // empty state so the page structure stays predictable day to day.
+  if (!hasAny && placement === "rail") return null;
+
+  if (!hasAny && placement === "main") {
+    return (
+      <section className="home-section">
+        <h2 className="home-section-title home-section-title-row">
+          <span>Today by project</span>
+        </h2>
+        <EmptyState
+          icon={EMPTY_ICONS.projects}
+          message="No project time today"
+          hint="Start a timer on a task to see how today's hours split by project."
+        />
+      </section>
+    );
   }
+
   const inner = (
     <>
       <div className="home-projmix-bar">
@@ -967,6 +1071,7 @@ function HourRibbonCard({ byHour, byHourSegments, placement = "rail" }) {
   const containerRef = useRef(null);
   const [hourCount, setHourCount] = useState(12);
   const [hover, setHover] = useState(null);  // { hr, segIdx, seg } | null
+  const hasAny = byHour && byHour.some((m) => m > 0);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -1067,9 +1172,15 @@ function HourRibbonCard({ byHour, byHourSegments, placement = "rail" }) {
       <section className={`home-section home-section--hour-ribbon${hover ? " is-hovering" : ""}`}>
         <h2 className="home-section-title home-section-title-row">
           <span>Today by hour</span>
-          {mainMeta}
+          {hasAny && mainMeta}
         </h2>
-        {ribbon}
+        {hasAny ? ribbon : (
+          <EmptyState
+            icon={EMPTY_ICONS.hourglass}
+            message="No focused time today yet"
+            hint="When you start a timer, this ribbon fills in by the hour."
+          />
+        )}
       </section>
     );
   }
@@ -1175,56 +1286,78 @@ function ChatsCard() {
       <div className="home-rail-card-title home-rail-card-title-row">
         <span className="home-rail-icon-wrap">{RAIL_ICONS.chats}</span>
         <span>Chats</span>
-        <button
-          type="button"
-          className="home-chats-add"
-          onClick={startAdd}
-          title="Add a chat link"
-          aria-label="Add a chat link"
-        >
-          +
-        </button>
+        <Tooltip content="Pin a chat link">
+          <button
+            type="button"
+            className="home-chats-add"
+            onClick={startAdd}
+            aria-label="Pin a chat link"
+          >
+            <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" focusable="false">
+              <path
+                d="M8 3.5v9M3.5 8h9"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </Tooltip>
       </div>
 
       {chats.length === 0 && !addingOpen && (
-        <p className="home-rail-empty">
-          Run <code>claude remote-control --name "X"</code> in a terminal, copy the
-          session URL, and click <strong>+</strong> to pin it here.
-        </p>
+        <EmptyState
+          icon={EMPTY_ICONS.chat}
+          message="No chats pinned"
+          hint="Paste a claude.ai/code session URL to keep it one click away."
+          action={
+            <button
+              type="button"
+              className="home-chats-btn home-chats-btn-ghost"
+              onClick={startAdd}
+            >
+              Pin one
+            </button>
+          }
+        />
       )}
 
       {chats.length > 0 && (
         <ul className="home-chats-list">
           {chats.map((c) => (
             <li key={c.id} className="home-chats-row">
-              <a
-                href={c.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="home-chats-link"
-                title={c.url}
-              >
-                <span className="home-chats-dot" aria-hidden="true" />
-                {c.label}
-              </a>
-              <button
-                type="button"
-                className="home-chats-edit"
-                onClick={() => startEdit(c)}
-                title="Edit"
-                aria-label={`Edit ${c.label}`}
-              >
-                ✎
-              </button>
-              <button
-                type="button"
-                className="home-chats-edit home-chats-remove"
-                onClick={() => remove(c.id)}
-                title="Remove"
-                aria-label={`Remove ${c.label}`}
-              >
-                ×
-              </button>
+              <Tooltip content={c.url}>
+                <a
+                  href={c.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="home-chats-link"
+                >
+                  <span className="home-chats-dot" aria-hidden="true" />
+                  {c.label}
+                </a>
+              </Tooltip>
+              <Tooltip content="Edit">
+                <button
+                  type="button"
+                  className="home-chats-edit"
+                  onClick={() => startEdit(c)}
+                  aria-label={`Edit ${c.label}`}
+                >
+                  ✎
+                </button>
+              </Tooltip>
+              <Tooltip content="Remove">
+                <button
+                  type="button"
+                  className="home-chats-edit home-chats-remove"
+                  onClick={() => remove(c.id)}
+                  aria-label={`Remove ${c.label}`}
+                >
+                  ×
+                </button>
+              </Tooltip>
             </li>
           ))}
         </ul>
@@ -1411,9 +1544,18 @@ function Top3Editor({ dailyTop3, tasks, onSlotChange }) {
     () => new Map((tasks || []).map((t) => [t.id, t])),
     [tasks]
   );
+  const filled = slots.filter((s) => s.text && s.text.trim()).length;
+  const done = slots.filter((s) => s.done).length;
   return (
     <section className="home-section">
-      <h2 className="home-section-title">Today's Top 3</h2>
+      <h2 className="home-section-title home-section-title-row">
+        <span>Today's Top 3</span>
+        {filled > 0 && (
+          <span className="home-section-meta">
+            <strong>{done}</strong>/{filled} done
+          </span>
+        )}
+      </h2>
       <ul className="home-top3-list">
         {[0, 1, 2].map((i) => {
           const s = slots[i];
@@ -1526,42 +1668,51 @@ function UnfinishedSection({
         <span className="home-unfinished-text">{item.text}</span>
         {dayLabel && <span className="home-unfinished-date">{dayLabel}</span>}
         <span className="home-unfinished-actions">
-          <button
-            type="button"
-            className="home-unf-action"
-            disabled={!hasEmptySlotToday}
-            onClick={() => onCarry(dayDate, item.slotIdx)}
-            title={hasEmptySlotToday ? "Move to today's first empty Top 3 slot" : "All today's slots are filled"}
-          >
-            carry
-          </button>
-          <span className="home-unf-sep" aria-hidden="true">·</span>
-          <button
-            type="button"
-            className="home-unf-action"
-            onClick={() => onDone(dayDate, item.slotIdx)}
-            title="Mark done (app-only; doesn't rewrite yesterday's daily note)"
-          >
-            done
-          </button>
-          <span className="home-unf-sep" aria-hidden="true">·</span>
-          <button
-            type="button"
-            className="home-unf-action"
-            onClick={() => onPromote(dayDate, item.slotIdx)}
-            title="Promote to a regular task in your task list"
-          >
-            promote
-          </button>
-          <span className="home-unf-sep" aria-hidden="true">·</span>
-          <button
-            type="button"
-            className="home-unf-action home-unf-action-drop"
-            onClick={() => onDrop(dayDate, item.slotIdx)}
-            title="Drop — not done, not carried forward"
-          >
-            drop
-          </button>
+          <Tooltip content={
+            hasEmptySlotToday
+              ? "Carry to today's first empty Top 3 slot"
+              : "All Top 3 slots are filled"
+          }>
+            <button
+              type="button"
+              className="home-unf-action"
+              disabled={!hasEmptySlotToday}
+              onClick={() => onCarry(dayDate, item.slotIdx)}
+              aria-label="Carry to today"
+            >
+              {UNFINISHED_ICONS.carry}
+            </button>
+          </Tooltip>
+          <Tooltip content="Mark done (app-only — doesn't rewrite yesterday's daily note)">
+            <button
+              type="button"
+              className="home-unf-action"
+              onClick={() => onDone(dayDate, item.slotIdx)}
+              aria-label="Mark done"
+            >
+              {UNFINISHED_ICONS.done}
+            </button>
+          </Tooltip>
+          <Tooltip content="Promote to a task in your task list">
+            <button
+              type="button"
+              className="home-unf-action"
+              onClick={() => onPromote(dayDate, item.slotIdx)}
+              aria-label="Promote to task"
+            >
+              {UNFINISHED_ICONS.promote}
+            </button>
+          </Tooltip>
+          <Tooltip content="Drop — not done, not carried forward">
+            <button
+              type="button"
+              className="home-unf-action home-unf-action-drop"
+              onClick={() => onDrop(dayDate, item.slotIdx)}
+              aria-label="Drop"
+            >
+              {UNFINISHED_ICONS.drop}
+            </button>
+          </Tooltip>
         </span>
       </li>
     );
@@ -1569,14 +1720,21 @@ function UnfinishedSection({
 
   return (
     <section className="home-section">
-      <h2 className="home-section-title">
-        Unfinished from yesterday
+      <h2 className="home-section-title home-section-title-row">
+        <span>Unfinished from yesterday</span>
         {yesterdayOpen.length > 0 && (
-          <span className="home-section-count"> ({yesterdayOpen.length})</span>
+          <span className="home-section-meta">
+            <strong>{yesterdayOpen.length}</strong>
+            {yesterdayOpen.length === 1 ? " item" : " items"}
+          </span>
         )}
       </h2>
       {yesterdayOpen.length === 0 ? (
-        <p className="home-empty">Nothing from yesterday left open.</p>
+        <EmptyState
+          icon={EMPTY_ICONS.pageClean}
+          message="All caught up"
+          hint="Nothing from yesterday left open. Yesterday's wins are in History."
+        />
       ) : (
         <ul className="home-unfinished-list">
           {yesterdayOpen.map((s) => renderRow(s, yKey, null))}
@@ -1716,9 +1874,13 @@ function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend, placemen
   );
 
   const emptyState = !hasAny && (
-    <p className="home-empty home-week-empty">
-      No focused time logged this week yet.
-    </p>
+    <div className="home-week-empty">
+      <EmptyState
+        variant="inline"
+        message="No focused time this week"
+        hint="Start a timer on any task and your week will fill in."
+      />
+    </div>
   );
 
   // Rail variant — compact rail-card chrome with icon title + total chip.
