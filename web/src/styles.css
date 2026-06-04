@@ -31,13 +31,35 @@
   --tile-fill-hover: rgba(255, 255, 255, 0.265);
   --tile-border: rgba(182, 139, 97, 0.23);
   --focus-ring: rgba(182, 110, 53, 0.35);
+  /* Motion scale — 3 steps roughly matching SaaS conventions.
+     fast = micro-interactions (hover tint, button press)
+     medium = state changes (task done, panel toggle, drawer slide)
+     slow = page-level entrance, modal in/out */
   --motion-fast: 140ms;
+  --motion-medium: 240ms;
+  --motion-slow: 360ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   font-family: "Avenir Next", "SF Pro Text", "Segoe UI", sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Accessibility: respect users who've asked the OS to minimize motion.
+   Single global rule that neutralizes all CSS transitions and animations
+   to ~0 duration so we don't have to remember to wrap each animation
+   declaration. The 0.01ms (vs 0) preserves transitionend/animationend
+   events so JS that listens for them still fires. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 html,
@@ -4918,6 +4940,59 @@ button:focus-visible {
   padding: clamp(24px, 3vw, 40px) clamp(24px, 4vw, 56px) clamp(32px, 4vw, 56px);
 }
 
+/* Entrance — runs once when the real content replaces the skeleton.
+   Tiny upward translate + fade so the swap feels intentional, not a
+   hard flip. Duration matches --motion-medium so the page reveal is
+   short but perceptible. */
+.home-page--loaded {
+  animation: home-page-enter var(--motion-medium) var(--motion-ease) both;
+}
+
+@keyframes home-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Skeleton blocks ──
+   Used by HomeSkeleton (and reusable elsewhere). Pale grey rectangle
+   with a gentle opacity pulse. The pulse intentionally bottoms out at
+   0.45 so it's perceivable but not strobe-like.
+   Animation pauses entirely under prefers-reduced-motion (global rule
+   at top of file). */
+.skel {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  animation: skel-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skel-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Skeleton snapshot strip — keep the structure but neuter the link
+   hover so the skeleton doesn't look interactive. */
+.home-today-snapshot--skel {
+  pointer-events: none;
+}
+
+.home-today-cell--skel {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Skeleton Top 3 slot — same structural shape (border-left bar + grid
+   layout) so the swap to real content doesn't shift the layout. */
+.home-top3-slot--skel {
+  pointer-events: none;
+}
+
 /* Two-column shell: main column (Top 3 + carryover) + right rail. Gap
    and rail width scale together so the proportions feel right at every
    width. Rail grows from 240px on a 1280px monitor to ~320px at 1920px.
@@ -5709,7 +5784,9 @@ button:focus-visible {
 }
 
 /* Slots are journal-line style now — accent left-bar instead of bordered
-   card. The bar color shifts to sage when done. */
+   card. The bar color shifts to sage when done. Transitions cover both
+   the done state change and the hover tint; using --motion-medium for
+   the done flip so checking the box feels deliberate, not abrupt. */
 .home-top3-slot {
   display: grid;
   grid-template-columns: 22px 22px 1fr auto auto;
@@ -5720,7 +5797,10 @@ button:focus-visible {
   border: none;
   border-radius: 0;
   border-left: 3px solid rgba(var(--accent-tan-rgb), 0.4);
-  transition: border-left-color 120ms, background 120ms;
+  transition:
+    border-left-color var(--motion-medium) var(--motion-ease),
+    background var(--motion-fast) var(--motion-ease),
+    opacity var(--motion-medium) var(--motion-ease);
 }
 
 /* Timer-status dot — sage when running, tan when paused. Pulses while
@@ -5773,7 +5853,15 @@ button:focus-visible {
 
 .home-top3-slot.is-done .home-top3-input {
   text-decoration: line-through;
+  text-decoration-color: rgba(var(--accent-sage-rgb), 0.7);
+  text-decoration-thickness: 1.5px;
   color: var(--ink-muted);
+}
+
+/* Input color transitions on done/undone — text-decoration itself isn't
+   transitionable but the surrounding color and weight change is. */
+.home-top3-input {
+  transition: color var(--motion-medium) var(--motion-ease);
 }
 
 .home-top3-num {

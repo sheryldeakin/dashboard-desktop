@@ -1604,6 +1604,108 @@ function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend }) {
   );
 }
 
+/* ── Loading skeleton ──
+   Mimics the real /home layout so the eye lands in the right place when
+   content arrives — no layout shift, no "Loading…" text staring at you.
+   Skeleton blocks are pale grey rectangles with a gentle pulse. They use
+   approximate sizing/spacing of the real elements (snapshot cells, Top 3
+   rows, rail cards). Aim is "you can tell what's coming" without being a
+   pixel-perfect copy of the loaded state. */
+function Skel({ w, h, style, className = "" }) {
+  return (
+    <div
+      className={`skel ${className}`.trim()}
+      style={{
+        width: typeof w === "number" ? `${w}px` : w,
+        height: typeof h === "number" ? `${h}px` : h,
+        ...style,
+      }}
+    />
+  );
+}
+
+function HomeSkeleton() {
+  return (
+    <main className="home-page" aria-busy="true" aria-label="Loading dashboard">
+      <header className="home-header">
+        <Skel w={120} h={36} style={{ marginBottom: 12 }} />
+        <div className="home-header-chips">
+          <Skel w={70} h={14} />
+          <Skel w={55} h={14} />
+          <Skel w={120} h={14} />
+        </div>
+      </header>
+
+      <div className="home-layout">
+        <div className="home-main">
+          {/* Snapshot strip — 4-cell grid skeleton */}
+          <section className="home-today-snapshot home-today-snapshot--skel">
+            <div className="home-today-grid">
+              {[0, 1, 2, 3].map((i) => (
+                <div className="home-today-cell home-today-cell--skel" key={i}>
+                  <Skel w="60%" h={32} />
+                  <Skel w="40%" h={11} style={{ marginTop: 6 }} />
+                  <Skel w="65%" h={11} style={{ marginTop: 6 }} />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Top 3 section skeleton */}
+          <section className="home-section">
+            <Skel w={90} h={12} style={{ marginBottom: 24 }} />
+            <ul className="home-top3-list">
+              {[0, 1, 2].map((i) => (
+                <li className="home-top3-slot home-top3-slot--skel" key={i}>
+                  <Skel w={14} h={14} />
+                  <Skel w={18} h={18} />
+                  <Skel w="65%" h={17} />
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Unfinished section skeleton */}
+          <section className="home-section">
+            <Skel w={160} h={12} style={{ marginBottom: 16 }} />
+            <Skel w="80%" h={14} />
+          </section>
+
+          {/* Week recap skeleton */}
+          <section className="home-section">
+            <Skel w={100} h={12} style={{ marginBottom: 24 }} />
+            <div className="home-week-bars" aria-hidden="true">
+              {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                <div className="home-week-col" key={i}>
+                  <div className="home-week-bar-wrap">
+                    <Skel
+                      w="100%"
+                      h={`${20 + ((i * 17) % 60)}%`}
+                      style={{ alignSelf: "flex-end" }}
+                    />
+                  </div>
+                  <Skel w={10} h={11} style={{ marginTop: 6 }} />
+                  <Skel w={28} h={11} style={{ marginTop: 4 }} />
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <aside className="home-rail">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <section className="home-rail-card" key={i}>
+              <Skel w={90} h={12} style={{ marginBottom: 14 }} />
+              <Skel w="55%" h={28} />
+              <Skel w="35%" h={12} style={{ marginTop: 8 }} />
+            </section>
+          ))}
+        </aside>
+      </div>
+    </main>
+  );
+}
+
 /* ── Page ── */
 export default function HomePage() {
   const [content, setContent] = useState(() => cloneContent(DEFAULT_CONTENT));
@@ -1927,15 +2029,11 @@ export default function HomePage() {
   const todayStats = useTodayStats(content);
 
   if (!loaded) {
-    return (
-      <main className="home-page">
-        <p className="home-empty">Loading…</p>
-      </main>
-    );
+    return <HomeSkeleton />;
   }
 
   return (
-    <main className="home-page">
+    <main className="home-page home-page--loaded">
       {/* Banner sits full-width above the grid — only renders on failure. */}
       <ScheduleBanner rows={heartbeatRows} />
 
