@@ -688,6 +688,10 @@ function useTodayStats(content) {
                 id: pid,
                 name: projectMap.get(pid)?.name || "Unassigned",
                 color: softenColor(baseColor, 0.45),
+                // Keep the full-saturation color so per-segment hover can
+                // re-saturate just the hovered segment without re-running
+                // softenColor on every render.
+                fullColor: baseColor,
                 ms,
               };
             })
@@ -1492,55 +1496,83 @@ function UnfinishedSection({
 function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend }) {
   const peak = Math.max(...weekDays.map((d) => d.focusedMs), 1);
   const hasAny = weekTotalMs > 0;
-  return (
-    <section className="home-section">
-      <h2 className="home-section-title home-section-title-row">
-        <span>This week</span>
-        {hasAny && (
+
+  // Hover state — { dayIdx, segIdx, day, seg } or null. Carries enough
+  // info to render the contextual meta line at the top of the section
+  // without re-deriving anything inside it. Cleared when the mouse leaves
+  // the bars container.
+  const [hover, setHover] = useState(null);
+
+  // Meta line content: weekly totals by default; hovered segment's
+  // project/day/duration when something is hovered. The slot is the same
+  // DOM element so the swap is a content change, not a layout shift.
+  const metaContent = hover
+    ? (
+        <span className="home-section-meta is-hover">
+          <span className="home-week-meta-dot" style={{ background: hover.seg.fullColor }} />
+          <strong>{hover.seg.name}</strong>
+          <span className="home-section-meta-sep" aria-hidden="true">·</span>
+          {fmtHrMin(hover.seg.ms)}
+          <span className="home-section-meta-sep" aria-hidden="true">·</span>
+          <span className="home-section-meta-day">{hover.day.fullLabel}</span>
+        </span>
+      )
+    : hasAny
+      ? (
           <span className="home-section-meta">
             <strong>{fmtHrMin(weekTotalMs)}</strong> across {weekActiveDays}
             {weekActiveDays === 1 ? " day" : " days"}
           </span>
-        )}
+        )
+      : null;
+
+  return (
+    <section className={`home-section${hover ? " is-hovering" : ""}`}>
+      <h2 className="home-section-title home-section-title-row">
+        <span>This week</span>
+        {metaContent}
       </h2>
       <a
         href="/stats?tab=time"
         className="home-week-recap"
         aria-label="Open this week's breakdown in stats"
       >
-        <div className="home-week-bars">
-          {weekDays.map((d) => {
+        <div
+          className="home-week-bars"
+          onMouseLeave={() => setHover(null)}
+        >
+          {weekDays.map((d, dayIdx) => {
             const heightPct = (d.focusedMs / peak) * 100;
-            // Build a one-line tooltip with the per-project breakdown so
-            // hover gives the same info as the legend without forcing the
-            // user to glance back and forth.
-            const tooltipBreakdown = d.segments
-              .map((s) => `${s.name} ${fmtHrMin(s.ms)}`)
-              .join(" · ");
-            const title = d.focusedMs > 0
-              ? `${d.fullLabel} — ${fmtHrMin(d.focusedMs)}${tooltipBreakdown ? `\n${tooltipBreakdown}` : ""}`
-              : `${d.fullLabel} — no focused time`;
             return (
               <div
                 key={d.dayKey}
                 className={`home-week-col${d.isToday ? " is-today" : ""}${d.focusedMs > 0 ? " has-any" : ""}`}
-                title={title}
               >
                 <div className="home-week-bar-wrap">
                   <div
                     className="home-week-bar"
                     style={{ height: `${Math.max(3, heightPct)}%` }}
                   >
-                    {d.segments.map((s) => (
-                      <div
-                        key={s.id}
-                        className="home-week-bar-seg"
-                        style={{
-                          flexBasis: `${(s.ms / d.focusedMs) * 100}%`,
-                          background: s.color,
-                        }}
-                      />
-                    ))}
+                    {d.segments.map((s, segIdx) => {
+                      const isHovered =
+                        hover && hover.dayIdx === dayIdx && hover.segIdx === segIdx;
+                      const isFaded = hover && !isHovered;
+                      return (
+                        <div
+                          key={s.id}
+                          className={`home-week-bar-seg${isHovered ? " is-hovered" : ""}${isFaded ? " is-faded" : ""}`}
+                          style={{
+                            flexBasis: `${(s.ms / d.focusedMs) * 100}%`,
+                            // Re-saturate to the full color on hover so
+                            // the hovered segment pops vs. the faded rest.
+                            background: isHovered ? s.fullColor : s.color,
+                          }}
+                          onMouseEnter={() =>
+                            setHover({ dayIdx, segIdx, day: d, seg: s })
+                          }
+                        />
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="home-week-label">{d.dayLabel}</div>
