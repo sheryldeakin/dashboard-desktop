@@ -465,6 +465,9 @@ function useTodayStats(content) {
     let sessionCount = 0;
     const byProject = new Map();   // projectId → ms
     const byHour = Array(24).fill(0);  // ms per hour bucket
+    // Per-(hour, project) ms — feeds the per-hour stacked segments in
+    // HourRibbonCard. Mirror of byHour but bucketed by project.
+    const byHourProject = Array.from({ length: 24 }, () => new Map());
     let lastSessionEnd = null;
 
     for (const ws of content.workSessions || []) {
@@ -503,7 +506,9 @@ function useTodayStats(content) {
       byProject.set(pid, (byProject.get(pid) || 0) + active);
       if (end > (lastSessionEnd || 0)) lastSessionEnd = end;
 
-      // Distribute into hour buckets (proportional)
+      // Distribute into hour buckets (proportional). Also splits the
+      // contribution by project so the hour ribbon can stack project-
+      // colored segments inside each bar.
       const factor = end > start ? active / (end - start) : 0;
       let cursor = Math.max(start, todayMs);
       const wsEnd = Math.min(end, tomorrowMs);
@@ -514,7 +519,9 @@ function useTodayStats(content) {
           d.getFullYear(), d.getMonth(), d.getDate(), hr + 1, 0, 0
         ).getTime();
         const segEnd = Math.min(wsEnd, boundary);
-        byHour[hr] += (segEnd - cursor) * factor;
+        const slice = (segEnd - cursor) * factor;
+        byHour[hr] += slice;
+        byHourProject[hr].set(pid, (byHourProject[hr].get(pid) || 0) + slice);
         cursor = segEnd;
       }
     }
@@ -725,6 +732,25 @@ function useTodayStats(content) {
         ms,
       }));
 
+    // Per-hour stacked segments. Uses the SAME weekProjectColors map so
+    // a given project shows the same color in the week recap, the today
+    // project-mix card, and the hour ribbon. Soften for bar fills; keep
+    // the saturated color for hover re-saturation.
+    const byHourSegments = byHourProject.map((hourMap) => {
+      return [...hourMap.entries()]
+        .map(([pid, ms]) => {
+          const baseColor = weekProjectColors.get(pid) || "rgba(0,0,0,0.25)";
+          return {
+            id: pid,
+            name: projectMap.get(pid)?.name || "Unassigned",
+            color: softenColor(baseColor, 0.45),
+            fullColor: baseColor,
+            ms,
+          };
+        })
+        .sort((a, b) => b.ms - a.ms);
+    });
+
     return {
       focusedMs,
       sessionCount,
@@ -734,6 +760,7 @@ function useTodayStats(content) {
       rightNow,
       projectMix: mixTop,
       byHour,
+      byHourSegments,
       hasAnyToday: focusedMs > 0,
       // New: comparison data
       yesterday: {
@@ -871,14 +898,17 @@ function RightNowCard({ rightNow }) {
   );
 }
 
-/* ── Today by project (rail mini-bar) ── */
-function ProjectMixCard({ mix, totalMs }) {
+/* ── Today by project ──
+   Renders with two chrome variants:
+     - placement="rail"  → compact .home-rail-card with icon title
+     - placement="main"  → full .home-section with header row (label + total)
+   Same data, same bar/list inside; only the outer wrapper + title differ. */
+function ProjectMixCard({ mix, totalMs, placement = "rail" }) {
   if (!mix || mix.length === 0 || totalMs === 0) {
     return null;
   }
-  return (
-    <section className="home-rail-card">
-      <RailCardTitle icon={RAIL_ICONS.projects}>Today by project</RailCardTitle>
+  const inner = (
+    <>
       <div className="home-projmix-bar">
         {mix.map((p) => (
           <div
@@ -901,17 +931,42 @@ function ProjectMixCard({ mix, totalMs }) {
           </li>
         ))}
       </ul>
+    </>
+  );
+
+  if (placement === "main") {
+    return (
+      <section className="home-section">
+        <h2 className="home-section-title home-section-title-row">
+          <span>Today by project</span>
+          <span className="home-section-meta">
+            <strong>{fmtHrMin(totalMs)}</strong> total
+          </span>
+        </h2>
+        {inner}
+      </section>
+    );
+  }
+  return (
+    <section className="home-rail-card">
+      <RailCardTitle icon={RAIL_ICONS.projects}>Today by project</RailCardTitle>
+      {inner}
     </section>
   );
 }
 
-/* ── Hour ribbon (rail, adaptive width) ──
-   Shows N hours centered around current; N adapts to rail width via a
-   ResizeObserver. Min 8 hours, max 16. Bar height ∝ activity that hour,
-   normalized to today's peak. Current hour outlined. */
-function HourRibbonCard({ byHour }) {
+/* ── Hour ribbon (adaptive width) ──
+   Shows N hours centered around current; N adapts to container width via
+   a ResizeObserver. Min 8 hours, max 16. Bar height ∝ activity that hour,
+   normalized to today's peak. Bars are stacked project-colored segments
+   (same palette as the week recap + project-mix card). Hovering a segment
+   re-saturates that segment and fades the rest; in main placement the
+   section meta surfaces the project/hour/duration on hover.
+   Current hour outlined. */
+function HourRibbonCard({ byHour, byHourSegments, placement = "rail" }) {
   const containerRef = useRef(null);
   const [hourCount, setHourCount] = useState(12);
+  const [hover, setHover] = useState(null);  // { hr, segIdx, seg } | null
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -939,23 +994,89 @@ function HourRibbonCard({ byHour }) {
     bars.push({ hr: h, heightPct, isCurrent: h === currentHr, hasAny: byHour[h] > 0 });
   }
 
-  return (
-    <section className="home-rail-card">
-      <RailCardTitle icon={RAIL_ICONS.hours}>Today by hour</RailCardTitle>
-      <div className="home-hour-ribbon" ref={containerRef}>
-        {bars.map((b) => (
+  const ribbon = (
+    <div
+      className="home-hour-ribbon"
+      ref={containerRef}
+      onMouseLeave={() => setHover(null)}
+    >
+      {bars.map((b) => {
+        const segments = (byHourSegments && byHourSegments[b.hr]) || [];
+        const hourMs = byHour[b.hr];
+        return (
           <div
             key={b.hr}
             className={`home-hour-col${b.isCurrent ? " is-current" : ""}${b.hasAny ? " has-any" : ""}`}
-            title={`${b.hr}:00 — ${fmtHrMin(byHour[b.hr])}`}
+            title={hourMs > 0 ? `${b.hr}:00 — ${fmtHrMin(hourMs)}` : `${b.hr}:00`}
           >
             <div
               className="home-hour-bar"
               style={{ height: `${Math.max(4, b.heightPct)}%` }}
-            />
+            >
+              {segments.map((s, segIdx) => {
+                const isHovered =
+                  hover && hover.hr === b.hr && hover.segIdx === segIdx;
+                const isFaded = hover && !isHovered;
+                return (
+                  <div
+                    key={s.id}
+                    className={`home-hour-bar-seg${isHovered ? " is-hovered" : ""}${isFaded ? " is-faded" : ""}`}
+                    style={{
+                      flexBasis: hourMs > 0 ? `${(s.ms / hourMs) * 100}%` : "0%",
+                      background: isHovered ? s.fullColor : s.color,
+                    }}
+                    onMouseEnter={() =>
+                      setHover({ hr: b.hr, segIdx, seg: s })
+                    }
+                  />
+                );
+              })}
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
+    </div>
+  );
+
+  // Hover meta swap (main only — rail variant doesn't have a meta slot).
+  // Default: "8:00 – 18:00" range. Hover: "Project · 45m · 14:00–15:00".
+  const mainMeta = hover
+    ? (
+        <span className="home-section-meta is-hover">
+          <span
+            className="home-week-meta-dot"
+            style={{ background: hover.seg.fullColor }}
+          />
+          <strong>{hover.seg.name}</strong>
+          <span className="home-section-meta-sep" aria-hidden="true">·</span>
+          {fmtHrMin(hover.seg.ms)}
+          <span className="home-section-meta-sep" aria-hidden="true">·</span>
+          <span className="home-section-meta-day">
+            {hover.hr}:00–{hover.hr + 1}:00
+          </span>
+        </span>
+      )
+    : (
+        <span className="home-section-meta">
+          {startHr}:00 – {endHr - 1}:00
+        </span>
+      );
+
+  if (placement === "main") {
+    return (
+      <section className={`home-section home-section--hour-ribbon${hover ? " is-hovering" : ""}`}>
+        <h2 className="home-section-title home-section-title-row">
+          <span>Today by hour</span>
+          {mainMeta}
+        </h2>
+        {ribbon}
+      </section>
+    );
+  }
+  return (
+    <section className="home-rail-card">
+      <RailCardTitle icon={RAIL_ICONS.hours}>Today by hour</RailCardTitle>
+      {ribbon}
       <div className="home-hour-labels">
         <span>{startHr}:00</span>
         <span>{endHr - 1}:00</span>
@@ -1493,9 +1614,10 @@ function UnfinishedSection({
    Why a 7-day window (not Mon-Sun calendar week): the rolling window
    is what dashboards like Stripe and GitHub use because it always shows
    you the same amount of history regardless of what day you load it. */
-function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend }) {
+function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend, placement = "main" }) {
   const peak = Math.max(...weekDays.map((d) => d.focusedMs), 1);
   const hasAny = weekTotalMs > 0;
+  const isRail = placement === "rail";
 
   // Hover state — { dayIdx, segIdx, day, seg } or null. Carries enough
   // info to render the contextual meta line at the top of the section
@@ -1506,6 +1628,8 @@ function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend }) {
   // Meta line content: weekly totals by default; hovered segment's
   // project/day/duration when something is hovered. The slot is the same
   // DOM element so the swap is a content change, not a layout shift.
+  // In rail placement the meta is hidden when there's no hover (compact
+  // footprint) and only appears on hover for context.
   const metaContent = hover
     ? (
         <span className="home-section-meta is-hover">
@@ -1517,7 +1641,7 @@ function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend }) {
           <span className="home-section-meta-day">{hover.day.fullLabel}</span>
         </span>
       )
-    : hasAny
+    : hasAny && !isRail
       ? (
           <span className="home-section-meta">
             <strong>{fmtHrMin(weekTotalMs)}</strong> across {weekActiveDays}
@@ -1526,6 +1650,105 @@ function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend }) {
         )
       : null;
 
+  const bars = (
+    <div
+      className="home-week-bars"
+      onMouseLeave={() => setHover(null)}
+    >
+      {weekDays.map((d, dayIdx) => {
+        const heightPct = (d.focusedMs / peak) * 100;
+        return (
+          <div
+            key={d.dayKey}
+            className={`home-week-col${d.isToday ? " is-today" : ""}${d.focusedMs > 0 ? " has-any" : ""}`}
+          >
+            <div className="home-week-bar-wrap">
+              <div
+                className="home-week-bar"
+                style={{ height: `${Math.max(3, heightPct)}%` }}
+              >
+                {d.segments.map((s, segIdx) => {
+                  const isHovered =
+                    hover && hover.dayIdx === dayIdx && hover.segIdx === segIdx;
+                  const isFaded = hover && !isHovered;
+                  return (
+                    <div
+                      key={s.id}
+                      className={`home-week-bar-seg${isHovered ? " is-hovered" : ""}${isFaded ? " is-faded" : ""}`}
+                      style={{
+                        flexBasis: `${(s.ms / d.focusedMs) * 100}%`,
+                        background: isHovered ? s.fullColor : s.color,
+                      }}
+                      onMouseEnter={() =>
+                        setHover({ dayIdx, segIdx, day: d, seg: s })
+                      }
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            <div className="home-week-label">{d.dayLabel}</div>
+            {/* Per-day time label is hidden in rail mode to save vertical
+                space — the hover meta surfaces it on demand. */}
+            {!isRail && (
+              <div className="home-week-time">
+                {d.focusedMs > 0 ? fmtHrMin(d.focusedMs) : "—"}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // Legend hidden in rail placement — too tight to render the full row.
+  // The hover-meta line + tooltips carry the project mapping there.
+  const legend = !isRail && hasAny && weekLegend.length > 0 && (
+    <ul className="home-week-legend">
+      {weekLegend.map((p) => (
+        <li key={p.id} className="home-week-legend-row">
+          <span className="home-week-legend-dot" style={{ background: p.color }} />
+          <span className="home-week-legend-name">{p.name}</span>
+          <span className="home-week-legend-ms">{fmtHrMin(p.ms)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
+  const emptyState = !hasAny && (
+    <p className="home-empty home-week-empty">
+      No focused time logged this week yet.
+    </p>
+  );
+
+  // Rail variant — compact rail-card chrome with icon title + total chip.
+  if (isRail) {
+    return (
+      <section className={`home-rail-card home-week-recap-card${hover ? " is-hovering" : ""}`}>
+        <div className="home-rail-card-title home-rail-card-title-row">
+          <span className="home-rail-icon-wrap">{RAIL_ICONS.hours}</span>
+          <span>This week</span>
+          {hasAny && (
+            <span className="home-week-rail-total">{fmtHrMin(weekTotalMs)}</span>
+          )}
+        </div>
+        <a
+          href="/stats?tab=time"
+          className="home-week-recap home-week-recap--rail"
+          aria-label="Open this week's breakdown in stats"
+        >
+          {bars}
+          {emptyState}
+        </a>
+        {/* Hover meta sits below the bars in rail mode so it doesn't
+            disturb the bar layout. Reserved height keeps the card from
+            jumping when hover state toggles. */}
+        <div className="home-week-rail-meta">{metaContent}</div>
+      </section>
+    );
+  }
+
+  // Default (main column) variant — full section.
   return (
     <section className={`home-section${hover ? " is-hovering" : ""}`}>
       <h2 className="home-section-title home-section-title-row">
@@ -1537,68 +1760,9 @@ function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend }) {
         className="home-week-recap"
         aria-label="Open this week's breakdown in stats"
       >
-        <div
-          className="home-week-bars"
-          onMouseLeave={() => setHover(null)}
-        >
-          {weekDays.map((d, dayIdx) => {
-            const heightPct = (d.focusedMs / peak) * 100;
-            return (
-              <div
-                key={d.dayKey}
-                className={`home-week-col${d.isToday ? " is-today" : ""}${d.focusedMs > 0 ? " has-any" : ""}`}
-              >
-                <div className="home-week-bar-wrap">
-                  <div
-                    className="home-week-bar"
-                    style={{ height: `${Math.max(3, heightPct)}%` }}
-                  >
-                    {d.segments.map((s, segIdx) => {
-                      const isHovered =
-                        hover && hover.dayIdx === dayIdx && hover.segIdx === segIdx;
-                      const isFaded = hover && !isHovered;
-                      return (
-                        <div
-                          key={s.id}
-                          className={`home-week-bar-seg${isHovered ? " is-hovered" : ""}${isFaded ? " is-faded" : ""}`}
-                          style={{
-                            flexBasis: `${(s.ms / d.focusedMs) * 100}%`,
-                            // Re-saturate to the full color on hover so
-                            // the hovered segment pops vs. the faded rest.
-                            background: isHovered ? s.fullColor : s.color,
-                          }}
-                          onMouseEnter={() =>
-                            setHover({ dayIdx, segIdx, day: d, seg: s })
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="home-week-label">{d.dayLabel}</div>
-                <div className="home-week-time">
-                  {d.focusedMs > 0 ? fmtHrMin(d.focusedMs) : "—"}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {hasAny && weekLegend.length > 0 && (
-          <ul className="home-week-legend">
-            {weekLegend.map((p) => (
-              <li key={p.id} className="home-week-legend-row">
-                <span className="home-week-legend-dot" style={{ background: p.color }} />
-                <span className="home-week-legend-name">{p.name}</span>
-                <span className="home-week-legend-ms">{fmtHrMin(p.ms)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {!hasAny && (
-          <p className="home-empty home-week-empty">
-            No focused time logged this week yet.
-          </p>
-        )}
+        {bars}
+        {legend}
+        {emptyState}
       </a>
     </section>
   );
@@ -2068,11 +2232,18 @@ export default function HomePage() {
             onDrop={handleDrop}
           />
 
-          <WeekRecap
-            weekDays={todayStats.weekDays}
-            weekTotalMs={todayStats.weekTotalMs}
-            weekActiveDays={todayStats.weekActiveDays}
-            weekLegend={todayStats.weekLegend}
+          {/* "Today's focus" data lives in the main column now —
+              project mix and hour ribbon are about today, so they
+              belong here next to Top 3 / Unfinished, not in the rail. */}
+          <ProjectMixCard
+            mix={todayStats.projectMix}
+            totalMs={todayStats.focusedMs}
+            placement="main"
+          />
+          <HourRibbonCard
+            byHour={todayStats.byHour}
+            byHourSegments={todayStats.byHourSegments}
+            placement="main"
           />
         </div>
 
@@ -2080,8 +2251,15 @@ export default function HomePage() {
           <ChatsCard />
           <RightNowCard rightNow={todayStats.rightNow} />
           <CountdownCard content={content} />
-          <ProjectMixCard mix={todayStats.projectMix} totalMs={todayStats.focusedMs} />
-          <HourRibbonCard byHour={todayStats.byHour} />
+          {/* Week recap moves to the rail — longer-horizon context, not
+              today-specific, so it sits with deadline + peak-hour. */}
+          <WeekRecap
+            weekDays={todayStats.weekDays}
+            weekTotalMs={todayStats.weekTotalMs}
+            weekActiveDays={todayStats.weekActiveDays}
+            weekLegend={todayStats.weekLegend}
+            placement="rail"
+          />
           <PeakHourCard workSessions={content.workSessions} />
           <UpNextCard tasks={content.todaysTasks} />
           <ScheduleHealthCard rows={heartbeatRows} />

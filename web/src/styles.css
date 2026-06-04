@@ -5589,20 +5589,57 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
+/* Hour bar — now a flex stack of project-colored segments (matches the
+   week-recap pattern). Grey background only shows on empty hours where
+   no segments render. column-reverse so largest segment anchors the
+   bottom. */
 .home-hour-bar {
   width: 100%;
-  background: var(--rule);
+  display: flex;
+  flex-direction: column-reverse;
+  background: rgba(0, 0, 0, 0.04);
   border-radius: 2px 2px 0 0;
   min-height: 2px;
+  overflow: hidden;
   transition: background 120ms;
 }
 
-.home-hour-col.has-any .home-hour-bar {
-  background: rgba(var(--accent-sage-rgb), 0.65);
+/* has-any used to switch the solid bar color. With segment stacking the
+   segments cover the bar's background, so this rule is a no-op for any
+   hour that has activity. Kept empty (rather than deleted) so the class
+   is still semantically meaningful for future styling. */
+.home-hour-col.has-any .home-hour-bar { /* segments cover the fill */ }
+
+/* Individual project segment inside an hour bar. Tiny dark hairline
+   between adjacent segments (same trick as week-bar-seg). Transitions
+   for the re-saturation on hover. */
+.home-hour-bar-seg {
+  width: 100%;
+  flex-shrink: 0;
+  flex-grow: 0;
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.06);
+  transition: background var(--motion-fast) ease,
+              opacity var(--motion-fast) ease;
+  cursor: pointer;
 }
 
-.home-hour-col:hover .home-hour-bar {
-  background: var(--accent-sage);
+/* Visual TOP segment is the LAST DOM child (column-reverse). Round its
+   top corners; the rest sit beneath with squared tops. */
+.home-hour-bar-seg:last-child {
+  box-shadow: none;
+  border-radius: 2px 2px 0 0;
+}
+
+/* Other segments dim when one is hovered; hovered one returns to full
+   saturation (set inline) + tiny outline + raised stacking context. */
+.home-hour-bar-seg.is-faded {
+  opacity: 0.28;
+}
+
+.home-hour-bar-seg.is-hovered {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+  z-index: 1;
+  position: relative;
 }
 
 .home-hour-labels {
@@ -6214,6 +6251,53 @@ button:focus-visible {
   display: flex;
   align-items: flex-end;
   border-bottom: 1px solid var(--rule-soft);
+}
+
+/* Rail variant overrides — smaller chart, fewer labels. Width is the
+   rail width (~280-380px) split across 7 columns + gaps, so each bar
+   is ~30-40px wide. We tighten gaps and shrink bar height accordingly. */
+.home-week-recap-card .home-week-bar-wrap {
+  height: 56px;
+}
+
+.home-week-recap-card .home-week-bars {
+  gap: 5px;
+}
+
+.home-week-recap-card .home-week-col {
+  gap: 4px;
+}
+
+.home-week-recap-card .home-week-label {
+  font-size: 10px;
+}
+
+/* Total chip in the rail card title — small muted number on the right,
+   inline with the title text. */
+.home-week-rail-total {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Reserved-height meta line below the bars in rail mode. Empty when no
+   hover; shows the hovered project info when a segment is hovered.
+   Reserved height keeps the card from jumping. */
+.home-week-rail-meta {
+  margin-top: 10px;
+  min-height: 16px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.home-week-rail-meta .home-section-meta {
+  /* Inherit the inline-flex layout from .home-section-meta but at the
+     rail's smaller scale. */
+  font-size: 11px;
 }
 
 /* Bar is now a flex stack of project-colored segments. column-reverse
