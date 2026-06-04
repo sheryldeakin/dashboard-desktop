@@ -1837,7 +1837,17 @@ export default function HomePage() {
         if (partial.done !== undefined) {
           next.done = !!newSlot.done;
           if (next.done && !t.completedAt) next.completedAt = nowIso;
-          if (!next.done && t.completedAt) next.completedAt = null;
+          if (!next.done) {
+            if (t.completedAt) next.completedAt = null;
+            // CRITICAL: also demote timer.status. normalizeTaskRecord
+            // re-derives `done = doneFromData || timer.status === "completed"`,
+            // so leaving timer.status = "completed" silently re-marks the
+            // task done on the next save → the slot reconcile useEffect
+            // then re-checks the slot, making "uncheck" appear broken.
+            if (t.timer?.status === "completed") {
+              next.timer = { ...t.timer, status: "stopped" };
+            }
+          }
         }
         return next;
       });

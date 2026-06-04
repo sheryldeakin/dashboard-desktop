@@ -1703,25 +1703,64 @@ button:focus-visible {
   .app-shell {
     grid-template-columns: 1fr;
   }
+  /* Horizontal top-bar mode — single row, scrollable if it overflows.
+     nowrap + overflow-x: auto means the nav never spills to multiple
+     lines (which felt broken at small widths). Tighter padding and
+     smaller font make most viewports fit without scrolling. */
   .side-nav {
     position: static;
     height: auto;
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 12px 16px;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
     border-right: none;
     border-bottom: 1px solid var(--rule);
+    overflow-x: auto;
+    /* Hide the scrollbar visually but keep scroll behavior (cosmetic). */
+    scrollbar-width: none;
   }
+  .side-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* No room for the brand label in horizontal mode; the active link
+     already tells you where you are. */
+  .side-nav-brand {
+    display: none;
+  }
+
   .side-nav-links {
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
+    flex-wrap: nowrap;
+    gap: 2px;
   }
+
+  /* System group flows inline after primary, with a subtle vertical
+     divider in place of the bottom-pinned hairline from the desktop
+     layout. */
   .side-nav-links-system {
     margin-top: 0;
     padding-top: 0;
+    padding-left: 10px;
+    margin-left: 4px;
     border-top: none;
+    border-left: 1px solid var(--rule-soft);
+  }
+
+  /* Compact link sizing — fixed (not fluid) at this breakpoint since
+     the fluid clamp's floor (13px) is still too big to fit 8 links on
+     a 360px phone. */
+  .side-nav-link {
+    font-size: 12px;
+    padding: 6px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .side-nav-links-system .side-nav-link {
+    font-size: 11px;
+    padding: 6px 10px;
   }
 }
 
