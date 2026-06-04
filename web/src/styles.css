@@ -921,118 +921,276 @@ button:focus-visible {
   color: var(--ink-muted);
 }
 
+/* ── /history layout ─────────────────────────────────────────────
+   Lives inside the same app-shell + SideNav wrapper as /home so the
+   nav stays in view. Outer constraints mirror .home-page so the
+   typography rhythm is consistent.
+
+   Section "Completed tasks" groups its rows by date (Today/Yesterday/
+   absolute date). Each row is a 2-line layout: text + completed-when
+   on top, meta chips + tags + focused-time on the bottom. Sessions
+   detail collapses behind a native <details> expander. */
 .history-page {
-  width: 100%;
-  min-height: 100%;
-  padding: 28px 20px 40px;
-  overflow: auto;
-}
-
-.history-shell {
-  width: min(980px, 100%);
+  max-width: clamp(720px, 92vw, 1400px);
   margin: 0 auto;
-  display: grid;
-  gap: 14px;
+  padding: clamp(24px, 3vw, 40px) clamp(24px, 4vw, 56px) clamp(32px, 4vw, 56px);
 }
 
-.history-header {
+/* Date group — small uppercase header above each day's rows */
+.history-date-group + .history-date-group {
+  margin-top: 20px;
+}
+
+.history-date-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 14px;
-}
-
-.history-nav {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.history-card {
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  background: linear-gradient(170deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.38));
-  box-shadow: 0 14px 30px rgba(68, 57, 43, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16px) saturate(116%);
-  -webkit-backdrop-filter: blur(16px) saturate(116%);
-  padding: 16px;
-}
-
-.history-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 10px;
-}
-
-.history-item {
-  padding: 10px 11px;
-  border-radius: 12px;
-  border: 1px solid rgba(184, 137, 91, 0.26);
-  background: rgba(255, 255, 255, 0.5);
-  display: grid;
-  gap: 6px;
-}
-
-.history-item-text {
-  font-size: 14px;
-  color: var(--ink);
-  line-height: 1.35;
-}
-
-.history-item-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-}
-
-.history-item-time {
-  font-size: 11px;
+  align-items: baseline;
+  gap: 8px;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--ink-muted);
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule-soft);
 }
 
-.history-session-list {
+.history-date-count {
+  margin-left: auto;
+  font-weight: 500;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Rows list */
+.history-rows {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
 }
 
-.history-session-item {
-  display: grid;
-  grid-template-columns: 44px 1fr auto;
-  gap: 8px;
-  align-items: baseline;
-  font-size: 12px;
+.history-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  transition: background var(--motion-fast) ease;
 }
 
-.history-session-type {
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.history-row:hover {
+  background: rgba(0, 0, 0, 0.02);
 }
 
-.history-session-time {
+.history-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.history-row-text {
+  font-size: clamp(14px, 0.4vw + 11px, 15px);
+  color: var(--ink);
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-row-when {
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.history-row-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding-left: 18px;
+  /* sit close enough that meta reads as belonging to the row above */
+  margin-top: -2px;
+}
+
+.history-meta-chip {
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
   color: var(--ink-muted);
 }
 
-.history-session-duration {
+.history-meta-chip strong {
   color: var(--ink);
   font-weight: 500;
 }
 
-.history-empty {
-  margin: 0;
-  font-size: 14px;
+.history-row-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.history-row-tag {
+  font-size: clamp(10px, 0.2vw + 9px, 11px);
+  color: var(--accent-tan);
+  background: rgba(var(--accent-tan-rgb), 0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sessions expander */
+.history-row-sessions {
+  margin-top: 4px;
+  padding-left: 18px;
+}
+
+.history-row-sessions summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 0;
+  user-select: none;
+}
+
+.history-row-sessions summary::-webkit-details-marker {
+  display: none;
+}
+
+.history-row-sessions summary::before {
+  content: "▸";
+  display: inline-block;
+  transition: transform var(--motion-fast) ease;
+  font-size: 9px;
   color: var(--ink-muted);
 }
 
-.history-subtitle {
-  margin: 0 0 8px;
-  font-size: 17px;
+.history-row-sessions[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.history-row-sessions summary:hover {
+  color: var(--ink);
+}
+
+.history-sessions-list {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left: 1.5px solid var(--rule-soft);
+  padding-left: 10px;
+  margin-left: 4px;
+}
+
+.history-session {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 11px;
+  padding: 1px 0;
+}
+
+.history-session-kind {
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   font-weight: 600;
+  font-size: 10px;
+}
+
+.history-session.is-rest .history-session-kind {
+  color: var(--accent-tan);
+  opacity: 0.7;
+}
+
+.history-session-time {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-session-duration {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* ── Pomodoro section ───────────────────────────────────────────
+   Flat list — pomodoros are high-volume, low-detail. Each row is a
+   compact 4-column grid: kind / task / duration / when. */
+.history-pomo-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.history-pomo-row {
+  display: grid;
+  grid-template-columns: 70px 1fr auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
+  transition: background var(--motion-fast) ease;
+}
+
+.history-pomo-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.history-pomo-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-pomo-row.is-rest .history-pomo-kind {
+  color: var(--ink-muted);
+}
+
+.history-pomo-task {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-pomo-duration {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.history-pomo-when {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
 }
 
 
@@ -1089,7 +1247,7 @@ button:focus-visible {
     gap: 6px;
   }
 
-  .history-session-item {
+  .history-session {
     grid-template-columns: 1fr;
     gap: 2px;
   }

@@ -43,6 +43,7 @@ import {
 import TodoPage from "./components/todo/TodoPage.jsx";
 import StatsPage from "./components/StatsPage.jsx";
 import HomePage from "./components/HomePage.jsx";
+import HistoryPage from "./components/HistoryPage.jsx";
 
 
 function useCountdown(deadlineIso = DEADLINE_ISO, startIso = START_ISO) {
@@ -691,126 +692,6 @@ function AdminPage() {
   );
 }
 
-function HistoryPage() {
-  const [taskHistory, setTaskHistory] = useState([]);
-  const [pomodoroHistory, setPomodoroHistory] = useState([]);
-  const [projects, setProjects] = useState(cloneContent(DEFAULT_CONTENT).projects);
-  const historyDateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    []
-  );
-  const historyWindowFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    []
-  );
-  const historyTextByTaskId = useMemo(() => new Map(taskHistory.map((entry) => [entry.sourceTaskId, entry.text])), [taskHistory]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    loadAndHydratePreferredContent().then((content) => {
-      if (!isMounted) return;
-      setTaskHistory(content.taskHistory);
-      setPomodoroHistory(content.pomodoro.history);
-      setProjects(content.projects);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  return (
-    <main className="history-page">
-      <div className="history-shell">
-        <header className="history-header">
-          <h1>Task History</h1>
-        </header>
-
-        <section className="history-card">
-          {taskHistory.length === 0 ? (
-            <p className="history-empty">No completed tasks yet.</p>
-          ) : (
-            <ul className="history-list">
-              {taskHistory.map((entry) => (
-                <li key={entry.id} className="history-item">
-                  <span className="history-item-text">{entry.text}</span>
-                  <div className="history-item-meta">
-                    <span className="history-item-time">Project {getProjectName(projects, entry.projectId)}</span>
-                    <span className="history-item-time">Priority {formatPriority(entry.priority)}</span>
-                    {entry.dueDate ? <span className="history-item-time">Due {entry.dueDate}</span> : null}
-                    {Array.isArray(entry.tags) && entry.tags.length > 0 ? (
-                      <span className="history-item-time">#{entry.tags.join(" #")}</span>
-                    ) : null}
-                    {entry.recurrence?.type && entry.recurrence.type !== "none" ? (
-                      <span className="history-item-time">{formatRecurrence(entry.recurrence)}</span>
-                    ) : null}
-                    {entry.pomodorosCompleted > 0 ? (
-                      <span className="history-item-time">Pomodoros {entry.pomodorosCompleted}</span>
-                    ) : null}
-                    <span className="history-item-time">Completed {historyDateFormatter.format(new Date(entry.completedAt))}</span>
-                    <span className="history-item-time">Total {formatDuration(entry.totalElapsedMs || 0)}</span>
-                    <span className="history-item-time">Work {formatDuration(entry.totalWorkMs || 0)}</span>
-                    <span className="history-item-time">Rest {formatDuration(entry.totalRestMs || 0)}</span>
-                  </div>
-                  {Array.isArray(entry.sessions) && entry.sessions.length > 0 ? (
-                    <ul className="history-session-list">
-                      {entry.sessions.map((session) => (
-                        <li key={session.id} className="history-session-item">
-                          <span className="history-session-type">{session.type === "work" ? "Work" : "Rest"}</span>
-                          <span className="history-session-time">
-                            {historyWindowFormatter.format(new Date(session.start))} - {historyWindowFormatter.format(new Date(session.end))}
-                          </span>
-                          <span className="history-session-duration">{formatDuration(session.durationMs || 0)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="history-card">
-          <h2 className="history-subtitle">Pomodoro Sessions</h2>
-          {pomodoroHistory.length === 0 ? (
-            <p className="history-empty">No pomodoro sessions yet.</p>
-          ) : (
-            <ul className="history-list">
-              {pomodoroHistory.slice(0, 120).map((entry) => (
-                <li key={entry.id} className="history-item">
-                  <span className="history-item-text">
-                    {entry.type} | {entry.taskId ? historyTextByTaskId.get(entry.taskId) || entry.taskId : "No task"}
-                  </span>
-                  <div className="history-item-meta">
-                    <span className="history-item-time">
-                      {historyDateFormatter.format(new Date(entry.endedAt))}
-                    </span>
-                    <span className="history-item-time">{formatDuration(entry.durationMs || 0)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-    </main>
-  );
-}
-
 function SettingsPage() {
   const [title, setTitle] = useState(TITLE);
   const [startDate, setStartDate] = useState(START_ISO.slice(0, 16));
@@ -1018,10 +899,12 @@ export default function App() {
 
   if (window.location.pathname === "/history") {
     return (
-      <>
-        <TopNav />
-        <HistoryPage />
-      </>
+      <div className="app-shell">
+        <SideNav />
+        <div className="app-shell-main">
+          <HistoryPage />
+        </div>
+      </div>
     );
   }
 
