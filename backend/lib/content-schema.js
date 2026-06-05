@@ -646,6 +646,7 @@ export function createDefaultContent() {
     dailyTop3: normalizeDailyTop3(null),
     dailyTop3History: [],
     scheduledTaskHeartbeats: {},
+    chatLinks: [],
   };
 }
 
@@ -675,7 +676,32 @@ export function normalizeContentRecord(record) {
     dailyTop3: normalizeDailyTop3(record.dailyTop3),
     dailyTop3History: normalizeDailyTop3History(record.dailyTop3History),
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
+    chatLinks: normalizeChatLinks(record.chatLinks),
   };
+}
+
+/* Pinned claude.ai/code remote-control URLs (or any other links the
+   user wants pinned to the /home Chats rail card). Lives in the
+   content document so it syncs across devices — was previously
+   localStorage-only which broke cross-device use. Each item:
+     { id, label, url }
+   id is generated client-side (any non-empty string). Items with
+   missing/invalid url or label are dropped. */
+function normalizeChatLinks(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seenIds = new Set();
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const id = typeof item.id === "string" && item.id ? item.id : `chat-${out.length}-${Date.now()}`;
+    if (seenIds.has(id)) continue;
+    const label = typeof item.label === "string" ? item.label.trim() : "";
+    const url = typeof item.url === "string" ? item.url.trim() : "";
+    if (!url) continue;
+    seenIds.add(id);
+    out.push({ id, label, url });
+  }
+  return out;
 }
 
 export function isContentPayload(payload) {
@@ -695,5 +721,6 @@ export function isContentPayload(payload) {
   ) {
     return false;
   }
+  if (payload.chatLinks !== undefined && !Array.isArray(payload.chatLinks)) return false;
   return true;
 }

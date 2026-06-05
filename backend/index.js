@@ -193,6 +193,18 @@ function mergeDailyTop3History(existing, incoming) {
 // "stale" banner would re-trigger on the dashboard within minutes.
 // Fix: only let an incoming value overwrite existing if it's actually
 // newer. Same class as the dailyTop3 per-slot updatedAt fix.
+/* Chat-links (pinned claude.ai/code remote URLs etc.) — preserve
+   existing if the client didn't send the field. ChatsCard always
+   sends the FULL chatLinks array when it changes, so an absent
+   field on PUT means "this writer doesn't know about chatLinks" not
+   "wipe them." Without this, an unrelated PUT (e.g. from a sync
+   script that pre-dates this field) silently clobbers all chat links.
+   See new-fields-must-merge-on-put memory. */
+function mergeChatLinks(existing, incoming) {
+  if (!Array.isArray(incoming)) return existing || [];
+  return incoming;
+}
+
 function mergeHeartbeats(existing, incoming) {
   const e = existing && typeof existing === "object" ? existing : {};
   const i = incoming && typeof incoming === "object" ? incoming : {};
@@ -280,6 +292,10 @@ app.put("/api/content", async (req, res) => {
       dailyTop3: mergeDailyTop3(
         existing.content.dailyTop3,
         payload.dailyTop3,
+      ),
+      chatLinks: mergeChatLinks(
+        existing.content.chatLinks,
+        payload.chatLinks,
       ),
     };
     const normalizedPayload = normalizeContentRecord(mergedPayload);

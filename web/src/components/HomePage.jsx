@@ -1207,37 +1207,24 @@ function HourRibbonCard({ byHour, byHourSegments, placement = "rail" }) {
    and join your live Claude session. GATE THE DASHBOARD with Vercel
    Password Protection (or Cloudflare Access) before relying on this. */
 
+/* Legacy localStorage key — kept here so the migration effect in
+   HomePage knows where the old per-device chat links lived. After
+   migration the key is removed; new chat links live in
+   content.chatLinks (synced via the API across devices). */
 const CHATS_STORAGE_KEY = "dashboard_chat_links_v1";
 
-function loadStoredChats() {
-  try {
-    const raw = localStorage.getItem(CHATS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((c) => c && typeof c.url === "string" && typeof c.label === "string");
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredChats(chats) {
-  try {
-    localStorage.setItem(CHATS_STORAGE_KEY, JSON.stringify(chats));
-  } catch (e) {
-    console.warn("Failed to persist chat links:", e);
-  }
-}
-
-function ChatsCard() {
-  const [chats, setChats] = useState(() => loadStoredChats());
+/* ChatsCard — pinned chat-link list. Controlled component: parent
+   owns the chats array and handles persistence (via patchContent →
+   backend PUT → MongoDB). Used to store links in localStorage but
+   that didn't sync across devices; moved into the content document
+   so adding a link on desktop appears on mobile and vice versa. */
+function ChatsCard({ chats = [], onChatsChange }) {
   const [addingOpen, setAddingOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({ label: "", url: "" });
 
   function persist(next) {
-    setChats(next);
-    saveStoredChats(next);
+    onChatsChange(next);
   }
 
   function startAdd() {
@@ -1925,6 +1912,46 @@ export default function HomePage() {
     });
   }, [loaded, content.dailyTop3?.date]);
 
+  /* One-time migration of localStorage chat links → content.chatLinks.
+     Chat links used to live in localStorage (per-device); they're now
+     a content field that syncs across devices. On first load with the
+     new code, push any localStorage entries up to the API (merged by
+     URL with whatever's already there) and remove the local key. After
+     the localStorage key is gone this effect is a no-op. Runs after
+     content has loaded so we see the current remote chatLinks. */
+  useEffect(() => {
+    if (!loaded) return;
+    let raw;
+    try {
+      raw = localStorage.getItem(CHATS_STORAGE_KEY);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    let stored;
+    try {
+      stored = JSON.parse(raw);
+    } catch {
+      try { localStorage.removeItem(CHATS_STORAGE_KEY); } catch {}
+      return;
+    }
+    if (!Array.isArray(stored)) {
+      try { localStorage.removeItem(CHATS_STORAGE_KEY); } catch {}
+      return;
+    }
+    const valid = stored.filter(
+      (c) => c && typeof c.url === "string" && c.url.trim() && typeof c.label === "string"
+    );
+    const existing = content.chatLinks || [];
+    const existingUrls = new Set(existing.map((c) => c.url));
+    const additions = valid.filter((c) => !existingUrls.has(c.url));
+    if (additions.length > 0) {
+      patchContent({ chatLinks: [...existing, ...additions] });
+    }
+    try { localStorage.removeItem(CHATS_STORAGE_KEY); } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
+
   // Save: merge incoming patch into pristineRef base, normalize, persist
   // (debounced) and update local state. The pristine merge ensures we don't
   // wipe fields HomePage doesn't track (workSessions, todaysTasks, etc.).
@@ -2294,7 +2321,10 @@ export default function HomePage() {
         </div>
 
         <aside className="home-rail">
-          <ChatsCard />
+          <ChatsCard
+            chats={content.chatLinks || []}
+            onChatsChange={(next) => patchContent({ chatLinks: next })}
+          />
           <RightNowCard rightNow={todayStats.rightNow} />
           <CountdownCard content={content} />
           {/* Week recap moves to the rail — longer-horizon context, not

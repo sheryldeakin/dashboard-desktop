@@ -706,6 +706,7 @@ export const DEFAULT_CONTENT = {
   dailyTop3: normalizeDailyTop3(null),
   dailyTop3History: [],
   scheduledTaskHeartbeats: {},
+  chatLinks: [],
 };
 
 export function cloneTask(task) {
@@ -755,7 +756,28 @@ export function cloneContent(content) {
     dailyTop3: normalizeDailyTop3(content.dailyTop3),
     dailyTop3History: normalizeDailyTop3History(content.dailyTop3History),
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(content.scheduledTaskHeartbeats),
+    chatLinks: normalizeChatLinks(content.chatLinks),
   };
+}
+
+/* See backend/lib/content-schema.js for the canonical definition.
+   Mirrored here so the frontend can normalize before sending and after
+   receiving — keeps shape stable across the API boundary. */
+export function normalizeChatLinks(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seenIds = new Set();
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const id = typeof item.id === "string" && item.id ? item.id : `chat-${out.length}-${Date.now()}`;
+    if (seenIds.has(id)) continue;
+    const label = typeof item.label === "string" ? item.label.trim() : "";
+    const url = typeof item.url === "string" ? item.url.trim() : "";
+    if (!url) continue;
+    seenIds.add(id);
+    out.push({ id, label, url });
+  }
+  return out;
 }
 
 export function normalizeContentRecord(record) {
@@ -782,6 +804,7 @@ export function normalizeContentRecord(record) {
     dailyTop3: normalizeDailyTop3(record.dailyTop3),
     dailyTop3History: normalizeDailyTop3History(record.dailyTop3History),
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
+    chatLinks: normalizeChatLinks(record.chatLinks),
   };
 }
 
