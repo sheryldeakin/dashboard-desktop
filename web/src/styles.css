@@ -1128,125 +1128,124 @@ button:focus-visible {
   font-weight: 500;
 }
 
-/* ── Claude sessions list ────────────────────────────────────────
-   Automated import — each row is project + msg count + duration + when.
-   Compact 4-column grid; same hover tint as task rows. */
-.history-claude-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* ── Claude sessions list (grouped: date → project → sessions) ───
+   Each date shows N project "buckets". Each bucket is a collapsible
+   row: project dot + name + (sessions count, total time, completion
+   count). Expanding reveals two sub-sections: tasks completed, and
+   the individual session breakdown. */
+.history-claude-buckets {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
-.history-claude-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto;
-  gap: 16px;
-  align-items: center;
-  padding: 6px 12px;
+.history-claude-bucket {
   border-radius: 5px;
-  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
   transition: background var(--motion-fast) ease;
 }
 
-.history-claude-row:hover {
-  background: rgba(0, 0, 0, 0.02);
+.history-claude-bucket:hover {
+  background: rgba(0, 0, 0, 0.015);
 }
 
-.history-claude-project {
-  display: inline-flex;
+/* Bucket header — caret + project dot + project name + stats meta.
+   Whole row is the summary so click anywhere expands. */
+.history-claude-bucket-summary {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 8px 12px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.history-claude-bucket-summary::-webkit-details-marker {
+  display: none;
+}
+
+.history-claude-bucket-caret {
+  font-size: 10px;
+  color: var(--ink-muted);
+  transition: transform var(--motion-fast) ease;
+  flex-shrink: 0;
+}
+
+.history-claude-bucket[open] .history-claude-bucket-caret {
+  transform: rotate(90deg);
+}
+
+.history-claude-bucket-name {
+  font-size: clamp(13px, 0.3vw + 10.5px, 14px);
   color: var(--ink);
   font-weight: 500;
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.history-claude-msgs {
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
-}
-
-.history-claude-duration {
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-}
-
-.history-claude-when {
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
-}
-
-/* Wrapper so the row + its completion expander group together with
-   shared hover background. */
-.history-claude-row-wrap {
-  border-radius: 5px;
-  transition: background var(--motion-fast) ease;
-}
-
-.history-claude-row-wrap:hover {
-  background: rgba(0, 0, 0, 0.02);
-}
-
-/* Move row hover to the wrapper since the wrapper now owns it. */
-.history-claude-row-wrap .history-claude-row:hover {
-  background: transparent;
-}
-
-/* Auto-extracted task completions — collapsible details block under
-   each Claude session row. Same caret pattern as task sessions. */
-.history-claude-completions {
-  margin: 0 0 4px;
-  padding: 0 12px 6px;
-}
-
-.history-claude-completions summary {
+.history-claude-bucket-meta {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: clamp(11px, 0.2vw + 9.5px, 12px);
-  color: var(--accent-sage);
-  cursor: pointer;
-  list-style: none;
-  padding: 2px 0;
-  user-select: none;
-  font-weight: 500;
-}
-
-.history-claude-completions summary::-webkit-details-marker {
-  display: none;
-}
-
-.history-claude-completions summary::before {
-  content: "▸";
-  display: inline-block;
-  transition: transform var(--motion-fast) ease;
-  font-size: 9px;
   color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
-.history-claude-completions[open] summary::before {
-  transform: rotate(90deg);
+.history-claude-bucket-stat strong {
+  color: var(--ink);
+  font-weight: 600;
 }
 
+.history-claude-bucket-sep {
+  color: var(--ink-muted);
+  opacity: 0.5;
+}
+
+.history-claude-bucket-completed {
+  color: var(--accent-sage);
+}
+
+.history-claude-bucket-completed strong {
+  color: var(--accent-sage);
+  font-weight: 600;
+}
+
+/* Expanded body — indented under the summary, contains the two
+   sub-sections (Tasks completed + Sessions). Left border to anchor
+   visually as "belongs to the bucket above". */
+.history-claude-bucket-body {
+  padding: 4px 12px 12px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-claude-bucket-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+}
+
+/* Completed tasks list — same look as the per-session completions
+   that was there before, just lives at bucket level now (consolidated
+   across all sessions of this project on this day). */
 .history-claude-completions-list {
-  margin: 6px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   border-left: 1.5px solid rgba(var(--accent-sage-rgb), 0.25);
   padding-left: 10px;
-  margin-left: 4px;
 }
 
 .history-claude-completion {
@@ -1268,6 +1267,43 @@ button:focus-visible {
 .history-claude-completion-subject {
   flex: 1;
   min-width: 0;
+}
+
+/* Individual session list inside a bucket — compact 3-col grid: msg
+   count, duration, when. Project name isn't repeated (bucket header
+   already shows it). */
+.history-claude-session-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.history-claude-session-item {
+  display: grid;
+  grid-template-columns: 60px auto 1fr;
+  gap: 16px;
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-claude-session-msgs {
+  color: var(--ink-muted);
+}
+
+.history-claude-session-duration {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.history-claude-session-when {
+  text-align: right;
+  color: var(--ink-muted);
 }
 
 /* ── Pomodoro section ───────────────────────────────────────────

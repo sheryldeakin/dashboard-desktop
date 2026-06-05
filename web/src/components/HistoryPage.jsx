@@ -177,62 +177,92 @@ function HistoryRow({ entry, projects, projectColor }) {
   );
 }
 
-/* Claude Code session row — surfaces what was worked on via the
-   automated import (no manual checkbox needed). Project dot + name,
-   active-time duration, message count as a "how chatty" indicator,
-   relative start time. Linking to the transcript file is deferred —
-   transcripts live in ~/.claude/ and aren't directly clickable from
-   the browser. Could add a "copy transcript path" affordance later. */
-function ClaudeSessionRow({ session, projectName, projectColor }) {
-  const startedMs = new Date(session.startedAt).getTime();
-  const durationMs = session.activeMs || 0;
-  const msgCount = session.messageCount || 0;
-  const completedTasks = Array.isArray(session.completedTasks) ? session.completedTasks : [];
-  const hasCompletions = completedTasks.length > 0;
+/* Per-project bucket inside a date group — shows the project's
+   aggregate stats (session count, total messages, total active time,
+   total completions) and expands to reveal the per-session breakdown
+   plus a consolidated list of tasks completed across all that day's
+   sessions for this project.
 
+   Reads as "what did I work on this project today" instead of N
+   identical-project rows scattered through the day's timeline. */
+function ClaudeProjectBucket({ bucket, projectName, projectColor }) {
+  const sessionCount = bucket.sessions.length;
+  const completionCount = bucket.completions.length;
   return (
-    <li className="history-claude-row-wrap">
-      <div className="history-claude-row">
-        <span className="history-claude-project">
-          <Dot color={projectColor || "rgba(0,0,0,0.25)"} size={8} />
-          {projectName || "Unassigned"}
-        </span>
-        <Tooltip content={`${msgCount} message${msgCount === 1 ? "" : "s"}`}>
-          <span className="history-claude-msgs">
-            {msgCount} msg
+    <details className="history-claude-bucket">
+      <summary className="history-claude-bucket-summary">
+        <span className="history-claude-bucket-caret" aria-hidden="true">▸</span>
+        <Dot color={projectColor || "rgba(0,0,0,0.25)"} size={8} />
+        <span className="history-claude-bucket-name">{projectName || "Unassigned"}</span>
+        <span className="history-claude-bucket-meta">
+          <span className="history-claude-bucket-stat">
+            <strong>{sessionCount}</strong>
+            {sessionCount === 1 ? " session" : " sessions"}
           </span>
-        </Tooltip>
-        <span className="history-claude-duration">
-          {fmtHrMin(durationMs)}
-        </span>
-        <Tooltip content={new Date(session.startedAt).toLocaleString()}>
-          <span className="history-claude-when">
-            <RelativeTime since={startedMs} />
-          </span>
-        </Tooltip>
-      </div>
-
-      {/* Auto-extracted task completions from the transcript. Collapsible
-          so the list stays compact when the session shipped a lot. */}
-      {hasCompletions && (
-        <details className="history-claude-completions">
-          <summary>
-            <span className="history-claude-completions-count">
-              {completedTasks.length} completed
-              {completedTasks.length === 1 ? " task" : " tasks"}
+          <span className="history-claude-bucket-sep" aria-hidden="true">·</span>
+          <Tooltip content={`${bucket.totalMsg} message${bucket.totalMsg === 1 ? "" : "s"}`}>
+            <span className="history-claude-bucket-stat">
+              <strong>{fmtHrMin(bucket.totalMs)}</strong>
             </span>
-          </summary>
-          <ul className="history-claude-completions-list">
-            {completedTasks.map((t, i) => (
-              <li key={i} className="history-claude-completion">
-                <span className="history-claude-completion-check" aria-hidden="true">✓</span>
-                <span className="history-claude-completion-subject">{t.subject}</span>
-              </li>
-            ))}
+          </Tooltip>
+          {completionCount > 0 && (
+            <>
+              <span className="history-claude-bucket-sep" aria-hidden="true">·</span>
+              <span className="history-claude-bucket-completed">
+                ✓ <strong>{completionCount}</strong>
+                {completionCount === 1 ? " completed" : " completed"}
+              </span>
+            </>
+          )}
+        </span>
+      </summary>
+
+      <div className="history-claude-bucket-body">
+        {completionCount > 0 && (
+          <div className="history-claude-bucket-section">
+            <div className="history-claude-bucket-section-label">
+              Tasks completed
+            </div>
+            <ul className="history-claude-completions-list">
+              {bucket.completions.map((t, i) => (
+                <li key={i} className="history-claude-completion">
+                  <span className="history-claude-completion-check" aria-hidden="true">✓</span>
+                  <span className="history-claude-completion-subject">{t.subject}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="history-claude-bucket-section">
+          <div className="history-claude-bucket-section-label">
+            Sessions
+          </div>
+          <ul className="history-claude-session-list">
+            {bucket.sessions.map((s) => {
+              const startedMs = new Date(s.startedAt).getTime();
+              return (
+                <li key={s.id} className="history-claude-session-item">
+                  <Tooltip content={`${s.messageCount || 0} message${s.messageCount === 1 ? "" : "s"}`}>
+                    <span className="history-claude-session-msgs">
+                      {s.messageCount || 0} msg
+                    </span>
+                  </Tooltip>
+                  <span className="history-claude-session-duration">
+                    {fmtHrMin(s.activeMs || 0)}
+                  </span>
+                  <Tooltip content={new Date(s.startedAt).toLocaleString()}>
+                    <span className="history-claude-session-when">
+                      <RelativeTime since={startedMs} />
+                    </span>
+                  </Tooltip>
+                </li>
+              );
+            })}
           </ul>
-        </details>
-      )}
-    </li>
+        </div>
+      </div>
+    </details>
   );
 }
 
@@ -326,21 +356,60 @@ export default function HistoryPage() {
   }, [taskHistory]);
 
   // Claude sessions — automated record of "what I worked on" via Claude
-  // Code. Filtered to source === "claude_code" so this section reflects
-  // only the imported sessions (task-timer sessions live with their
-  // tasks). Sorted newest first, grouped by start date.
+  // Code. Filtered to source === "claude_code". Hierarchy:
+  //   Date → Project → individual sessions + aggregated completions
+  // This reads as "what did I work on each day" instead of an interleaved
+  // chronological list that shows the same project name over and over.
+  // Each project bucket aggregates: session count, total msg count,
+  // total active ms, and all completedTasks from its sessions.
   const claudeSessionsByDate = useMemo(() => {
     const claude = (workSessions || [])
       .filter((s) => s.source === "claude_code")
       .slice()
       .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
-    const groups = new Map();
+
+    // Date → projectId → { sessions, totalMs, totalMsg, completions }
+    const byDate = new Map();
     for (const s of claude) {
-      const label = getDateGroupLabel(s.startedAt);
-      if (!groups.has(label)) groups.set(label, []);
-      groups.get(label).push(s);
+      const dateLabel = getDateGroupLabel(s.startedAt);
+      if (!byDate.has(dateLabel)) byDate.set(dateLabel, new Map());
+      const dateGroup = byDate.get(dateLabel);
+
+      const pid = s.projectId || "";
+      if (!dateGroup.has(pid)) {
+        dateGroup.set(pid, {
+          projectId: pid,
+          sessions: [],
+          totalMs: 0,
+          totalMsg: 0,
+          completions: [],
+        });
+      }
+      const bucket = dateGroup.get(pid);
+      bucket.sessions.push(s);
+      bucket.totalMs += s.activeMs || 0;
+      bucket.totalMsg += s.messageCount || 0;
+      if (Array.isArray(s.completedTasks)) {
+        for (const t of s.completedTasks) {
+          bucket.completions.push(t);
+        }
+      }
     }
-    return [...groups.entries()];
+
+    // Convert to ordered arrays: dates already in order (since input was sorted desc),
+    // within each date sort projects by total active ms desc.
+    const result = [];
+    for (const [dateLabel, dateGroup] of byDate) {
+      const projects = [...dateGroup.values()].sort((a, b) => b.totalMs - a.totalMs);
+      // Sort completions within each bucket chronologically (newest first)
+      for (const p of projects) {
+        p.completions.sort((a, b) =>
+          (b.completedAt || "").localeCompare(a.completedAt || "")
+        );
+      }
+      result.push([dateLabel, projects]);
+    }
+    return result;
   }, [workSessions]);
 
   const claudeTotalMs = useMemo(
@@ -451,26 +520,27 @@ export default function HistoryPage() {
           />
         ) : (
           <div className="history-tasks">
-            {claudeSessionsByDate.map(([label, sessions]) => {
-              const dayMs = sessions.reduce((sum, s) => sum + (s.activeMs || 0), 0);
+            {claudeSessionsByDate.map(([label, projectBuckets]) => {
+              const dayMs = projectBuckets.reduce((sum, b) => sum + b.totalMs, 0);
+              const dayCount = projectBuckets.reduce((sum, b) => sum + b.sessions.length, 0);
               return (
                 <div key={label} className="history-date-group">
                   <div className="history-date-header">
                     <span>{label}</span>
                     <span className="history-date-count">
-                      {sessions.length} · {fmtHrMin(dayMs)}
+                      {dayCount} · {fmtHrMin(dayMs)}
                     </span>
                   </div>
-                  <ul className="history-claude-list">
-                    {sessions.map((s) => (
-                      <ClaudeSessionRow
-                        key={s.id}
-                        session={s}
-                        projectName={getProjectName(projects, s.projectId)}
-                        projectColor={projectColor.get(s.projectId)}
+                  <div className="history-claude-buckets">
+                    {projectBuckets.map((bucket) => (
+                      <ClaudeProjectBucket
+                        key={bucket.projectId || "__unassigned"}
+                        bucket={bucket}
+                        projectName={getProjectName(projects, bucket.projectId)}
+                        projectColor={projectColor.get(bucket.projectId)}
                       />
                     ))}
-                  </ul>
+                  </div>
                 </div>
               );
             })}
