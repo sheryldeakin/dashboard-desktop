@@ -1269,26 +1269,28 @@ button:focus-visible {
   min-width: 0;
 }
 
-/* Individual session list inside a bucket — compact 3-col grid: msg
-   count, duration, when. Project name isn't repeated (bucket header
-   already shows it). */
+/* Individual session list inside a bucket — table-like layout with
+   4 columns shared across all rows so the AI summary always starts
+   at the same x-position even if some rows have "2m" and others
+   have "1h 30m". Done via CSS subgrid: the UL owns the column
+   tracks; each LI says "inherit those tracks for my own children". */
 .history-claude-session-list {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  display: grid;
+  grid-template-columns: 56px 56px minmax(0, 1fr) auto;
+  column-gap: 14px;
+  row-gap: 0;
 }
 
-/* Per-session row — 4-column table-like grid. AI summary sits inline
-   between duration and time so the row reads as a single record.
-   align-items: start so a multi-line summary doesn't pull the other
-   cells with it; the numeric columns stay anchored to the top. */
+/* Per-session row — spans all 4 parent columns, inherits the column
+   tracks via subgrid. align-items: start so a multi-line summary
+   doesn't pull the numeric cells with it. */
 .history-claude-session-item {
   display: grid;
-  grid-template-columns: 56px auto minmax(0, 1fr) auto;
-  gap: 14px;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: start;
   padding: 5px 0;
   font-size: clamp(11px, 0.2vw + 9.5px, 12px);
