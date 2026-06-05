@@ -151,7 +151,7 @@ app.get("/api/content", async (_req, res) => {
 // would clobber whatever entries the hourly importer added since page load.
 // Other top-level arrays stay REPLACE semantics — they're user-editable so
 // the user can legitimately delete from them.
-function mergeWorkSessions(existing, incoming) {
+function mergeWorkSessions(existing, incoming, deletes) {
   const map = new Map();
   for (const e of existing || []) {
     if (e && e.id) map.set(e.id, e);
@@ -159,6 +159,14 @@ function mergeWorkSessions(existing, incoming) {
   // Incoming wins on id collision so the client can update an entry it owns.
   for (const e of incoming || []) {
     if (e && e.id) map.set(e.id, e);
+  }
+  // Explicit deletes — used by cleanup scripts to remove specific entries
+  // (e.g., headless `claude -p` artifacts that got imported as workSessions).
+  // Applied last so a delete wins over both existing and incoming.
+  if (Array.isArray(deletes)) {
+    for (const id of deletes) {
+      if (typeof id === "string" && id) map.delete(id);
+    }
   }
   return [...map.values()];
 }
@@ -259,6 +267,7 @@ app.put("/api/content", async (req, res) => {
       workSessions: mergeWorkSessions(
         existing.content.workSessions,
         payload.workSessions,
+        payload.workSessionDeletes,
       ),
       dailyTop3History: mergeDailyTop3History(
         existing.content.dailyTop3History,
