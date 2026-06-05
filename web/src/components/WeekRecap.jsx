@@ -74,8 +74,10 @@ function localDayKey(ms) {
 
 /* Mix `color` toward white by `amount` (0 = original, 1 = pure white).
    Returns a solid rgb() so adjacent segments don't bleed through each
-   other. Falls back to the original string if format isn't hex/rgb. */
-function softenColor(color, amount = 0.45) {
+   other. Falls back to the original string if format isn't hex/rgb.
+   Exported so /stats can reuse it for the Today tab's project bars +
+   hour-by-hour by-project mode (same muted aesthetic). */
+export function softenColor(color, amount = 0.45) {
   if (!color || typeof color !== "string") return color;
   let r, g, b;
   if (color.startsWith("#")) {

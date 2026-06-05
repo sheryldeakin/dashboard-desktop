@@ -13,7 +13,7 @@ import RelativeTime from "./RelativeTime.jsx";
 import Tooltip from "./Tooltip.jsx";
 import Dot from "./Dot.jsx";
 import MetricTable from "./MetricTable.jsx";
-import { buildWeekRecap, resolveProjectColors } from "./WeekRecap.jsx";
+import { buildWeekRecap, resolveProjectColors, softenColor } from "./WeekRecap.jsx";
 import ClaudeProjectBucket, { buildClaudeBuckets } from "./ClaudeProjectBucket.jsx";
 import Collapsible from "./Collapsible.jsx";
 
@@ -1356,11 +1356,14 @@ function buildTodayData(stats) {
   const yClaudeOutsideMs = ccY.reduce((s, c) => s + c.outsideMs, 0);
   const yDeepMs = yTaskMs + yClaudeOutsideMs;
 
-  // Hour-by-hour today: a 24-element row of {taskMs, claudeOutsideMs}. We split
-  // sessions across hour boundaries with the same proportional-interval slicing
-  // the heatmap uses, so a 14:50–15:20 session credits the right hours.
+  // Hour-by-hour today: a 24-element row of {taskMs, claudeOutsideMs}
+  // PLUS a parallel 24 × Map<projectId, ms> for the by-project mode.
+  // We split sessions across hour boundaries with the same proportional-
+  // interval slicing the heatmap uses, so a 14:50–15:20 session credits
+  // the right hours.
   const hours = Array.from({ length: 24 }, () => ({ taskMs: 0, claudeOutsideMs: 0 }));
-  function distribute(startMs, endMs, totalMs, key) {
+  const hoursByProject = Array.from({ length: 24 }, () => new Map());
+  function distribute(startMs, endMs, totalMs, key, projectId) {
     if (endMs <= startMs || totalMs <= 0) return;
     const factor = totalMs / (endMs - startMs);
     let cursor = Math.max(startMs, todayStart);
@@ -1370,12 +1373,15 @@ function buildTodayData(stats) {
       const hr = d.getHours();
       const next = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hr + 1, 0, 0).getTime();
       const segEnd = Math.min(stop, next);
-      hours[hr][key] += (segEnd - cursor) * factor;
+      const slice = (segEnd - cursor) * factor;
+      hours[hr][key] += slice;
+      const pm = hoursByProject[hr];
+      pm.set(projectId, (pm.get(projectId) || 0) + slice);
       cursor = segEnd;
     }
   }
-  for (const t of tt) distribute(t.start, t.end, t.durationMs, "taskMs");
-  for (const c of cc) if (c.outsideMs > 0) distribute(c.start, c.end, c.outsideMs, "claudeOutsideMs");
+  for (const t of tt) distribute(t.start, t.end, t.durationMs, "taskMs", t.projectId || "");
+  for (const c of cc) if (c.outsideMs > 0) distribute(c.start, c.end, c.outsideMs, "claudeOutsideMs", c.projectId || "");
   const hoursMax = Math.max(1, ...hours.map((h) => h.taskMs + h.claudeOutsideMs));
 
   // Per-project today
@@ -1387,15 +1393,34 @@ function buildTodayData(stats) {
   };
   for (const t of tt) { const s = projSlot(t.projectId); s.taskMs += t.durationMs; s.sessions += 1; }
   for (const c of cc) { const s = projSlot(c.projectId); s.claudeMs += c.durationMs; s.absorbedMs += c.absorbedMs; s.sessions += 1; }
+
+  // Resolve project colors using shared helper so the same project
+  // shows the same color on /home week recap, /stats Overview chart,
+  // heatmap, and here on Today.
+  const projectTotalsToday = new Map();
+  for (const [pid, x] of byProjMap) {
+    projectTotalsToday.set(pid, x.taskMs + (x.claudeMs - x.absorbedMs));
+  }
+  const projectColorsToday = resolveProjectColors(stats.projects || [], projectTotalsToday);
+
   const byProject = [...byProjMap.entries()]
-    .map(([pid, x]) => ({
-      label: projectName.get(pid) || "Unknown",
-      taskMs: x.taskMs,
-      claudeMs: x.claudeMs,
-      claudeOutsideMs: x.claudeMs - x.absorbedMs,
-      combinedMs: x.taskMs + (x.claudeMs - x.absorbedMs),
-      sessions: x.sessions,
-    }))
+    .map(([pid, x]) => {
+      const baseColor = projectColorsToday.get(pid) || "rgba(0,0,0,0.25)";
+      return {
+        projectId: pid,
+        label: projectName.get(pid) || "Unknown",
+        taskMs: x.taskMs,
+        claudeMs: x.claudeMs,
+        claudeOutsideMs: x.claudeMs - x.absorbedMs,
+        combinedMs: x.taskMs + (x.claudeMs - x.absorbedMs),
+        sessions: x.sessions,
+        // Softened palette color (~45% toward white) so per-project
+        // bars feel muted at scale — same treatment /home week recap
+        // and /stats Overview chart use.
+        color: softenColor(baseColor, 0.45),
+        fullColor: baseColor,
+      };
+    })
     .sort((a, b) => b.combinedMs - a.combinedMs);
 
   // Chronological session list (task + claude interleaved)
@@ -1430,14 +1455,19 @@ function buildTodayData(stats) {
     yTaskMs, yClaudeOutsideMs, yDeepMs,
     deepDelta: deepMs - yDeepMs,
     sessions, byProject, hours, hoursMax, tags,
+    hoursByProject,
+    projectColorsToday,
+    projectNamesToday: projectName,
     todayPomos: stats.today.pomos,
   };
 }
 
-function HourBar({ hours, max }) {
-  // 24-cell single row showing today's hour-by-hour intensity. Each cell is
-  // stacked: tan task on bottom, slate Claude on top. Same color logic as the
-  // weekly heatmap but for one day.
+function HourBar({ hours, max, mode = "task-vs-claude", hoursByProject, projectColors, projectNames }) {
+  // 24-cell single row showing today's hour-by-hour intensity. Two modes:
+  //   task-vs-claude  legacy: tan task bottom + slate claude top
+  //   by-project      stacked project-colored bands per hour
+  // Same parseColorRgb / alpha-by-intensity-times-share formula used by
+  // the Overview heatmap so the two by-project views feel consistent.
   return (
     <div className="stats-hourbar">
       <div className="stats-hourbar-row">
@@ -1453,17 +1483,52 @@ function HourBar({ hours, max }) {
             );
           }
           const intensity = total / max;
-          const taskShare = h.taskMs / total;
-          const bg = `linear-gradient(180deg,
-            rgba(74,90,112,${0.25 + 0.7 * intensity * (1 - taskShare)}) ${(1 - taskShare) * 100}%,
-            rgba(138,105,64,${0.25 + 0.7 * intensity * taskShare}) ${(1 - taskShare) * 100}%)`;
-          const tip = (
-            <>
-              <strong>{i}:00</strong> — {fmtDuration(total)}
-              <br />Task: {fmtDuration(h.taskMs)}
-              <br />Claude (outside): {fmtDuration(h.claudeOutsideMs)}
-            </>
-          );
+          let bg;
+          let tip;
+          if (mode === "by-project" && hoursByProject && projectColors) {
+            // Per-project segments stacked top-to-bottom, sized by share.
+            const segs = [...(hoursByProject[i] || new Map()).entries()]
+              .filter(([, ms]) => ms > 0)
+              .sort((a, b) => b[1] - a[1]);
+            const stops = [];
+            let cum = 0;
+            for (const [pid, ms] of segs) {
+              const rgb = parseColorRgb(projectColors.get(pid) || "#888888")
+                || "136, 136, 136";
+              const share = ms / total;
+              const alpha = 0.25 + 0.7 * intensity * share;
+              const start = (cum / total) * 100;
+              cum += ms;
+              const end = (cum / total) * 100;
+              stops.push(`rgba(${rgb}, ${alpha}) ${start}%`);
+              stops.push(`rgba(${rgb}, ${alpha}) ${end}%`);
+            }
+            bg = `linear-gradient(180deg, ${stops.join(", ")})`;
+            tip = (
+              <>
+                <strong>{i}:00</strong> — {fmtDuration(total)}
+                {segs.map(([pid, ms]) => (
+                  <span key={pid}>
+                    <br />
+                    {projectNames?.get(pid) || "Unassigned"}: {fmtDuration(ms)}
+                  </span>
+                ))}
+              </>
+            );
+          } else {
+            // Legacy task-vs-claude stacked cell.
+            const taskShare = h.taskMs / total;
+            bg = `linear-gradient(180deg,
+              rgba(74,90,112,${0.25 + 0.7 * intensity * (1 - taskShare)}) ${(1 - taskShare) * 100}%,
+              rgba(138,105,64,${0.25 + 0.7 * intensity * taskShare}) ${(1 - taskShare) * 100}%)`;
+            tip = (
+              <>
+                <strong>{i}:00</strong> — {fmtDuration(total)}
+                <br />Task: {fmtDuration(h.taskMs)}
+                <br />Claude (outside): {fmtDuration(h.claudeOutsideMs)}
+              </>
+            );
+          }
           return (
             <Tooltip key={i} content={tip}>
               <span
@@ -1502,20 +1567,35 @@ function TodaySessionRow({ s }) {
 }
 
 function TodayProjectRow({ row, max }) {
-  const taskPct = max ? (row.taskMs / max) * 100 : 0;
-  const claudePct = max ? (row.claudeOutsideMs / max) * 100 : 0;
+  const totalPct = max ? (row.combinedMs / max) * 100 : 0;
+  // Single project-colored bar (softened palette) — matches the
+  // muted aesthetic of /home week recap + /stats Overview chart.
+  // The task vs Claude split is still surfaced via the tooltip, and
+  // the Claude work today drill-down below shows the per-session
+  // detail. Bar background here is project color (~45% toward white).
+  const tip = (
+    <>
+      <strong>{row.label}</strong> — {fmtDuration(row.combinedMs)} focused
+      <br />Task timer: {fmtDuration(row.taskMs)}
+      <br />Claude (outside): {fmtDuration(row.claudeOutsideMs)}
+    </>
+  );
   return (
     <div className="stats-today-project-row">
-      <span className="stats-today-project-name">{row.label}</span>
+      <span className="stats-today-project-name">
+        {row.color && <span className="stats-project-dot" style={{ background: row.fullColor || row.color }} />}
+        {row.label}
+      </span>
       <div className="stats-today-project-track">
-        {row.taskMs > 0 && (
-          <Tooltip content={`${fmtDuration(row.taskMs)} task timer`}>
-            <div className="stats-today-project-bar stats-today-project-bar-task" style={{ width: `${taskPct}%` }} />
-          </Tooltip>
-        )}
-        {row.claudeOutsideMs > 0 && (
-          <Tooltip content={`${fmtDuration(row.claudeOutsideMs)} Claude outside`}>
-            <div className="stats-today-project-bar stats-today-project-bar-claude" style={{ width: `${claudePct}%` }} />
+        {row.combinedMs > 0 && (
+          <Tooltip content={tip}>
+            <div
+              className="stats-today-project-bar"
+              style={{
+                width: `${totalPct}%`,
+                background: row.color || "rgba(0,0,0,0.25)",
+              }}
+            />
           </Tooltip>
         )}
       </div>
@@ -1533,6 +1613,9 @@ function TodayTab({ stats, content }) {
   const maxProjectMs = Math.max(1, ...t.byProject.map((r) => r.combinedMs));
   const deltaMin = Math.round(t.deepDelta / MS_PER_MIN);
   const deltaSign = deltaMin > 0 ? "+" : "";
+  // Hour-by-hour coloring mode. Defaults to "by-project" to match the
+  // Overview chart + heatmap default. Same dropdown shape as those.
+  const [hourMode, setHourMode] = useState("by-project");
 
   // Today's Claude sessions grouped by project, ready to feed straight
   // into <ClaudeProjectBucket>. Same data shape and same component as
@@ -1588,17 +1671,41 @@ function TodayTab({ stats, content }) {
         ]}
       />
 
-      {/* Hour-by-hour bar chart — at-a-glance "when did I work" view.
-          Stacked task/claude bars per hour. Most-scanned content right
-          after the snapshot, so it sits at the top of the page body. */}
-      <Section title="Hour by hour">
-        <HourBar hours={t.hours} max={t.hoursMax} />
-        <p className="stats-footnote">
-          <span className="stats-swatch stats-swatch-task" /> Task timer{" "}
-          <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer.
-          Hover any hour cell for the breakdown.
-        </p>
-      </Section>
+      {/* Hour-by-hour — same mode toggle as the Overview chart/heatmap.
+          Section title doubles as a flex row holding the dropdown
+          (using .home-section-title-row pattern, matching the rest of
+          the app's section-with-meta idiom). */}
+      <section className="home-section">
+        <h2 className="home-section-title home-section-title-row">
+          <span>Hour by hour</span>
+          <span className="home-section-meta">
+            <select
+              className="stats-heatmap-select"
+              value={hourMode}
+              onChange={(e) => setHourMode(e.target.value)}
+              aria-label="Hour-by-hour coloring mode"
+            >
+              <option value="by-project">By project</option>
+              <option value="task-vs-claude">Task timer vs Claude</option>
+            </select>
+          </span>
+        </h2>
+        <HourBar
+          hours={t.hours}
+          max={t.hoursMax}
+          mode={hourMode}
+          hoursByProject={t.hoursByProject}
+          projectColors={t.projectColorsToday}
+          projectNames={t.projectNamesToday}
+        />
+        {hourMode === "task-vs-claude" && (
+          <p className="stats-footnote">
+            <span className="stats-swatch stats-swatch-task" /> Task timer{" "}
+            <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer.
+            Hover any hour cell for the breakdown.
+          </p>
+        )}
+      </section>
 
       <Section title="By project — today">
         {t.byProject.length === 0 ? (

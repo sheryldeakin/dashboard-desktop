@@ -5513,6 +5513,9 @@ button:focus-visible {
 }
 
 .stats-today-project-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5520,8 +5523,8 @@ button:focus-visible {
 }
 
 .stats-today-project-track {
-  height: 16px;
-  background: rgba(182, 139, 97, 0.1);
+  height: 14px;
+  background: rgba(0, 0, 0, 0.05);
   border-radius: 4px;
   display: flex;
   overflow: hidden;
@@ -5529,8 +5532,14 @@ button:focus-visible {
 
 .stats-today-project-bar {
   height: 100%;
+  border-radius: 4px;
+  /* Background set inline via style={{ background: row.color }} so each
+     project's softened palette color paints its own bar. */
 }
 
+/* Legacy task/claude split classes — kept for any straggler reference
+   but no longer applied by TodayProjectRow (bars are now single
+   project-colored solids; task vs Claude split is in the tooltip). */
 .stats-today-project-bar-task {
   background: linear-gradient(90deg, #b68b61, #8a6940);
 }
