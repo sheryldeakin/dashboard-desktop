@@ -1437,22 +1437,16 @@ function TasksTab({ stats }) {
   const peakDaily = Math.max(...stats.dailyCompletions.map((d) => d.count), 1);
   return (
     <>
-      {/* Stats #1: Shipped headline — today / week / all-time */}
-      <Section title="Tasks shipped (from Claude sessions)">
-        <StatGrid
-          variant="default"
-          columns={[
-            { value: c.today, label: "Today" },
-            { value: c.week, label: "Past 7 days" },
-            { value: c.all, label: "All-time" },
-          ]}
-        />
-        <p className="stats-footnote">
-          Auto-extracted from <code>TaskCreate</code>/<code>TaskUpdate</code> tool
-          calls in your Claude sessions. Manual <code>/todo</code> completions are
-          tracked separately below.
-        </p>
-      </Section>
+      {/* Stats #1: Shipped headline at top of tab — matches the snapshot
+          strip pattern used by Overview/Today/Focus/Claude tabs. */}
+      <StatGrid
+        variant="snapshot"
+        columns={[
+          { value: c.today, label: "Today" },
+          { value: c.week, label: "Past 7 days" },
+          { value: c.all, label: "All-time shipped" },
+        ]}
+      />
 
       {/* Stats #2: Daily completion velocity (14 days) */}
       <Section title="Completion velocity — last 14 days">
@@ -1682,6 +1676,21 @@ export default function StatsPage() {
       <PageHeader
         title="Stats"
         actions={<SnapshotIndicator loadedAtMs={loadedAtMs} />}
+        chips={[
+          <span key="all">
+            <strong>{fmtDuration(stats.all.deep_work_ms)}</strong> total deep work
+          </span>,
+          stats.currentStreak >= 1 && (
+            <span key="streak">
+              <strong>{stats.currentStreak}</strong> day streak
+            </span>
+          ),
+          stats.completionCounts && stats.completionCounts.all > 0 && (
+            <span key="ship">
+              <strong>{stats.completionCounts.all}</strong> tasks shipped
+            </span>
+          ),
+        ].filter(Boolean)}
       />
 
       <Tabs tabs={TABS} active={tab} onChange={setTab} />

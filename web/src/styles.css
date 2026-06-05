@@ -6104,6 +6104,16 @@ button:focus-visible {
   border-bottom: 1px solid var(--rule);
 }
 
+/* When a snapshot strip is followed directly by a Section, the section's
+   own top hairline is redundant (snapshot's bottom border serves the
+   purpose). Same pattern as /home's home-today-snapshot + home-section
+   rule, just generalized to the shared StatGrid snapshot variant. */
+.ui-stat-grid--snapshot + .home-section {
+  margin-top: 24px;
+  padding-top: 0;
+  border-top: none;
+}
+
 .ui-stat-grid--snapshot .ui-stat-grid-cell {
   padding: 10px 16px;
   border-right: 1px solid var(--rule-soft);
