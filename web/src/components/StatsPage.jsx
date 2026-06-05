@@ -13,7 +13,7 @@ import RelativeTime from "./RelativeTime.jsx";
 import Tooltip from "./Tooltip.jsx";
 import MetricTable from "./MetricTable.jsx";
 import Collapsible from "./Collapsible.jsx";
-import WeekRecap, { buildWeekRecap } from "./WeekRecap.jsx";
+import { buildWeekRecap } from "./WeekRecap.jsx";
 
 /* Stats page — pure read view across pomodoro.history + taskHistory +
    todaysTasks + workSessions. Four tabs (Overview / Focus / Claude / Tasks).
@@ -895,14 +895,154 @@ function TriageBanner({ count }) {
 
 /* ── Tab views ── */
 
+/* DeepWorkBars — 14-day stacked-segment bar chart. Same compact shape
+   (.stats-daily-* classes, 130px tall, day-number labels below) as the
+   original task-vs-claude DailyDeepChart, but generalized to render
+   any segment list per bar. Two coloring modes plug into this from
+   OverviewTab via the `bars` prop:
+
+     by-project       segments are per-project (color per project)
+     task-vs-claude   segments are [claude, task] with the legacy colors
+
+   Convention for `bars[i].segments`:
+     - Listed in DOM order (first = visual TOP, last = visual BOTTOM).
+     - Each segment's height is rendered as (ms / max-day-total) * 100%
+       so days with low totals stay visibly small instead of always
+       filling to the top.
+     - Only the first DOM child gets rounded top corners — others sit
+       beneath it with square edges (looks like one bar split into
+       colored bands, not a stack of pills). */
+function DeepWorkBars({ bars }) {
+  const max = Math.max(1, ...bars.map((b) => b.totalMs));
+  return (
+    <div className="stats-daily">
+      {bars.map((b) => {
+        // Tooltip shows the full breakdown for the hovered day. We
+        // iterate `segments` as-is so the order matches the visible
+        // stack top→bottom (a small "match what you see" affordance).
+        const tip = (
+          <>
+            <strong>{b.fullLabel || b.label}</strong> — {fmtDuration(b.totalMs)} total
+            {b.segments.map((s) => (
+              <span key={s.id}>
+                <br />
+                {s.name}: {fmtDuration(s.ms)}
+              </span>
+            ))}
+            {b.totalMs === 0 && (
+              <>
+                <br />
+                no focused time
+              </>
+            )}
+          </>
+        );
+        return (
+          <Tooltip key={b.key} content={tip}>
+            <div className={`stats-daily-col${b.isToday ? " is-today" : ""}`}>
+              <div className="stats-daily-stack">
+                {b.segments.map((s, i) => {
+                  const pct = (s.ms / max) * 100;
+                  if (pct <= 0) return null;
+                  return (
+                    <div
+                      key={s.id}
+                      className="stats-daily-bar"
+                      style={{
+                        height: `${pct}%`,
+                        background: s.color,
+                        // Only the visual top segment gets rounded top
+                        // corners. Inline override beats the generic
+                        // .stats-daily-bar default so multi-segment
+                        // project bars look like one continuous bar.
+                        borderRadius: i === 0 ? "3px 3px 0 0" : "0",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="stats-daily-label">{b.label}</div>
+            </div>
+          </Tooltip>
+        );
+      })}
+    </div>
+  );
+}
+
 function OverviewTab({ stats, content }) {
-  // 14-day project-segmented bar chart data. Mirrors /home's "This
-  // week" recap pattern (WeekRecap component) but over a 14-day window.
-  // Computed via the shared buildWeekRecap helper so the same project
-  // resolves to the same color on /home and /stats.
+  // Coloring mode for the 14-day chart. Default "by-project" matches
+  // the at-a-glance question users open Overview with ("where did my
+  // time go this week?"). "task-vs-claude" gives the legacy stacked
+  // split for the "how much was task-timer vs Claude outside" question.
+  const [chartMode, setChartMode] = useState("by-project");
+
+  // Project-segmented 14-day data (same algorithm /home uses for its
+  // "This week" rail card; same buildWeekRecap helper so colors stay
+  // consistent across pages).
   const weekRecap14 = useMemo(
     () => buildWeekRecap(content, { days: 14 }),
     [content]
+  );
+
+  // Adapt the active dataset into DeepWorkBars' { key, label, isToday,
+  // totalMs, segments } shape. Both modes produce the same shape so
+  // DeepWorkBars never has to know which mode it's rendering.
+  const chartBars = useMemo(() => {
+    if (chartMode === "by-project") {
+      return weekRecap14.weekDays.map((d) => ({
+        key: d.dayKey,
+        // Day-of-month number to match the old DailyDeepChart label
+        // convention. dayKey is YYYY-MM-DD so slice from position 8.
+        label: d.dayKey.slice(8).replace(/^0/, ""),
+        fullLabel: d.fullLabel,
+        isToday: d.isToday,
+        totalMs: d.focusedMs,
+        // buildWeekRecap returns segments largest-first. Reverse for
+        // DOM (first = visual top) so the LARGEST project anchors the
+        // bottom of the bar — matches /home's segmentation convention.
+        // Use fullColor (full saturation) here; the compact stats chart
+        // doesn't need the softened palette /home uses for its big bars.
+        segments: [...d.segments].reverse().map((s) => ({
+          id: s.id || "unassigned",
+          name: s.name,
+          color: s.fullColor || s.color,
+          ms: s.ms,
+        })),
+      }));
+    }
+    // Task-vs-Claude mode: use stats.dailyDeep, which already has
+    // taskMs + claudeOutsideMs per day. Claude sits ABOVE task in the
+    // visual stack (claude listed first in DOM order) — preserves the
+    // historical reading of "task timer is the base, Claude outside is
+    // additional time on top". Today gets greener tints to match the
+    // existing .stats-daily-col.is-today CSS treatment.
+    return stats.dailyDeep.map((b) => ({
+      key: b.day,
+      label: b.label,
+      fullLabel: b.day,
+      isToday: b.isToday,
+      totalMs: b.totalMs,
+      segments: [
+        b.claudeOutsideMs > 0 && {
+          id: "claude",
+          name: "Claude (outside)",
+          color: b.isToday ? "#7a9a7f" : "#4a5a70",
+          ms: b.claudeOutsideMs,
+        },
+        b.taskMs > 0 && {
+          id: "task",
+          name: "Task timer",
+          color: b.isToday ? "#5a7e5f" : "#8a6940",
+          ms: b.taskMs,
+        },
+      ].filter(Boolean),
+    }));
+  }, [chartMode, weekRecap14, stats.dailyDeep]);
+
+  const chartTotalMs = useMemo(
+    () => chartBars.reduce((sum, b) => sum + b.totalMs, 0),
+    [chartBars]
   );
 
   return (
@@ -919,22 +1059,44 @@ function OverviewTab({ stats, content }) {
         ]}
       />
 
-      {/* Headline chart: 14 days of focused time, project-colored bars.
-          Same component as /home's "This week" rail card — see
-          flag-reuse-opportunities memory: 2nd use is the extraction
-          trigger. WeekRecap brings its own .home-section chrome (title
-          row + meta + hairline), so we don't wrap it in <Section>. */}
-      <WeekRecap
-        weekDays={weekRecap14.weekDays}
-        weekTotalMs={weekRecap14.weekTotalMs}
-        weekActiveDays={weekRecap14.weekActiveDays}
-        weekLegend={weekRecap14.weekLegend}
-        title="Last 14 days"
-        placement="main"
-      />
+      {/* Headline chart — 14 days of focused time. Mode dropdown sits
+          in the section title's meta slot (right side) following the
+          same pattern as the heatmap's projectId selector. We hand-roll
+          the section here instead of using <Section> because we need
+          access to .home-section-title-row's right-side meta slot. */}
+      <section className="home-section">
+        <h2 className="home-section-title home-section-title-row">
+          <span>Last 14 days</span>
+          <span className="home-section-meta">
+            <strong>{fmtDuration(chartTotalMs)}</strong> total
+            <span className="home-section-meta-sep" aria-hidden="true">·</span>
+            <select
+              className="stats-heatmap-select"
+              value={chartMode}
+              onChange={(e) => setChartMode(e.target.value)}
+              aria-label="Chart coloring mode"
+            >
+              <option value="by-project">By project</option>
+              <option value="task-vs-claude">Task timer vs Claude</option>
+            </select>
+          </span>
+        </h2>
+        <DeepWorkBars bars={chartBars} />
+        {chartMode === "task-vs-claude" && (
+          <p className="stats-footnote">
+            <span className="stats-swatch stats-swatch-task" /> Task timer (absorbs concurrent Claude)
+            {"  "}
+            <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer
+          </p>
+        )}
+      </section>
 
       <Section title="By project">
         <ProjectGrid cards={stats.projectCards} />
+      </Section>
+
+      <Section title="Hour-of-day heatmap">
+        <HeatmapGrid stats={stats} />
       </Section>
 
       <Section title="Focus streak">
@@ -953,11 +1115,13 @@ function OverviewTab({ stats, content }) {
         />
       </Section>
 
-      {/* Deep-dive breakdowns sit below the headline chart, collapsed by
-          default so the at-a-glance view stays clean. Each toggle is one
-          click; users who want the detail aren't blocked. */}
+      {/* Windowed (Today / Past 7 days / All-time) split of task-timer
+          vs Claude. Complements the daily chart above — the chart
+          shows shape over time; this shows totals at three time
+          horizons side-by-side. Collapsed by default since it's a
+          drill-down, not at-a-glance content. */}
       <Section title="Breakdowns">
-        <Collapsible summary="Task timer vs Claude (outside timer)">
+        <Collapsible summary="Task timer vs Claude — totals by window">
           <MetricTable
             headers={["Today", "Past 7 days", "All-time"]}
             rows={[
@@ -979,20 +1143,6 @@ function OverviewTab({ stats, content }) {
               },
             ]}
           />
-          {/* The 14-day stacked task-vs-claude chart that used to live
-              up top — kept here as the canonical view for the
-              "where did the time go" task/Claude split. The Overview's
-              headline chart now shows project segmentation instead. */}
-          <DailyDeepChart bars={stats.dailyDeep} />
-          <p className="stats-footnote">
-            <span className="stats-swatch stats-swatch-task" /> Task timer (absorbs concurrent Claude)
-            {"  "}
-            <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer
-          </p>
-        </Collapsible>
-
-        <Collapsible summary="Hour-of-day heatmap">
-          <HeatmapGrid stats={stats} />
         </Collapsible>
       </Section>
     </>
