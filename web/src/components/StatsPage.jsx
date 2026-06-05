@@ -15,6 +15,7 @@ import Dot from "./Dot.jsx";
 import MetricTable from "./MetricTable.jsx";
 import { buildWeekRecap, resolveProjectColors } from "./WeekRecap.jsx";
 import ClaudeProjectBucket, { buildClaudeBuckets } from "./ClaudeProjectBucket.jsx";
+import Collapsible from "./Collapsible.jsx";
 
 /* Stats page — pure read view across pomodoro.history + taskHistory +
    todaysTasks + workSessions. Four tabs (Overview / Focus / Claude / Tasks).
@@ -1587,43 +1588,9 @@ function TodayTab({ stats, content }) {
         ]}
       />
 
-      <Section title="Detail">
-        <MetricTable
-          headers={["Today", "Yesterday"]}
-          rows={[
-            {
-              label: "Task timer",
-              cells: [fmtDuration(t.taskMs), "—"],
-            },
-            {
-              label: "Claude (outside timer)",
-              cells: [fmtDuration(t.claudeOutsideMs), "—"],
-            },
-            {
-              label: "Total Claude",
-              cells: [fmtDuration(t.claudeMs), "—"],
-            },
-            {
-              label: "Claude absorbed by task timer",
-              cells: [fmtDuration(t.absorbedMs), "—"],
-            },
-            {
-              label: "Overlap rate",
-              cells: [
-                t.claudeMs > 0
-                  ? `${Math.round((t.absorbedMs / t.claudeMs) * 100)}%`
-                  : "—",
-                "—",
-              ],
-            },
-            {
-              label: "Deep work",
-              cells: [fmtDuration(t.deepMs), fmtDuration(t.yDeepMs)],
-            },
-          ]}
-        />
-      </Section>
-
+      {/* Hour-by-hour bar chart — at-a-glance "when did I work" view.
+          Stacked task/claude bars per hour. Most-scanned content right
+          after the snapshot, so it sits at the top of the page body. */}
       <Section title="Hour by hour">
         <HourBar hours={t.hours} max={t.hoursMax} />
         <p className="stats-footnote">
@@ -1645,10 +1612,10 @@ function TodayTab({ stats, content }) {
         )}
       </Section>
 
-      {/* Today's Claude sessions grouped by project, with collapsible
-          drill-down showing per-session AI summaries + tasks completed.
-          Same component /history uses (extracted to ClaudeProjectBucket.jsx)
-          so the visual + interaction matches across the app. */}
+      {/* Drill-down: today's Claude sessions grouped by project, with
+          AI summaries + tasks completed inside each bucket. Same
+          component /history + /home use, so the interaction matches
+          across the app. */}
       <Section title="Claude work today — by project">
         {claudeBucketsToday.length === 0 ? (
           <EmptyState
@@ -1664,24 +1631,31 @@ function TodayTab({ stats, content }) {
         )}
       </Section>
 
-      <Section title="Sessions today — chronological">
-        {t.sessions.length === 0 ? (
-          <EmptyState variant="inline" message="No sessions logged today" />
-        ) : (
-          <ul className="stats-today-session-list">
-            {t.sessions.map((s, i) => (
-              <TodaySessionRow key={i} s={s} />
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="By tag — today">
-        <BreakdownBars
-          rows={t.tags.slice(0, 12)}
-          formatRight={(v) => fmtDuration(v)}
-          emptyMsg="No tags on today's sessions."
-        />
+      {/* Lower-frequency drill-downs collapsed by default so they don't
+          dilute the at-a-glance view above. Chronological session list
+          and tag breakdown both still useful, just not what you open
+          Today to look at first. The Detail MetricTable (Today/Yesterday
+          × 6 rows) that used to live here was dropped — the Yesterday
+          column was mostly empty placeholders. */}
+      <Section title="More">
+        <Collapsible summary="Sessions today — chronological">
+          {t.sessions.length === 0 ? (
+            <EmptyState variant="inline" message="No sessions logged today" />
+          ) : (
+            <ul className="stats-today-session-list">
+              {t.sessions.map((s, i) => (
+                <TodaySessionRow key={i} s={s} />
+              ))}
+            </ul>
+          )}
+        </Collapsible>
+        <Collapsible summary="By tag — today">
+          <BreakdownBars
+            rows={t.tags.slice(0, 12)}
+            formatRight={(v) => fmtDuration(v)}
+            emptyMsg="No tags on today's sessions."
+          />
+        </Collapsible>
       </Section>
     </>
   );
