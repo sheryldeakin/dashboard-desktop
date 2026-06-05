@@ -11,9 +11,10 @@ import Section from "./Section.jsx";
 import EmptyState from "./EmptyState.jsx";
 import RelativeTime from "./RelativeTime.jsx";
 import Tooltip from "./Tooltip.jsx";
+import Dot from "./Dot.jsx";
 import MetricTable from "./MetricTable.jsx";
-import Collapsible from "./Collapsible.jsx";
 import { buildWeekRecap, resolveProjectColors } from "./WeekRecap.jsx";
+import ClaudeProjectBucket, { buildClaudeBuckets } from "./ClaudeProjectBucket.jsx";
 
 /* Stats page — pure read view across pomodoro.history + taskHistory +
    todaysTasks + workSessions. Four tabs (Overview / Focus / Claude / Tasks).
@@ -86,6 +87,8 @@ function extractClaudeIntervals(workSessions) {
       id: ws.id,
       transcriptId: ws.transcriptId,
       cwd: ws.cwd,
+      // Carried for project-card "last activity" summary line.
+      aiSummary: ws.aiSummary || "",
     });
   }
   return out;
@@ -343,6 +346,10 @@ function computeStats(content) {
         taskMs: 0, claudeMs: 0, absorbedMs: 0, claudeOutsideMs: 0,
         taskSessions: 0, claudeSessions: 0,
         lastActivityMs: 0, lastActivitySource: null,
+        // Newest non-empty AI summary across the project's Claude
+        // sessions. Filled in the claude loop below.
+        lastAiSummary: "",
+        lastAiSummaryMs: 0,
       });
     }
     return cardMap.get(pid);
@@ -360,6 +367,14 @@ function computeStats(content) {
     s.claudeOutsideMs += c.outsideMs;
     s.claudeSessions += 1;
     if (c.end > s.lastActivityMs) { s.lastActivityMs = c.end; s.lastActivitySource = "claude"; }
+    // Track newest non-empty AI summary per project. Sessions without
+    // summaries are skipped so we surface the most recent summarized
+    // session even if newer sessions are missing one.
+    const summary = (c.aiSummary || "").trim();
+    if (summary && c.end > s.lastAiSummaryMs) {
+      s.lastAiSummary = summary;
+      s.lastAiSummaryMs = c.end;
+    }
   }
   const projectCards = [...cardMap.values()]
     .map((s) => ({
@@ -984,6 +999,15 @@ function ProjectGridCard({ card }) {
           last {card.lastActivitySource === "claude" ? "Claude" : "task"} {lastAgo}
         </span>
       </div>
+      {/* AI summary teaser — newest summarized Claude session for this
+          project. Shown only when one exists; truncates to 2 lines via
+          CSS so cards stay roughly the same height. Italic + muted so it
+          reads as supporting context, not the headline. */}
+      {card.lastAiSummary && (
+        <p className="stats-pcard-summary" title={card.lastAiSummary}>
+          {card.lastAiSummary}
+        </p>
+      )}
     </div>
   );
 }
@@ -1169,6 +1193,27 @@ function OverviewTab({ stats, content }) {
     [chartBars]
   );
 
+  // Recent activity feed: 5 most recent Claude sessions across all
+  // projects, flattened. Shows the AI-summary teaser inline. Bridges
+  // the aggregate views (chart, cards) and the daily detail (heatmap)
+  // — answers "what specifically have I been working on lately."
+  const recentClaudeSessions = useMemo(() => {
+    const projectMap = new Map((content?.projects || []).map((p) => [p.id, p]));
+    return (content?.workSessions || [])
+      .filter((s) => s.source === "claude_code")
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+      .slice(0, 5)
+      .map((s) => ({
+        id: s.id,
+        projectName: projectMap.get(s.projectId)?.name || "Unassigned",
+        projectColor: projectMap.get(s.projectId)?.color || null,
+        activeMs: s.activeMs || 0,
+        aiSummary: (s.aiSummary || "").trim(),
+        startedAt: s.startedAt,
+        completionCount: Array.isArray(s.completedTasks) ? s.completedTasks.length : 0,
+      }));
+  }, [content]);
+
   return (
     <>
       <TriageBanner count={stats.triageCount || 0} />
@@ -1179,6 +1224,10 @@ function OverviewTab({ stats, content }) {
           { value: fmtDuration(stats.today.deep_work_ms), label: "Today" },
           { value: fmtDuration(stats.week.deep_work_ms), label: "Past 7 days" },
           { value: stats.currentStreak, label: "Day streak" },
+          {
+            value: stats.completionCounts ? stats.completionCounts.all : 0,
+            label: "Tasks closed",
+          },
           { value: fmtDuration(stats.all.deep_work_ms), label: "All-time" },
         ]}
       />
@@ -1219,6 +1268,49 @@ function OverviewTab({ stats, content }) {
         <ProjectGrid cards={stats.projectCards} />
       </Section>
 
+      {/* Recent activity — last 5 Claude sessions with AI-summary
+          teasers. Compact flat list (not grouped by project, since the
+          By project section above already covers that view). For the
+          full today's-grouped-by-project drill-down, see the Today tab
+          and /home. */}
+      <Section title="Recent activity">
+        {recentClaudeSessions.length === 0 ? (
+          <EmptyState
+            variant="inline"
+            message="No Claude sessions logged yet"
+          />
+        ) : (
+          <ul className="stats-recent-list">
+            {recentClaudeSessions.map((s) => (
+              <li key={s.id} className="stats-recent-row">
+                <span className="stats-recent-project">
+                  <Dot color={s.projectColor || "rgba(0,0,0,0.25)"} size={8} />
+                  {s.projectName}
+                </span>
+                <span className="stats-recent-duration">
+                  {fmtDuration(s.activeMs)}
+                  {s.completionCount > 0 && (
+                    <span className="stats-recent-completions">
+                      {" "}· ✓ {s.completionCount}
+                    </span>
+                  )}
+                </span>
+                <span className="stats-recent-summary">
+                  {s.aiSummary || (
+                    <span className="stats-recent-no-summary">—</span>
+                  )}
+                </span>
+                <Tooltip content={new Date(s.startedAt).toLocaleString()}>
+                  <span className="stats-recent-when">
+                    <RelativeTime since={Date.parse(s.startedAt)} />
+                  </span>
+                </Tooltip>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
       <Section title="Hour-of-day heatmap">
         <HeatmapGrid stats={stats} />
       </Section>
@@ -1239,36 +1331,6 @@ function OverviewTab({ stats, content }) {
         />
       </Section>
 
-      {/* Windowed (Today / Past 7 days / All-time) split of task-timer
-          vs Claude. Complements the daily chart above — the chart
-          shows shape over time; this shows totals at three time
-          horizons side-by-side. Collapsed by default since it's a
-          drill-down, not at-a-glance content. */}
-      <Section title="Breakdowns">
-        <Collapsible summary="Task timer vs Claude — totals by window">
-          <MetricTable
-            headers={["Today", "Past 7 days", "All-time"]}
-            rows={[
-              {
-                label: "Task timer",
-                cells: [
-                  fmtDuration(stats.today.task_ms),
-                  fmtDuration(stats.week.task_ms),
-                  fmtDuration(stats.all.task_ms),
-                ],
-              },
-              {
-                label: "Claude (outside timer)",
-                cells: [
-                  fmtDuration(stats.today.claude_outside_ms),
-                  fmtDuration(stats.week.claude_outside_ms),
-                  fmtDuration(stats.all.claude_outside_ms),
-                ],
-              },
-            ]}
-          />
-        </Collapsible>
-      </Section>
     </>
   );
 }
@@ -1464,12 +1526,26 @@ function TodayProjectRow({ row, max }) {
   );
 }
 
-function TodayTab({ stats }) {
+function TodayTab({ stats, content }) {
   const t = useMemo(() => buildTodayData(stats), [stats]);
   const noActivity = t.deepMs === 0 && t.sessions.length === 0;
   const maxProjectMs = Math.max(1, ...t.byProject.map((r) => r.combinedMs));
   const deltaMin = Math.round(t.deepDelta / MS_PER_MIN);
   const deltaSign = deltaMin > 0 ? "+" : "";
+
+  // Today's Claude sessions grouped by project, ready to feed straight
+  // into <ClaudeProjectBucket>. Same data shape and same component as
+  // /history uses — drill down to see per-session AI summaries and
+  // tasks completed during that project's work today.
+  const todayStart = useMemo(() => todayStartMs(), []);
+  const claudeBucketsToday = useMemo(
+    () => buildClaudeBuckets(
+      content?.workSessions || [],
+      content?.projects || [],
+      { since: todayStart, until: todayStart + MS_PER_DAY }
+    ),
+    [content, todayStart]
+  );
 
   if (noActivity) {
     return (
@@ -1564,6 +1640,25 @@ function TodayTab({ stats }) {
           <div className="stats-today-project-list">
             {t.byProject.map((r) => (
               <TodayProjectRow key={r.label} row={r} max={maxProjectMs} />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Today's Claude sessions grouped by project, with collapsible
+          drill-down showing per-session AI summaries + tasks completed.
+          Same component /history uses (extracted to ClaudeProjectBucket.jsx)
+          so the visual + interaction matches across the app. */}
+      <Section title="Claude work today — by project">
+        {claudeBucketsToday.length === 0 ? (
+          <EmptyState
+            variant="inline"
+            message="No Claude sessions logged yet today"
+          />
+        ) : (
+          <div className="stats-today-claude-buckets">
+            {claudeBucketsToday.map((bucket) => (
+              <ClaudeProjectBucket key={bucket.projectId} bucket={bucket} />
             ))}
           </div>
         )}
@@ -2002,7 +2097,7 @@ export default function StatsPage() {
 
       <div className="stats-tab-body">
         {tab === "overview" && <OverviewTab stats={stats} content={content} />}
-        {tab === "today" && <TodayTab stats={stats} />}
+        {tab === "today" && <TodayTab stats={stats} content={content} />}
         {tab === "focus" && <FocusTab stats={stats} />}
         {tab === "claude" && <ClaudeTab stats={stats} />}
         {tab === "tasks" && <TasksTab stats={stats} />}

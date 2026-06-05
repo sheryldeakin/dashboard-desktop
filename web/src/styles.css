@@ -5260,6 +5260,88 @@ button:focus-visible {
   color: var(--ink-muted);
 }
 
+/* AI summary teaser line shown below the foot. Italic + muted so it
+   reads as supporting context to the time numbers above, not as a
+   headline. Truncated to two lines via -webkit-line-clamp so cards
+   stay roughly the same height; full text available on hover via the
+   title attribute. */
+.stats-pcard-summary {
+  margin: 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--ink-muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Recent activity list on /stats Overview — compact flat feed of the
+   last 5 Claude sessions. 4-column grid (project / duration / summary /
+   when) like history-claude-session-item but at section-row scale. */
+.stats-recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-recent-row {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) minmax(80px, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 13px;
+}
+
+.stats-recent-row:last-child {
+  border-bottom: none;
+}
+
+.stats-recent-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.stats-recent-duration {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.stats-recent-completions {
+  color: var(--ink-muted);
+}
+
+.stats-recent-summary {
+  color: var(--ink-muted);
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1.4;
+  /* Truncate to one line — the row stays a single line for scan-ability;
+     full text in the title attribute / tooltip if it overflows. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-recent-no-summary {
+  opacity: 0.5;
+}
+
+.stats-recent-when {
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .stats-pcard-foot strong { color: var(--ink); font-weight: 600; }
 .stats-pcard-last { margin-left: auto; }
 

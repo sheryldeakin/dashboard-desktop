@@ -19,6 +19,7 @@ import StatGrid from "./StatGrid.jsx";
 import RailCard from "./RailCard.jsx";
 import RelativeTime from "./RelativeTime.jsx";
 import WeekRecap from "./WeekRecap.jsx";
+import ClaudeProjectBucket, { buildClaudeBuckets } from "./ClaudeProjectBucket.jsx";
 import Chip from "./Chip.jsx";
 
 /* Icon-button glyphs for UnfinishedSection row actions. Replaces the
@@ -2212,6 +2213,20 @@ export default function HomePage() {
   const heartbeatRows = useHeartbeatRows(content.scheduledTaskHeartbeats);
   const todayStats = useTodayStats(content);
 
+  // Today's Claude sessions grouped by project — drill-down view of
+  // today's actual work, same component /stats Today + /history use.
+  // Filter window: today's local midnight → tomorrow's local midnight.
+  const todayClaudeBuckets = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const startMs = start.getTime();
+    return buildClaudeBuckets(
+      content?.workSessions || [],
+      content?.projects || [],
+      { since: startMs, until: startMs + MS_PER_DAY }
+    );
+  }, [content?.workSessions, content?.projects]);
+
   if (!loaded) {
     return <HomeSkeleton />;
   }
@@ -2241,6 +2256,27 @@ export default function HomePage() {
             onPromote={handlePromote}
             onDrop={handleDrop}
           />
+
+          {/* Today's Claude sessions grouped by project, with collapsible
+              drill-down for per-session AI summaries + completions.
+              Same component /stats Today + /history use — keeps the
+              "what did I actually do today" view consistent app-wide. */}
+          {todayClaudeBuckets.length > 0 && (
+            <section className="home-section">
+              <h2 className="home-section-title home-section-title-row">
+                <span>Today's work</span>
+                <span className="home-section-meta">
+                  <strong>{todayClaudeBuckets.length}</strong>{" "}
+                  {todayClaudeBuckets.length === 1 ? "project" : "projects"}
+                </span>
+              </h2>
+              <div className="home-today-claude-buckets">
+                {todayClaudeBuckets.map((bucket) => (
+                  <ClaudeProjectBucket key={bucket.projectId} bucket={bucket} />
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* "Today's focus" data lives in the main column now —
               project mix and hour ribbon are about today, so they

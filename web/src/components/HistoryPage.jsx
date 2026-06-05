@@ -36,6 +36,7 @@ import RelativeTime from "./RelativeTime.jsx";
 import Tooltip from "./Tooltip.jsx";
 import DateGroup from "./DateGroup.jsx";
 import Collapsible from "./Collapsible.jsx";
+import ClaudeProjectBucket from "./ClaudeProjectBucket.jsx";
 
 const MS_PER_MIN = 60 * 1000;
 const MS_PER_HR = 60 * MS_PER_MIN;
@@ -183,107 +184,9 @@ function HistoryRow({ entry, projects, projectColor }) {
   );
 }
 
-/* Per-project bucket inside a date group — shows the project's
-   aggregate stats (session count, total messages, total active time,
-   total completions) and expands to reveal the per-session breakdown
-   plus a consolidated list of tasks completed across all that day's
-   sessions for this project.
-
-   Reads as "what did I work on this project today" instead of N
-   identical-project rows scattered through the day's timeline. */
-function ClaudeProjectBucket({ bucket, projectName, projectColor }) {
-  const sessionCount = bucket.sessions.length;
-  const completionCount = bucket.completions.length;
-
-  const summary = (
-    <>
-      <Dot color={projectColor || "rgba(0,0,0,0.25)"} size={8} />
-      <span className="history-claude-bucket-name">{projectName || "Unassigned"}</span>
-      <span className="history-claude-bucket-meta">
-        <span className="history-claude-bucket-stat">
-          <strong>{sessionCount}</strong>
-          {sessionCount === 1 ? " session" : " sessions"}
-        </span>
-        <span className="history-claude-bucket-sep" aria-hidden="true">·</span>
-        <Tooltip content={`${bucket.totalMsg} message${bucket.totalMsg === 1 ? "" : "s"}`}>
-          <span className="history-claude-bucket-stat">
-            <strong>{fmtHrMin(bucket.totalMs)}</strong>
-          </span>
-        </Tooltip>
-        {completionCount > 0 && (
-          <>
-            <span className="history-claude-bucket-sep" aria-hidden="true">·</span>
-            <span className="history-claude-bucket-completed">
-              ✓ <strong>{completionCount}</strong>
-              {completionCount === 1 ? " completed" : " completed"}
-            </span>
-          </>
-        )}
-      </span>
-    </>
-  );
-
-  return (
-    <Collapsible
-      summary={summary}
-      className="history-claude-bucket"
-      summaryClassName="history-claude-bucket-summary"
-    >
-      <div className="history-claude-bucket-body">
-        {completionCount > 0 && (
-          <div className="history-claude-bucket-section">
-            <div className="history-claude-bucket-section-label">
-              Tasks completed
-            </div>
-            <ul className="history-claude-completions-list">
-              {bucket.completions.map((t, i) => (
-                <li key={i} className="history-claude-completion">
-                  <span className="history-claude-completion-check" aria-hidden="true">✓</span>
-                  <span className="history-claude-completion-subject">{t.subject}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="history-claude-bucket-section">
-          <div className="history-claude-bucket-section-label">
-            Sessions
-          </div>
-          <ul className="history-claude-session-list">
-            {bucket.sessions.map((s) => {
-              const startedMs = new Date(s.startedAt).getTime();
-              const aiSummary = (s.aiSummary || "").trim();
-              return (
-                <li key={s.id} className="history-claude-session-item">
-                  <Tooltip content={`${s.messageCount || 0} message${s.messageCount === 1 ? "" : "s"}`}>
-                    <span className="history-claude-session-msgs">
-                      {s.messageCount || 0} msg
-                    </span>
-                  </Tooltip>
-                  <span className="history-claude-session-duration">
-                    {fmtHrMin(s.activeMs || 0)}
-                  </span>
-                  {/* AI summary sits inline between duration and time —
-                      italic muted, wraps to multiple lines if needed.
-                      Empty cell when no summary so columns still align. */}
-                  <span className="history-claude-session-summary">
-                    {aiSummary}
-                  </span>
-                  <Tooltip content={new Date(s.startedAt).toLocaleString()}>
-                    <span className="history-claude-session-when">
-                      <RelativeTime since={startedMs} />
-                    </span>
-                  </Tooltip>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </div>
-    </Collapsible>
-  );
-}
+/* ClaudeProjectBucket lives in components/ClaudeProjectBucket.jsx now
+   (extracted on 2026-06-05 so /stats Today + /home can reuse the same
+   drill-down). See flag-reuse-opportunities memory. */
 
 function PomodoroRow({ entry, projectColor, taskText }) {
   const endedMs = new Date(entry.endedAt).getTime();
