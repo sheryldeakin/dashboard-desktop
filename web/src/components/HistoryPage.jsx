@@ -177,6 +177,65 @@ function HistoryRow({ entry, projects, projectColor }) {
   );
 }
 
+/* Claude Code session row — surfaces what was worked on via the
+   automated import (no manual checkbox needed). Project dot + name,
+   active-time duration, message count as a "how chatty" indicator,
+   relative start time. Linking to the transcript file is deferred —
+   transcripts live in ~/.claude/ and aren't directly clickable from
+   the browser. Could add a "copy transcript path" affordance later. */
+function ClaudeSessionRow({ session, projectName, projectColor }) {
+  const startedMs = new Date(session.startedAt).getTime();
+  const durationMs = session.activeMs || 0;
+  const msgCount = session.messageCount || 0;
+  const completedTasks = Array.isArray(session.completedTasks) ? session.completedTasks : [];
+  const hasCompletions = completedTasks.length > 0;
+
+  return (
+    <li className="history-claude-row-wrap">
+      <div className="history-claude-row">
+        <span className="history-claude-project">
+          <Dot color={projectColor || "rgba(0,0,0,0.25)"} size={8} />
+          {projectName || "Unassigned"}
+        </span>
+        <Tooltip content={`${msgCount} message${msgCount === 1 ? "" : "s"}`}>
+          <span className="history-claude-msgs">
+            {msgCount} msg
+          </span>
+        </Tooltip>
+        <span className="history-claude-duration">
+          {fmtHrMin(durationMs)}
+        </span>
+        <Tooltip content={new Date(session.startedAt).toLocaleString()}>
+          <span className="history-claude-when">
+            <RelativeTime since={startedMs} />
+          </span>
+        </Tooltip>
+      </div>
+
+      {/* Auto-extracted task completions from the transcript. Collapsible
+          so the list stays compact when the session shipped a lot. */}
+      {hasCompletions && (
+        <details className="history-claude-completions">
+          <summary>
+            <span className="history-claude-completions-count">
+              {completedTasks.length} completed
+              {completedTasks.length === 1 ? " task" : " tasks"}
+            </span>
+          </summary>
+          <ul className="history-claude-completions-list">
+            {completedTasks.map((t, i) => (
+              <li key={i} className="history-claude-completion">
+                <span className="history-claude-completion-check" aria-hidden="true">✓</span>
+                <span className="history-claude-completion-subject">{t.subject}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </li>
+  );
+}
+
 function PomodoroRow({ entry, projectColor, taskText }) {
   const endedMs = new Date(entry.endedAt).getTime();
   const isWork = entry.type === "work" || entry.type === "focus";
@@ -210,6 +269,7 @@ function PomodoroRow({ entry, projectColor, taskText }) {
 export default function HistoryPage() {
   const [taskHistory, setTaskHistory] = useState([]);
   const [pomodoroHistory, setPomodoroHistory] = useState([]);
+  const [workSessions, setWorkSessions] = useState([]);
   const [projects, setProjects] = useState(cloneContent(DEFAULT_CONTENT).projects);
   const [loaded, setLoaded] = useState(false);
 
@@ -219,6 +279,7 @@ export default function HistoryPage() {
       if (!isMounted) return;
       setTaskHistory(content.taskHistory || []);
       setPomodoroHistory(content.pomodoro?.history || []);
+      setWorkSessions(content.workSessions || []);
       setProjects(content.projects || []);
       setLoaded(true);
     });
@@ -263,6 +324,35 @@ export default function HistoryPage() {
     }
     return [...groups.entries()];
   }, [taskHistory]);
+
+  // Claude sessions — automated record of "what I worked on" via Claude
+  // Code. Filtered to source === "claude_code" so this section reflects
+  // only the imported sessions (task-timer sessions live with their
+  // tasks). Sorted newest first, grouped by start date.
+  const claudeSessionsByDate = useMemo(() => {
+    const claude = (workSessions || [])
+      .filter((s) => s.source === "claude_code")
+      .slice()
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+    const groups = new Map();
+    for (const s of claude) {
+      const label = getDateGroupLabel(s.startedAt);
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(s);
+    }
+    return [...groups.entries()];
+  }, [workSessions]);
+
+  const claudeTotalMs = useMemo(
+    () => (workSessions || [])
+      .filter((s) => s.source === "claude_code")
+      .reduce((sum, s) => sum + (s.activeMs || 0), 0),
+    [workSessions]
+  );
+  const claudeSessionCount = useMemo(
+    () => (workSessions || []).filter((s) => s.source === "claude_code").length,
+    [workSessions]
+  );
 
   // Pomodoro entry's task text lookup (so the pomo list can show task
   // name even though it stores only taskId)
@@ -338,6 +428,52 @@ export default function HistoryPage() {
                 </ul>
               </div>
             ))}
+          </div>
+        )}
+      </Section>
+
+      <Section
+        title="Claude sessions"
+        meta={claudeSessionCount > 0 ? (
+          <span className="home-section-meta">
+            <strong>{claudeSessionCount}</strong>
+            {claudeSessionCount === 1 ? " session" : " sessions"}
+            <span className="home-section-meta-sep" aria-hidden="true">·</span>
+            <strong>{fmtHrMin(claudeTotalMs)}</strong>
+          </span>
+        ) : null}
+      >
+        {claudeSessionCount === 0 ? (
+          <EmptyState
+            icon={HISTORY_ICONS.pageClean}
+            message="No Claude sessions imported yet"
+            hint="The hourly import-claude-sessions task pulls completed Claude Code sessions here. Sessions log automatically — no manual tracking needed."
+          />
+        ) : (
+          <div className="history-tasks">
+            {claudeSessionsByDate.map(([label, sessions]) => {
+              const dayMs = sessions.reduce((sum, s) => sum + (s.activeMs || 0), 0);
+              return (
+                <div key={label} className="history-date-group">
+                  <div className="history-date-header">
+                    <span>{label}</span>
+                    <span className="history-date-count">
+                      {sessions.length} · {fmtHrMin(dayMs)}
+                    </span>
+                  </div>
+                  <ul className="history-claude-list">
+                    {sessions.map((s) => (
+                      <ClaudeSessionRow
+                        key={s.id}
+                        session={s}
+                        projectName={getProjectName(projects, s.projectId)}
+                        projectColor={projectColor.get(s.projectId)}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
           </div>
         )}
       </Section>

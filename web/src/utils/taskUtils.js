@@ -51,8 +51,11 @@ export const TODO_SIDEBAR_SECTIONS = [
   { id: "all", label: "All", description: "Everything in your queue." },
 ];
 export const MAX_TAGS_PER_TASK = 8;
-export const MAX_TASK_HISTORY_ITEMS = 500;
-export const MAX_POMODORO_HISTORY_ITEMS = 1000;
+// Raised from 500 → 5000 (2026-06-04). User wants pattern-analysis
+// runway. Real fix is a separate DB collection (see memory note
+// option-b-chat-link-registry sibling: history-collection-deferred).
+export const MAX_TASK_HISTORY_ITEMS = 5000;
+export const MAX_POMODORO_HISTORY_ITEMS = 5000;
 export const dayMs = 1000 * 60 * 60 * 24;
 export const hourMs = 1000 * 60 * 60;
 export const minuteMs = 1000 * 60;
@@ -514,7 +517,11 @@ export function normalizePomodoro(value) {
 }
 
 const WORK_SESSION_SOURCES = new Set(["task_timer", "claude_code", "claude_web"]);
-const MAX_WORK_SESSIONS = 10000;
+// Raised from 10000 → 50000 (2026-06-04). At ~17 sessions/day this gives
+// ~8 years of runway. Save payloads will eventually feel slow at ~5000+
+// entries; that's when the separate-collection refactor (deferred)
+// becomes worth doing.
+const MAX_WORK_SESSIONS = 50000;
 
 function normalizeWorkSessionRecord(entry) {
   if (!entry || typeof entry !== "object") return null;
@@ -553,6 +560,17 @@ function normalizeWorkSessionRecord(entry) {
     transcriptId: typeof entry.transcriptId === "string" ? entry.transcriptId : "",
     cwd: typeof entry.cwd === "string" ? entry.cwd : "",
     taskId: typeof entry.taskId === "string" ? entry.taskId : "",
+    // Auto-extracted task completions from the transcript. Populated by
+    // import-claude-sessions.py via TaskCreate/TaskUpdate tool calls.
+    // Frontend renders these under each Claude session row on /history.
+    completedTasks: Array.isArray(entry.completedTasks)
+      ? entry.completedTasks
+          .filter((t) => t && typeof t === "object" && typeof t.subject === "string")
+          .map((t) => ({
+            subject: t.subject,
+            completedAt: typeof t.completedAt === "string" ? t.completedAt : "",
+          }))
+      : [],
   };
 }
 

@@ -8,6 +8,9 @@ import {
   newId,
   parseIsoMs,
   createDefaultTask,
+  createHistoryEntry,
+  removeLatestHistoryEntry,
+  MAX_TASK_HISTORY_ITEMS,
 } from "../utils/taskUtils.js";
 import EmptyState from "./EmptyState.jsx";
 import Tooltip from "./Tooltip.jsx";
@@ -2124,6 +2127,7 @@ export default function HomePage() {
     // DO NOT delete it — user might have time logged or want to find it
     // in /todo. They can delete from there if they really want it gone.
     let nextTasks = content.todaysTasks || [];
+    let nextHistory = content.taskHistory || [];
 
     const cleared = partial.text !== undefined && partial.text.trim() === "";
     if (cleared && newSlot.promotedTaskId) {
@@ -2143,8 +2147,15 @@ export default function HomePage() {
       });
       newSlot.promotedTaskId = newTask.id;
       nextTasks = [...nextTasks, newTask];
+      // If created already-done (rare), archive immediately.
+      if (newSlot.done) {
+        nextHistory = [createHistoryEntry(newTask, nowIso, today), ...nextHistory]
+          .slice(0, MAX_TASK_HISTORY_ITEMS);
+      }
     } else if (newSlot.promotedTaskId) {
       // Slot already linked — sync text + done to the task.
+      // We capture the post-update task so we can archive it if needed.
+      let updatedTask = null;
       nextTasks = nextTasks.map((t) => {
         if (t.id !== newSlot.promotedTaskId) return t;
         const next = { ...t };
@@ -2164,14 +2175,34 @@ export default function HomePage() {
             }
           }
         }
+        updatedTask = next;
         return next;
       });
+
+      // Archive on the done transition. Was the bug behind "Top 3
+      // completions don't show up in History." Mirrors how
+      // handleTaskCheckbox in App.jsx does it: push a history entry on
+      // the false→true transition; remove the latest entry on true→false
+      // so the history stays consistent with the task state.
+      if (partial.done === true && updatedTask && updatedTask.done) {
+        // Only archive if this is a transition (task wasn't already done).
+        const wasAlreadyDone = (content.todaysTasks || []).some(
+          (t) => t.id === newSlot.promotedTaskId && t.done
+        );
+        if (!wasAlreadyDone) {
+          nextHistory = [createHistoryEntry(updatedTask, nowIso, today), ...nextHistory]
+            .slice(0, MAX_TASK_HISTORY_ITEMS);
+        }
+      } else if (partial.done === false && updatedTask) {
+        nextHistory = removeLatestHistoryEntry(nextHistory, updatedTask.id);
+      }
     }
 
     const slots = content.dailyTop3.slots.map((s, i) => (i === idx ? newSlot : s));
     patchContent({
       dailyTop3: { ...content.dailyTop3, date: today, slots, updatedAt: nowIso },
       todaysTasks: nextTasks,
+      taskHistory: nextHistory,
     });
   }
 

@@ -878,41 +878,39 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+/* Scrollbar styling for in-page scroll containers. Dropped the
+   .history-page selectors when /history migrated to the app-shell
+   layout (no more per-page overflow). */
 .cs-task-list,
 .cs-backlog-list,
-.admin-history-list,
-.history-page {
+.admin-history-list {
   scrollbar-width: thin;
   scrollbar-color: rgba(160, 121, 84, 0.52) rgba(255, 255, 255, 0.2);
 }
 
 .cs-task-list::-webkit-scrollbar,
 .cs-backlog-list::-webkit-scrollbar,
-.admin-history-list::-webkit-scrollbar,
-.history-page::-webkit-scrollbar {
+.admin-history-list::-webkit-scrollbar {
   width: 8px;
 }
 
 .cs-task-list::-webkit-scrollbar-track,
 .cs-backlog-list::-webkit-scrollbar-track,
-.admin-history-list::-webkit-scrollbar-track,
-.history-page::-webkit-scrollbar-track {
+.admin-history-list::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 999px;
 }
 
 .cs-task-list::-webkit-scrollbar-thumb,
 .cs-backlog-list::-webkit-scrollbar-thumb,
-.admin-history-list::-webkit-scrollbar-thumb,
-.history-page::-webkit-scrollbar-thumb {
+.admin-history-list::-webkit-scrollbar-thumb {
   background: rgba(160, 121, 84, 0.55);
   border-radius: 999px;
 }
 
 .cs-task-list::-webkit-scrollbar-thumb:hover,
 .cs-backlog-list::-webkit-scrollbar-thumb:hover,
-.admin-history-list::-webkit-scrollbar-thumb:hover,
-.history-page::-webkit-scrollbar-thumb:hover {
+.admin-history-list::-webkit-scrollbar-thumb:hover {
   background: rgba(160, 121, 84, 0.72);
 }
 
@@ -1128,6 +1126,148 @@ button:focus-visible {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
+}
+
+/* ── Claude sessions list ────────────────────────────────────────
+   Automated import — each row is project + msg count + duration + when.
+   Compact 4-column grid; same hover tint as task rows. */
+.history-claude-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.history-claude-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
+  transition: background var(--motion-fast) ease;
+}
+
+.history-claude-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.history-claude-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-claude-msgs {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+}
+
+.history-claude-duration {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.history-claude-when {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+}
+
+/* Wrapper so the row + its completion expander group together with
+   shared hover background. */
+.history-claude-row-wrap {
+  border-radius: 5px;
+  transition: background var(--motion-fast) ease;
+}
+
+.history-claude-row-wrap:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Move row hover to the wrapper since the wrapper now owns it. */
+.history-claude-row-wrap .history-claude-row:hover {
+  background: transparent;
+}
+
+/* Auto-extracted task completions — collapsible details block under
+   each Claude session row. Same caret pattern as task sessions. */
+.history-claude-completions {
+  margin: 0 0 4px;
+  padding: 0 12px 6px;
+}
+
+.history-claude-completions summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  color: var(--accent-sage);
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 0;
+  user-select: none;
+  font-weight: 500;
+}
+
+.history-claude-completions summary::-webkit-details-marker {
+  display: none;
+}
+
+.history-claude-completions summary::before {
+  content: "▸";
+  display: inline-block;
+  transition: transform var(--motion-fast) ease;
+  font-size: 9px;
+  color: var(--ink-muted);
+}
+
+.history-claude-completions[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.history-claude-completions-list {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-left: 1.5px solid rgba(var(--accent-sage-rgb), 0.25);
+  padding-left: 10px;
+  margin-left: 4px;
+}
+
+.history-claude-completion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.history-claude-completion-check {
+  color: var(--accent-sage);
+  font-weight: 700;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.history-claude-completion-subject {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── Pomodoro section ───────────────────────────────────────────

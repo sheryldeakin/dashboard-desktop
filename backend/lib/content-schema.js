@@ -15,8 +15,10 @@ const DEFAULT_PROJECT = {
 const PRIORITY_LEVELS = new Set(["low", "medium", "high", "urgent"]);
 const RECURRENCE_TYPES = new Set(["none", "daily", "weekly", "monthly"]);
 const MAX_TAGS_PER_TASK = 8;
-const MAX_TASK_HISTORY_ITEMS = 500;
-const MAX_POMODORO_HISTORY_ITEMS = 1000;
+// Raised 2026-06-04 to match frontend. See frontend taskUtils.js header
+// comment for context. Real fix is a separate history collection.
+const MAX_TASK_HISTORY_ITEMS = 5000;
+const MAX_POMODORO_HISTORY_ITEMS = 5000;
 
 function newId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -460,7 +462,7 @@ function normalizePomodoro(value) {
 }
 
 const WORK_SESSION_SOURCES = new Set(["task_timer", "claude_code", "claude_web"]);
-const MAX_WORK_SESSIONS = 10000; // generous cap; ~30 sessions/day for a year
+const MAX_WORK_SESSIONS = 50000; // raised 2026-06-04; ~8 years at ~17/day
 
 function normalizeWorkSessionRecord(entry) {
   if (!entry || typeof entry !== "object") return null;
@@ -499,6 +501,18 @@ function normalizeWorkSessionRecord(entry) {
     transcriptId: typeof entry.transcriptId === "string" ? entry.transcriptId : "",
     cwd: typeof entry.cwd === "string" ? entry.cwd : "",
     taskId: typeof entry.taskId === "string" ? entry.taskId : "",
+    // Auto-extracted "what got finished" — populated by
+    // import-claude-sessions.py from TaskCreate/TaskUpdate tool calls
+    // in the transcript. Stored as a list of { subject, completedAt }.
+    // Frontend renders this under each Claude session row on /history.
+    completedTasks: Array.isArray(entry.completedTasks)
+      ? entry.completedTasks
+          .filter((t) => t && typeof t === "object" && typeof t.subject === "string")
+          .map((t) => ({
+            subject: t.subject,
+            completedAt: typeof t.completedAt === "string" ? t.completedAt : "",
+          }))
+      : [],
   };
 }
 
