@@ -6115,6 +6115,152 @@ button:focus-visible {
 .ui-toast--warn { background: var(--accent-tan); }
 .ui-toast--error { background: var(--accent-warn); }
 
+/* ── Reusable: DateGroup ──────────────────────────────────────── */
+.ui-date-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.ui-date-group + .ui-date-group {
+  margin-top: 20px;
+}
+
+.ui-date-group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.ui-date-group-label {
+  flex: 0 0 auto;
+}
+
+.ui-date-group-count {
+  margin-left: auto;
+  font-weight: 500;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ui-date-group-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Reusable: Collapsible ────────────────────────────────────── */
+.ui-collapsible {
+  border-radius: 5px;
+  transition: background var(--motion-fast) ease;
+}
+
+.ui-collapsible:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.ui-collapsible-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ui-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ui-collapsible-caret {
+  font-size: 10px;
+  color: var(--ink-muted);
+  transition: transform var(--motion-fast) ease;
+  flex-shrink: 0;
+}
+
+.ui-collapsible[open] .ui-collapsible-caret {
+  transform: rotate(90deg);
+}
+
+.ui-collapsible-summary-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ui-collapsible-body {
+  padding: 4px 12px 12px 32px;
+}
+
+/* Compact variant — for nested collapsibles (e.g. inside a card). */
+.ui-collapsible--compact .ui-collapsible-summary {
+  padding: 4px 0;
+  gap: 6px;
+}
+
+.ui-collapsible--compact .ui-collapsible-caret {
+  font-size: 9px;
+}
+
+.ui-collapsible--compact .ui-collapsible-body {
+  padding: 4px 0 4px 14px;
+}
+
+/* ── Reusable: StatGrid ─────────────────────────────────────── */
+.ui-stat-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.ui-stat-grid--default {
+  /* Uniform N-cell grid; auto-fits based on column count. Cells are
+     boxed with hairline borders for clear visual separation. */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.ui-stat-grid--default .ui-stat-grid-cell {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--rule-soft);
+}
+
+/* Snapshot variant — hairline-divided cells, no boxes (matches /home's
+   TodaySnapshot strip). Last cell has no right divider. */
+.ui-stat-grid--snapshot {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0;
+  padding: 4px 0 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.ui-stat-grid--snapshot .ui-stat-grid-cell {
+  padding: 10px 16px;
+  border-right: 1px solid var(--rule-soft);
+  border-radius: 6px;
+  transition: background var(--motion-fast) ease;
+}
+
+.ui-stat-grid--snapshot .ui-stat-grid-cell:last-child {
+  border-right: none;
+}
+
+.ui-stat-grid--snapshot .ui-stat-grid-cell:hover {
+  background: var(--rule-soft);
+}
+
 /* ── Reusable: Tooltip ─────────────────────────────────────────────
    Portal-rendered, theme-matched replacement for native title=.
    Position is set inline (fixed positioning relative to viewport).

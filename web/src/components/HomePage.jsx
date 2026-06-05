@@ -15,6 +15,7 @@ import {
 import EmptyState from "./EmptyState.jsx";
 import Tooltip from "./Tooltip.jsx";
 import Stat from "./Stat.jsx";
+import StatGrid from "./StatGrid.jsx";
 import RailCard from "./RailCard.jsx";
 import RelativeTime from "./RelativeTime.jsx";
 import Chip from "./Chip.jsx";
@@ -892,21 +893,6 @@ function formatDeltaInt(today, y, singular = "") {
   return { sign, label: `${diff > 0 ? "+" : "−"}${Math.abs(diff)}${unit} vs yesterday` };
 }
 
-function SnapshotCell({ href, value, label, secondary, delta, isText = false, title }) {
-  return (
-    <a className="home-today-cell" href={href} title={title || label}>
-      <span className={`home-today-num${isText ? " home-today-num-text" : ""}`}>
-        {value}
-        {secondary && <span className="home-today-num-secondary">{secondary}</span>}
-      </span>
-      <span className="home-today-label">{label}</span>
-      {delta && (
-        <span className={`home-today-delta is-${delta.sign}`}>{delta.label}</span>
-      )}
-    </a>
-  );
-}
-
 function TodaySnapshot({ stats }) {
   const y = stats.yesterday;
   const topName = stats.topProject?.name || "—";
@@ -929,36 +915,42 @@ function TodaySnapshot({ stats }) {
   })();
 
   return (
-    <section className="home-today-snapshot" aria-label="Today snapshot — each cell links to a stats drill-down">
-      <div className="home-today-grid">
-        <SnapshotCell
-          href="/stats?tab=today"
-          value={fmtHrMin(stats.focusedMs)}
-          label="Focused"
-          delta={focusedDelta}
-        />
-        <SnapshotCell
-          href="/stats?tab=today"
-          value={stats.sessionCount}
-          label={stats.sessionCount === 1 ? "Session" : "Sessions"}
-          delta={sessionsDelta}
-        />
-        <SnapshotCell
-          href="/stats?tab=today"
-          value={stats.done}
-          secondary={`/${stats.total}`}
-          label="Done"
-          delta={doneDelta}
-        />
-        <SnapshotCell
-          href="/stats?tab=today"
-          value={topName}
-          label={`Top${topMs ? ` · ${topMs}` : ""}`}
-          delta={topDelta}
-          isText
-          title={topName}
-        />
-      </div>
+    <section
+      className="home-today-snapshot"
+      aria-label="Today snapshot — each cell links to a stats drill-down"
+    >
+      <StatGrid
+        variant="snapshot"
+        columns={[
+          {
+            value: fmtHrMin(stats.focusedMs),
+            label: "Focused",
+            delta: focusedDelta,
+            href: "/stats?tab=today",
+          },
+          {
+            value: stats.sessionCount,
+            label: stats.sessionCount === 1 ? "Session" : "Sessions",
+            delta: sessionsDelta,
+            href: "/stats?tab=today",
+          },
+          {
+            value: stats.done,
+            secondary: `/${stats.total}`,
+            label: "Done",
+            delta: doneDelta,
+            href: "/stats?tab=today",
+          },
+          {
+            value: topName,
+            label: `Top${topMs ? ` · ${topMs}` : ""}`,
+            delta: topDelta,
+            isText: true,
+            title: topName,
+            href: "/stats?tab=today",
+          },
+        ]}
+      />
     </section>
   );
 }

@@ -4,6 +4,7 @@ import {
   cloneContent,
   DEFAULT_CONTENT,
 } from "../utils/taskUtils.js";
+import StatGrid from "./StatGrid.jsx";
 
 /* Stats page — pure read view across pomodoro.history + taskHistory +
    todaysTasks + workSessions. Four tabs (Overview / Focus / Claude / Tasks).
@@ -1304,20 +1305,14 @@ function TasksTab({ stats }) {
       {/* Stats #1: Shipped headline — today / week / all-time */}
       <section className="stats-section">
         <h2>Tasks shipped (from Claude sessions)</h2>
-        <div className="stats-shipped-grid">
-          <div className="stats-shipped-cell">
-            <span className="stats-shipped-num">{c.today}</span>
-            <span className="stats-shipped-label">Today</span>
-          </div>
-          <div className="stats-shipped-cell">
-            <span className="stats-shipped-num">{c.week}</span>
-            <span className="stats-shipped-label">Past 7 days</span>
-          </div>
-          <div className="stats-shipped-cell">
-            <span className="stats-shipped-num">{c.all}</span>
-            <span className="stats-shipped-label">All-time</span>
-          </div>
-        </div>
+        <StatGrid
+          variant="default"
+          columns={[
+            { value: c.today, label: "Today" },
+            { value: c.week, label: "Past 7 days" },
+            { value: c.all, label: "All-time" },
+          ]}
+        />
         <p className="stats-footnote">
           Auto-extracted from <code>TaskCreate</code>/<code>TaskUpdate</code> tool
           calls in your Claude sessions. Manual <code>/todo</code> completions are

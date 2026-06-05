@@ -34,6 +34,8 @@ import Chip from "./Chip.jsx";
 import Dot from "./Dot.jsx";
 import RelativeTime from "./RelativeTime.jsx";
 import Tooltip from "./Tooltip.jsx";
+import DateGroup from "./DateGroup.jsx";
+import Collapsible from "./Collapsible.jsx";
 
 const MS_PER_MIN = 60 * 1000;
 const MS_PER_HR = 60 * MS_PER_MIN;
@@ -146,14 +148,18 @@ function HistoryRow({ entry, projects, projectColor }) {
         )}
       </div>
 
-      {/* Sessions expander — native <details>, no JS state needed */}
+      {/* Sessions expander — uses shared Collapsible (compact variant
+          for the inside-a-row context). */}
       {hasSessions && (
-        <details className="history-row-sessions">
-          <summary>
+        <Collapsible
+          variant="compact"
+          className="history-row-sessions"
+          summary={
             <span className="history-row-sessions-count">
               {entry.sessions.length} {entry.sessions.length === 1 ? "session" : "sessions"}
             </span>
-          </summary>
+          }
+        >
           <ul className="history-sessions-list">
             {entry.sessions.map((session) => (
               <li key={session.id} className={`history-session${session.type === "rest" ? " is-rest" : ""}`}>
@@ -171,7 +177,7 @@ function HistoryRow({ entry, projects, projectColor }) {
               </li>
             ))}
           </ul>
-        </details>
+        </Collapsible>
       )}
     </li>
   );
@@ -188,35 +194,41 @@ function HistoryRow({ entry, projects, projectColor }) {
 function ClaudeProjectBucket({ bucket, projectName, projectColor }) {
   const sessionCount = bucket.sessions.length;
   const completionCount = bucket.completions.length;
-  return (
-    <details className="history-claude-bucket">
-      <summary className="history-claude-bucket-summary">
-        <span className="history-claude-bucket-caret" aria-hidden="true">▸</span>
-        <Dot color={projectColor || "rgba(0,0,0,0.25)"} size={8} />
-        <span className="history-claude-bucket-name">{projectName || "Unassigned"}</span>
-        <span className="history-claude-bucket-meta">
-          <span className="history-claude-bucket-stat">
-            <strong>{sessionCount}</strong>
-            {sessionCount === 1 ? " session" : " sessions"}
-          </span>
-          <span className="history-claude-bucket-sep" aria-hidden="true">·</span>
-          <Tooltip content={`${bucket.totalMsg} message${bucket.totalMsg === 1 ? "" : "s"}`}>
-            <span className="history-claude-bucket-stat">
-              <strong>{fmtHrMin(bucket.totalMs)}</strong>
-            </span>
-          </Tooltip>
-          {completionCount > 0 && (
-            <>
-              <span className="history-claude-bucket-sep" aria-hidden="true">·</span>
-              <span className="history-claude-bucket-completed">
-                ✓ <strong>{completionCount}</strong>
-                {completionCount === 1 ? " completed" : " completed"}
-              </span>
-            </>
-          )}
-        </span>
-      </summary>
 
+  const summary = (
+    <>
+      <Dot color={projectColor || "rgba(0,0,0,0.25)"} size={8} />
+      <span className="history-claude-bucket-name">{projectName || "Unassigned"}</span>
+      <span className="history-claude-bucket-meta">
+        <span className="history-claude-bucket-stat">
+          <strong>{sessionCount}</strong>
+          {sessionCount === 1 ? " session" : " sessions"}
+        </span>
+        <span className="history-claude-bucket-sep" aria-hidden="true">·</span>
+        <Tooltip content={`${bucket.totalMsg} message${bucket.totalMsg === 1 ? "" : "s"}`}>
+          <span className="history-claude-bucket-stat">
+            <strong>{fmtHrMin(bucket.totalMs)}</strong>
+          </span>
+        </Tooltip>
+        {completionCount > 0 && (
+          <>
+            <span className="history-claude-bucket-sep" aria-hidden="true">·</span>
+            <span className="history-claude-bucket-completed">
+              ✓ <strong>{completionCount}</strong>
+              {completionCount === 1 ? " completed" : " completed"}
+            </span>
+          </>
+        )}
+      </span>
+    </>
+  );
+
+  return (
+    <Collapsible
+      summary={summary}
+      className="history-claude-bucket"
+      summaryClassName="history-claude-bucket-summary"
+    >
       <div className="history-claude-bucket-body">
         {completionCount > 0 && (
           <div className="history-claude-bucket-section">
@@ -269,7 +281,7 @@ function ClaudeProjectBucket({ bucket, projectName, projectColor }) {
           </ul>
         </div>
       </div>
-    </details>
+    </Collapsible>
   );
 }
 
@@ -485,13 +497,7 @@ export default function HistoryPage() {
         ) : (
           <div className="history-tasks">
             {tasksByDate.map(([label, entries]) => (
-              <div key={label} className="history-date-group">
-                <div className="history-date-header">
-                  <span>{label}</span>
-                  <span className="history-date-count">
-                    {entries.length}
-                  </span>
-                </div>
+              <DateGroup key={label} label={label} count={entries.length}>
                 <ul className="history-rows">
                   {entries.map((entry) => (
                     <HistoryRow
@@ -502,7 +508,7 @@ export default function HistoryPage() {
                     />
                   ))}
                 </ul>
-              </div>
+              </DateGroup>
             ))}
           </div>
         )}
@@ -531,13 +537,11 @@ export default function HistoryPage() {
               const dayMs = projectBuckets.reduce((sum, b) => sum + b.totalMs, 0);
               const dayCount = projectBuckets.reduce((sum, b) => sum + b.sessions.length, 0);
               return (
-                <div key={label} className="history-date-group">
-                  <div className="history-date-header">
-                    <span>{label}</span>
-                    <span className="history-date-count">
-                      {dayCount} · {fmtHrMin(dayMs)}
-                    </span>
-                  </div>
+                <DateGroup
+                  key={label}
+                  label={label}
+                  count={`${dayCount} · ${fmtHrMin(dayMs)}`}
+                >
                   <div className="history-claude-buckets">
                     {projectBuckets.map((bucket) => (
                       <ClaudeProjectBucket
@@ -548,7 +552,7 @@ export default function HistoryPage() {
                       />
                     ))}
                   </div>
-                </div>
+                </DateGroup>
               );
             })}
           </div>
