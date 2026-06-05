@@ -513,6 +513,11 @@ function normalizeWorkSessionRecord(entry) {
             completedAt: typeof t.completedAt === "string" ? t.completedAt : "",
           }))
       : [],
+    // AI-generated one-line summary of the session, produced by
+    // backfill-claude-summaries.py (or the hourly import script for
+    // new sessions). Optional context for sessions without explicit
+    // TaskCreate tracking. Empty string when missing/unavailable.
+    aiSummary: typeof entry.aiSummary === "string" ? entry.aiSummary.slice(0, 280) : "",
   };
 }
 

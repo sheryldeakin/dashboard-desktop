@@ -571,6 +571,11 @@ function normalizeWorkSessionRecord(entry) {
             completedAt: typeof t.completedAt === "string" ? t.completedAt : "",
           }))
       : [],
+    // AI-generated one-line summary of the session content. Optional
+    // context for sessions where TaskCreate/TaskUpdate wasn't used.
+    // Produced by backfill-claude-summaries.py (one-off) and the
+    // hourly import script (forward). Bounded to 280 chars.
+    aiSummary: typeof entry.aiSummary === "string" ? entry.aiSummary.slice(0, 280) : "",
   };
 }
 

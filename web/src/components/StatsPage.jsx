@@ -362,6 +362,104 @@ function computeStats(content) {
     .filter((s) => s.combinedMs > 0 || s.claudeMs > 0)
     .sort((a, b) => b.combinedMs + b.claudeMs - (a.combinedMs + a.claudeMs));
 
+  // ── Completion stats (from workSessions.completedTasks) ────────────
+  // Powers the 5 new "tasks shipped" sections on the Tasks tab.
+  // Each completion record: { subject, completedAt, projectId, sessionId }.
+  const allCompletions = [];
+  for (const ws of content.workSessions || []) {
+    const cts = Array.isArray(ws.completedTasks) ? ws.completedTasks : [];
+    for (const t of cts) {
+      if (!t || !t.subject) continue;
+      allCompletions.push({
+        subject: t.subject,
+        completedAt: t.completedAt,
+        projectId: ws.projectId || "",
+        sessionId: ws.id,
+        sessionActiveMs: ws.activeMs || 0,
+      });
+    }
+  }
+
+  // Sort newest first
+  allCompletions.sort((a, b) =>
+    (b.completedAt || "").localeCompare(a.completedAt || "")
+  );
+
+  // Per-window completion counts (today / week / all)
+  function completionsSince(startMs) {
+    return allCompletions.filter((c) => {
+      const t = Date.parse(c.completedAt);
+      return Number.isFinite(t) && t >= startMs;
+    }).length;
+  }
+  const completionCounts = {
+    today: completionsSince(todayStart),
+    week: completionsSince(weekStart),
+    all: allCompletions.length,
+  };
+
+  // Daily completion count for the velocity chart — matches the
+  // dailyDeep window (14 days, one per day with today marked).
+  const dailyCompletions = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    const dStart = d.getTime();
+    const dEnd = dStart + MS_PER_DAY;
+    const count = allCompletions.filter((c) => {
+      const t = Date.parse(c.completedAt);
+      return Number.isFinite(t) && t >= dStart && t < dEnd;
+    }).length;
+    dailyCompletions.push({
+      day: ymd(d),
+      label: String(d.getDate()),
+      count,
+      isToday: i === 0,
+    });
+  }
+
+  // Completions grouped by project (all-time). Sort by count desc.
+  const completionsByProjectMap = new Map();
+  for (const c of allCompletions) {
+    completionsByProjectMap.set(c.projectId, (completionsByProjectMap.get(c.projectId) || 0) + 1);
+  }
+  const completionsByProject = [...completionsByProjectMap.entries()]
+    .map(([pid, count]) => ({
+      projectId: pid,
+      name: projectName.get(pid) || "Unassigned",
+      color: projectColor.get(pid),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // Hours-per-completion ratio per project — focus time spent vs tasks
+  // shipped. Noisy at small N; we surface this with a min-threshold
+  // (≥3 completions) so single-completion projects don't dominate.
+  // focusByProject already has per-project ms; join by projectId.
+  const focusMsByProject = new Map();
+  for (const row of focusByProject) {
+    focusMsByProject.set(row.projectId || row.id, (row.ms || row.focusMs || 0));
+  }
+  const focusPerCompletion = completionsByProject
+    .filter((p) => p.count >= 3)
+    .map((p) => {
+      const ms = focusMsByProject.get(p.projectId) || 0;
+      return {
+        ...p,
+        focusMs: ms,
+        msPerCompletion: p.count > 0 ? ms / p.count : 0,
+      };
+    })
+    .sort((a, b) => a.msPerCompletion - b.msPerCompletion); // most efficient first
+
+  // Recent completions feed — flat list of last 50 with project resolution.
+  const recentCompletions = allCompletions.slice(0, 50).map((c) => ({
+    ...c,
+    projectName: projectName.get(c.projectId) || "Unassigned",
+    color: projectColor.get(c.projectId),
+  }));
+
   return {
     today, week, all,
     currentStreak,
@@ -374,6 +472,12 @@ function computeStats(content) {
     recentClaude,
     taskHistoryCount: (content.taskHistory || []).length,
     tasksOpen: tasks.filter((t) => !t.done).length,
+    // New completion-based stats
+    completionCounts,
+    dailyCompletions,
+    completionsByProject,
+    focusPerCompletion,
+    recentCompletions,
     // Raw intervals + project list — passed to HeatmapGrid so it can re-bucket
     // based on its own filter/period state without re-running computeStats.
     taskTimer,
@@ -1193,8 +1297,127 @@ function ClaudeTab({ stats }) {
 }
 
 function TasksTab({ stats }) {
+  const c = stats.completionCounts;
+  const peakDaily = Math.max(...stats.dailyCompletions.map((d) => d.count), 1);
   return (
     <>
+      {/* Stats #1: Shipped headline — today / week / all-time */}
+      <section className="stats-section">
+        <h2>Tasks shipped (from Claude sessions)</h2>
+        <div className="stats-shipped-grid">
+          <div className="stats-shipped-cell">
+            <span className="stats-shipped-num">{c.today}</span>
+            <span className="stats-shipped-label">Today</span>
+          </div>
+          <div className="stats-shipped-cell">
+            <span className="stats-shipped-num">{c.week}</span>
+            <span className="stats-shipped-label">Past 7 days</span>
+          </div>
+          <div className="stats-shipped-cell">
+            <span className="stats-shipped-num">{c.all}</span>
+            <span className="stats-shipped-label">All-time</span>
+          </div>
+        </div>
+        <p className="stats-footnote">
+          Auto-extracted from <code>TaskCreate</code>/<code>TaskUpdate</code> tool
+          calls in your Claude sessions. Manual <code>/todo</code> completions are
+          tracked separately below.
+        </p>
+      </section>
+
+      {/* Stats #2: Daily completion velocity (14 days) */}
+      <section className="stats-section">
+        <h2>Completion velocity — last 14 days</h2>
+        <div className="stats-velocity-bars">
+          {stats.dailyCompletions.map((d) => {
+            const heightPct = (d.count / peakDaily) * 100;
+            return (
+              <div
+                key={d.day}
+                className={`stats-velocity-col${d.isToday ? " is-today" : ""}${d.count > 0 ? " has-any" : ""}`}
+                title={`${d.day} — ${d.count} completed`}
+              >
+                <div className="stats-velocity-bar-wrap">
+                  <div
+                    className="stats-velocity-bar"
+                    style={{ height: `${Math.max(3, heightPct)}%` }}
+                  />
+                </div>
+                <div className="stats-velocity-count">
+                  {d.count > 0 ? d.count : ""}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Stats #3: Completions by project */}
+      <section className="stats-section">
+        <h2>Tasks shipped by project</h2>
+        {stats.completionsByProject.length === 0 ? (
+          <p className="stats-footnote">No completions recorded yet.</p>
+        ) : (
+          <BreakdownBars
+            rows={stats.completionsByProject.map((p) => ({
+              label: p.name,
+              value: p.count,
+              color: p.color,
+            }))}
+            formatRight={(v) => `${v}`}
+            emptyMsg="No completions yet."
+          />
+        )}
+      </section>
+
+      {/* Stats #5: Focus time per completion (project-level) */}
+      {stats.focusPerCompletion.length > 0 && (
+        <section className="stats-section">
+          <h2>Focus hours per completed task</h2>
+          <ul className="stats-fpc-list">
+            {stats.focusPerCompletion.map((p) => (
+              <li key={p.projectId} className="stats-fpc-row">
+                <span className="stats-fpc-dot" style={{ background: p.color }} />
+                <span className="stats-fpc-name">{p.name}</span>
+                <span className="stats-fpc-ratio">
+                  {fmtDuration(p.msPerCompletion)} <span className="stats-fpc-unit">/ task</span>
+                </span>
+                <span className="stats-fpc-detail">
+                  {fmtDuration(p.focusMs)} · {p.count} done
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="stats-footnote">
+            Only projects with ≥3 completions shown — lower = more efficient
+            shipping (caveat: tasks vary in scope).
+          </p>
+        </section>
+      )}
+
+      {/* Stats #4: Recent completions feed */}
+      <section className="stats-section">
+        <h2>Recent completions</h2>
+        {stats.recentCompletions.length === 0 ? (
+          <p className="stats-footnote">No completions yet.</p>
+        ) : (
+          <ul className="stats-recent-list">
+            {stats.recentCompletions.map((c, i) => (
+              <li key={i} className="stats-recent-row">
+                <span className="stats-recent-dot" style={{ background: c.color }} />
+                <span className="stats-recent-subject">{c.subject}</span>
+                <span className="stats-recent-project">{c.projectName}</span>
+                <span className="stats-recent-when">
+                  {c.completedAt ? new Date(c.completedAt).toLocaleDateString(undefined, {
+                    month: "short", day: "numeric"
+                  }) : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <section className="stats-section">
         <h2>Tasks by project — current</h2>
         <ProjectTaskSplit rows={stats.tasksByProject} />
@@ -1215,9 +1438,9 @@ function TasksTab({ stats }) {
 
       <section className="stats-footer">
         <p className="stats-footnote">
-          {stats.tasksOpen} open · {stats.taskHistoryCount} completed in app history. Vault-side
-          completions (synced via /sync-todos) don't currently create history entries, so this is
-          an under-count of total throughput.
+          {stats.tasksOpen} open · {stats.taskHistoryCount} in app history (manual /todo
+          completions). Top of this tab shows the much larger Claude-session-derived
+          completion record.
         </p>
       </section>
     </>

@@ -1306,6 +1306,26 @@ button:focus-visible {
   color: var(--ink-muted);
 }
 
+/* Per-session AI summary — italic muted line under the session row.
+   Visually distinct from the ✓-checked completions so it reads as
+   "interpretation" / context, not "explicit task completion". */
+.history-claude-session-item-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0;
+}
+
+.history-claude-session-summary {
+  font-style: italic;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  color: var(--ink-muted);
+  line-height: 1.4;
+  padding-left: 0;
+  margin-top: 1px;
+  opacity: 0.85;
+}
+
 /* ── Pomodoro section ───────────────────────────────────────────
    Flat list — pomodoros are high-volume, low-detail. Each row is a
    compact 4-column grid: kind / task / duration / when. */
@@ -4891,6 +4911,197 @@ button:focus-visible {
   color: var(--ink-muted);
   margin: 6px 0;
   line-height: 1.5;
+}
+
+/* ─── Tasks-shipped stats (Stats #1-5 on TasksTab) ────────────── */
+
+/* Stats #1: shipped headline grid (today / week / all-time) */
+.stats-shipped-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 8px 0 4px;
+}
+
+.stats-shipped-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--rule-soft);
+}
+
+.stats-shipped-num {
+  font-size: clamp(24px, 2vw + 10px, 32px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-shipped-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+/* Stats #2: velocity bar chart — 14 daily bars with count labels */
+.stats-velocity-bars {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
+  margin: 12px 0;
+}
+
+.stats-velocity-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats-velocity-bar-wrap {
+  width: 100%;
+  height: clamp(60px, 8vh, 100px);
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.stats-velocity-bar {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px 3px 0 0;
+  min-height: 3px;
+  transition: background var(--motion-fast) ease;
+}
+
+.stats-velocity-col.has-any .stats-velocity-bar {
+  background: rgba(var(--accent-tan-rgb), 0.55);
+}
+
+.stats-velocity-col.is-today .stats-velocity-bar {
+  background: var(--accent-sage);
+}
+
+.stats-velocity-count {
+  font-size: 11px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  min-height: 14px;
+}
+
+.stats-velocity-col.is-today .stats-velocity-count {
+  color: var(--accent-sage);
+  font-weight: 600;
+}
+
+/* Stats #5: focus-per-completion list */
+.stats-fpc-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-fpc-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 4px;
+  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
+}
+
+.stats-fpc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.stats-fpc-name {
+  color: var(--ink);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats-fpc-ratio {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-fpc-unit {
+  color: var(--ink-muted);
+  font-weight: 400;
+  font-size: 0.85em;
+}
+
+.stats-fpc-detail {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+/* Stats #4: recent completions feed */
+.stats-recent-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stats-recent-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 5px 4px;
+  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
+  border-radius: 4px;
+  transition: background var(--motion-fast) ease;
+}
+
+.stats-recent-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.stats-recent-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.stats-recent-subject {
+  color: var(--ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats-recent-project {
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+.stats-recent-when {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ----- /stats tabs ----- */
