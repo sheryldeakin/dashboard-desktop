@@ -106,12 +106,34 @@ function softenColor(color, amount = 0.45) {
   return `rgb(${mR}, ${mG}, ${mB})`;
 }
 
+/* resolveProjectColors(projects, totalsByProjectId)
+   Returns Map<projectId, colorString>. Stored project color wins when
+   it's non-default; otherwise the project gets a palette slot based on
+   its rank in `totalsByProjectId` (most active gets first slot, etc).
+   Exported so /stats can use the same resolution for the hour-of-day
+   heatmap's by-project mode — keeps colors consistent across views. */
+export function resolveProjectColors(projects, totalsByProjectId) {
+  const colorMap = new Map();
+  const projectsById = new Map(
+    (projects || []).map((p) => [p.id, p])
+  );
+  [...totalsByProjectId.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([pid], idx) => {
+      const stored = projectsById.get(pid)?.color;
+      const useStored = !PROJMIX_DEFAULT_COLORS.has(stored);
+      colorMap.set(
+        pid,
+        useStored ? stored : PROJMIX_PALETTE[idx % PROJMIX_PALETTE.length]
+      );
+    });
+  return colorMap;
+}
+
 /* buildWeekRecap(content, { days })
    Walk content.workSessions for the last `days` days and produce the
-   data shape WeekRecap renders. Project color resolution: use the
-   project's stored color if it's a non-default custom color, otherwise
-   assign a palette slot based on the project's rank within the window
-   by total focused ms (most-focused project gets the first slot, etc).
+   data shape WeekRecap renders. Uses resolveProjectColors above so
+   colors line up with other consumers (e.g. /stats heatmap by-project).
    Legend is top 5 projects by ms in the window. */
 export function buildWeekRecap(content, { days = 7 } = {}) {
   const today = new Date();
@@ -155,18 +177,14 @@ export function buildWeekRecap(content, { days = 7 } = {}) {
     }
   }
 
-  // Color resolution: stored color wins if non-default; else palette by rank.
-  const weekProjectColors = new Map();
-  [...weekProjectTotals.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .forEach(([pid], idx) => {
-      const stored = projectMap.get(pid)?.color;
-      const useStored = !PROJMIX_DEFAULT_COLORS.has(stored);
-      weekProjectColors.set(
-        pid,
-        useStored ? stored : PROJMIX_PALETTE[idx % PROJMIX_PALETTE.length]
-      );
-    });
+  // Color resolution delegated to the shared helper above so /stats's
+  // heatmap by-project mode resolves the same colors for the same
+  // projects (windowed rank may differ slightly between consumers, but
+  // most projects have stored colors and skip the palette fallback).
+  const weekProjectColors = resolveProjectColors(
+    content?.projects || [],
+    weekProjectTotals
+  );
 
   // Build day rows oldest → today (so the bar grid reads left-to-right).
   const weekDays = [];

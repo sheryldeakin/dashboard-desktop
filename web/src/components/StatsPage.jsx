@@ -13,7 +13,7 @@ import RelativeTime from "./RelativeTime.jsx";
 import Tooltip from "./Tooltip.jsx";
 import MetricTable from "./MetricTable.jsx";
 import Collapsible from "./Collapsible.jsx";
-import { buildWeekRecap } from "./WeekRecap.jsx";
+import { buildWeekRecap, resolveProjectColors } from "./WeekRecap.jsx";
 
 /* Stats page — pure read view across pomodoro.history + taskHistory +
    todaysTasks + workSessions. Four tabs (Overview / Focus / Claude / Tasks).
@@ -656,15 +656,25 @@ const HEATMAP_PERIODS = [
 ];
 const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function buildHeatmapGrid(taskTimer, claude, periodWeeks, projectId) {
+function buildHeatmapGrid(taskTimer, claude, periodWeeks, projectId, projects) {
   const cutoff = Date.now() - periodWeeks * 7 * MS_PER_DAY;
+  // Each cell tracks:
+  //   - taskMs / claudeOutsideMs (used by task-vs-claude mode)
+  //   - projectMs: Map<projectId, ms> (used by by-project mode)
+  // Both are filled in the same single distribute pass below, so adding
+  // by-project mode costs no extra session walk.
   const grid = Array.from({ length: 7 }, () =>
-    Array.from({ length: 24 }, () => ({ taskMs: 0, claudeOutsideMs: 0 }))
+    Array.from({ length: 24 }, () => ({
+      taskMs: 0,
+      claudeOutsideMs: 0,
+      projectMs: new Map(),
+    }))
   );
 
   // Distribute a session's contribution across the hour cells it spans.
   // factor lets us scale (used for Claude's outsideMs which is < durationMs).
-  function distribute(startMs, endMs, totalMs, key) {
+  // pid is the session's projectId so we can also bucket by project.
+  function distribute(startMs, endMs, totalMs, key, pid) {
     if (endMs <= startMs || totalMs <= 0) return;
     const wallMs = endMs - startMs;
     const factor = totalMs / wallMs;
@@ -677,21 +687,39 @@ function buildHeatmapGrid(taskTimer, claude, periodWeeks, projectId) {
         d.getFullYear(), d.getMonth(), d.getDate(), hr + 1, 0, 0
       ).getTime();
       const segEnd = Math.min(endMs, nextBoundary);
-      grid[dow][hr][key] += (segEnd - cursor) * factor;
+      const slice = (segEnd - cursor) * factor;
+      grid[dow][hr][key] += slice;
+      // Also track per-project so by-project mode can re-render without
+      // another data pass when the user flips the dropdown.
+      const cellProj = grid[dow][hr].projectMs;
+      cellProj.set(pid, (cellProj.get(pid) || 0) + slice);
       cursor = segEnd;
     }
   }
 
+  // Accumulate project totals across the heatmap window for palette
+  // assignment (passed to resolveProjectColors below). Counts both
+  // task_timer time and claude_outside time per project.
+  const projectTotals = new Map();
+
   for (const t of taskTimer) {
     if (t.start < cutoff) continue;
     if (projectId !== "all" && t.projectId !== projectId) continue;
-    distribute(t.start, t.end, t.durationMs, "taskMs");
+    distribute(t.start, t.end, t.durationMs, "taskMs", t.projectId || "");
+    projectTotals.set(
+      t.projectId || "",
+      (projectTotals.get(t.projectId || "") || 0) + t.durationMs
+    );
   }
   for (const c of claude) {
     if (c.start < cutoff) continue;
     if (projectId !== "all" && c.projectId !== projectId) continue;
     if (c.outsideMs <= 0) continue;
-    distribute(c.start, c.end, c.outsideMs, "claudeOutsideMs");
+    distribute(c.start, c.end, c.outsideMs, "claudeOutsideMs", c.projectId || "");
+    projectTotals.set(
+      c.projectId || "",
+      (projectTotals.get(c.projectId || "") || 0) + c.outsideMs
+    );
   }
 
   let max = 0;
@@ -699,29 +727,79 @@ function buildHeatmapGrid(taskTimer, claude, periodWeeks, projectId) {
     const total = cell.taskMs + cell.claudeOutsideMs;
     if (total > max) max = total;
   }
-  return { grid, max };
+
+  // Project color resolution (matches buildWeekRecap so the same
+  // project shows the same color on /home, the chart above, and here).
+  const projectColors = resolveProjectColors(projects || [], projectTotals);
+
+  return { grid, max, projectColors };
+}
+
+/* Parse a hex/rgb color string into "r, g, b" suitable for rgba(...)
+   in a CSS gradient. Returns null if the format isn't recognized.
+   Mirrors the parser in WeekRecap.jsx softenColor but returns the
+   raw channel triplet instead of softening. Inline (vs imported) to
+   keep this file's heatmap logic self-contained. */
+function parseColorRgb(color) {
+  if (!color || typeof color !== "string") return null;
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    if (hex.length === 3) {
+      return `${parseInt(hex[0] + hex[0], 16)}, ${parseInt(hex[1] + hex[1], 16)}, ${parseInt(hex[2] + hex[2], 16)}`;
+    }
+    if (hex.length === 6) {
+      return `${parseInt(hex.slice(0, 2), 16)}, ${parseInt(hex.slice(2, 4), 16)}, ${parseInt(hex.slice(4, 6), 16)}`;
+    }
+    return null;
+  }
+  if (color.startsWith("rgb")) {
+    const m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (!m) return null;
+    return `${m[1]}, ${m[2]}, ${m[3]}`;
+  }
+  return null;
 }
 
 function HeatmapGrid({ stats }) {
   const [period, setPeriod] = useState("8w");
   const [projectId, setProjectId] = useState("all");
+  // Coloring mode: mirrors the chart-mode dropdown above. Defaults to
+  // "by-project" so the two charts on Overview are consistent without
+  // the user having to flip both.
+  const [mode, setMode] = useState("by-project");
   const weeks = HEATMAP_PERIODS.find((p) => p.id === period)?.weeks || 8;
-  const { grid, max } = useMemo(
-    () => buildHeatmapGrid(stats.taskTimer, stats.claude, weeks, projectId),
-    [stats.taskTimer, stats.claude, weeks, projectId]
+  const { grid, max, projectColors } = useMemo(
+    () => buildHeatmapGrid(stats.taskTimer, stats.claude, weeks, projectId, stats.projects),
+    [stats.taskTimer, stats.claude, weeks, projectId, stats.projects]
   );
   const projectOptions = useMemo(
     () => [{ id: "all", name: "All projects" }, ...stats.projects],
     [stats.projects]
   );
+  // Project name lookup for tooltip rendering in by-project mode.
+  const projectNameById = useMemo(() => {
+    const m = new Map();
+    for (const p of stats.projects) m.set(p.id, p.name);
+    return m;
+  }, [stats.projects]);
 
   return (
     <div className="stats-heatmap">
       <div className="stats-heatmap-controls">
         <select
           className="stats-heatmap-select"
+          value={mode}
+          onChange={(e) => setMode(e.target.value)}
+          aria-label="Heatmap coloring mode"
+        >
+          <option value="by-project">By project</option>
+          <option value="task-vs-claude">Task timer vs Claude</option>
+        </select>
+        <select
+          className="stats-heatmap-select"
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
+          aria-label="Filter to project"
         >
           {projectOptions.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
@@ -758,21 +836,59 @@ function HeatmapGrid({ stats }) {
               {row.map((cell, hr) => {
                 const total = cell.taskMs + cell.claudeOutsideMs;
                 const intensity = total / max;
-                const taskShare = total > 0 ? cell.taskMs / total : 0;
-                // Two-channel cell: tan (task) on bottom + slate (claude) on top,
-                // each weighted by share of total. Total opacity scales with intensity.
-                const bg = total === 0
-                  ? "rgba(0,0,0,0.04)"
-                  : `linear-gradient(180deg, rgba(74,90,112,${0.18 + 0.78 * intensity * (1 - taskShare)}) ${(1 - taskShare) * 100}%, rgba(138,105,64,${0.18 + 0.78 * intensity * taskShare}) ${(1 - taskShare) * 100}%)`;
-                const tooltip = total === 0
-                  ? `${DOW_LABELS[dow]} ${hr}:00 — no activity`
-                  : (
-                      <>
-                        <strong>{DOW_LABELS[dow]} {hr}:00</strong> — {fmtDuration(total)}
-                        <br />Task: {fmtDuration(cell.taskMs)}
-                        <br />Claude (outside): {fmtDuration(cell.claudeOutsideMs)}
-                      </>
-                    );
+                let bg;
+                let tooltip;
+                if (total === 0) {
+                  bg = "rgba(0,0,0,0.04)";
+                  tooltip = `${DOW_LABELS[dow]} ${hr}:00 — no activity`;
+                } else if (mode === "by-project") {
+                  // Sort segments largest → smallest, then stack TOP-down
+                  // as a vertical gradient where each band's vertical
+                  // size is its share of total. Each band's alpha is
+                  // 0.18 baseline + intensity*share*0.78 — same scaling
+                  // as task-vs-claude (busier cells = bolder colors,
+                  // dominant segments = brighter within the cell).
+                  const segs = [...cell.projectMs.entries()]
+                    .filter(([, ms]) => ms > 0)
+                    .sort((a, b) => b[1] - a[1]);
+                  const stops = [];
+                  let cum = 0;
+                  for (const [pid, ms] of segs) {
+                    const rgb = parseColorRgb(projectColors.get(pid) || "#888888")
+                      || "136, 136, 136";
+                    const share = ms / total;
+                    const alpha = 0.18 + 0.78 * intensity * share;
+                    const start = (cum / total) * 100;
+                    cum += ms;
+                    const end = (cum / total) * 100;
+                    stops.push(`rgba(${rgb}, ${alpha}) ${start}%`);
+                    stops.push(`rgba(${rgb}, ${alpha}) ${end}%`);
+                  }
+                  bg = `linear-gradient(180deg, ${stops.join(", ")})`;
+                  tooltip = (
+                    <>
+                      <strong>{DOW_LABELS[dow]} {hr}:00</strong> — {fmtDuration(total)}
+                      {segs.map(([pid, ms]) => (
+                        <span key={pid}>
+                          <br />
+                          {projectNameById.get(pid) || "Unassigned"}: {fmtDuration(ms)}
+                        </span>
+                      ))}
+                    </>
+                  );
+                } else {
+                  // Legacy two-channel cell (task on bottom, claude on top).
+                  // Each segment's alpha scales with intensity * its share.
+                  const taskShare = total > 0 ? cell.taskMs / total : 0;
+                  bg = `linear-gradient(180deg, rgba(74,90,112,${0.18 + 0.78 * intensity * (1 - taskShare)}) ${(1 - taskShare) * 100}%, rgba(138,105,64,${0.18 + 0.78 * intensity * taskShare}) ${(1 - taskShare) * 100}%)`;
+                  tooltip = (
+                    <>
+                      <strong>{DOW_LABELS[dow]} {hr}:00</strong> — {fmtDuration(total)}
+                      <br />Task: {fmtDuration(cell.taskMs)}
+                      <br />Claude (outside): {fmtDuration(cell.claudeOutsideMs)}
+                    </>
+                  );
+                }
                 return (
                   <Tooltip key={hr} content={tooltip}>
                     <span
@@ -786,12 +902,20 @@ function HeatmapGrid({ stats }) {
           ))}
         </div>
       )}
-      <p className="stats-footnote">
-        Hour-of-day intensity ({weeks} weeks). Each cell:{" "}
-        <span className="stats-swatch stats-swatch-task" /> task timer +{" "}
-        <span className="stats-swatch stats-swatch-claude" /> Claude outside (stacked, intensity scaled to busiest cell).
-        Hover for the breakdown.
-      </p>
+      {mode === "task-vs-claude" ? (
+        <p className="stats-footnote">
+          Hour-of-day intensity ({weeks} weeks). Each cell:{" "}
+          <span className="stats-swatch stats-swatch-task" /> task timer +{" "}
+          <span className="stats-swatch stats-swatch-claude" /> Claude outside (stacked, intensity scaled to busiest cell).
+          Hover for the breakdown.
+        </p>
+      ) : (
+        <p className="stats-footnote">
+          Hour-of-day intensity ({weeks} weeks). Each cell stacks project
+          colors by share of focused time, intensity scaled to the busiest
+          cell. Hover for the per-project breakdown.
+        </p>
+      )}
     </div>
   );
 }
@@ -1001,12 +1125,14 @@ function OverviewTab({ stats, content }) {
         // buildWeekRecap returns segments largest-first. Reverse for
         // DOM (first = visual top) so the LARGEST project anchors the
         // bottom of the bar — matches /home's segmentation convention.
-        // Use fullColor (full saturation) here; the compact stats chart
-        // doesn't need the softened palette /home uses for its big bars.
+        // Use s.color (softenColor result, ~45% toward white) so bar
+        // fills feel muted at scale — same treatment /home uses for
+        // its big "This week" bars. fullColor is kept on the segment
+        // for future hover-resaturation if we ever add it here.
         segments: [...d.segments].reverse().map((s) => ({
           id: s.id || "unassigned",
           name: s.name,
-          color: s.fullColor || s.color,
+          color: s.color || s.fullColor,
           ms: s.ms,
         })),
       }));
