@@ -936,12 +936,14 @@ function ProjectGridCard({ card }) {
     else if (m < 60 * 24) lastAgo = `${Math.floor(m / 60)}h ago`;
     else lastAgo = `${Math.floor(m / (60 * 24))}d ago`;
   }
-  // Project-color left-bar so the card identifies its project at a glance,
-  // matching the Chats / Top-3 / unfinished row patterns elsewhere.
-  const cardStyle = card.color ? { borderLeftColor: card.color } : null;
+  // Project-color 3px bar UNDER the head row (the head's border-bottom).
+  // Replaces the previous left-edge color stripe. The fallback to
+  // --rule-soft applies for projects without a real color so the head
+  // still has a visible separator (just hairline-quiet).
+  const headStyle = card.color ? { borderBottomColor: card.color } : null;
   return (
-    <div className="stats-pcard" style={cardStyle}>
-      <div className="stats-pcard-head">
+    <div className="stats-pcard">
+      <div className="stats-pcard-head" style={headStyle}>
         <span className="stats-pcard-name">
           {card.color && <span className="stats-project-dot" style={{ background: card.color }} />}
           {card.projectName}
@@ -954,18 +956,14 @@ function ProjectGridCard({ card }) {
           <div className="stats-pcard-bar-track">
             <div className="stats-pcard-bar stats-pcard-bar-task" style={{ width: `${taskPct}%` }} />
           </div>
-          <span className="stats-pcard-bar-val">
-            {fmtDuration(card.taskMs)} <span className="stats-pcard-bar-sub">({card.taskSessions} ses)</span>
-          </span>
+          <span className="stats-pcard-bar-val">{fmtDuration(card.taskMs)}</span>
         </div>
         <div className="stats-pcard-bar-row">
           <span className="stats-pcard-bar-label">Claude</span>
           <div className="stats-pcard-bar-track">
             <div className="stats-pcard-bar stats-pcard-bar-claude" style={{ width: `${claudePct}%` }} />
           </div>
-          <span className="stats-pcard-bar-val">
-            {fmtDuration(card.claudeMs)} <span className="stats-pcard-bar-sub">({card.claudeSessions} ses)</span>
-          </span>
+          <span className="stats-pcard-bar-val">{fmtDuration(card.claudeMs)}</span>
         </div>
         {card.absorbedMs > 0 && (
           <div className="stats-pcard-bar-row">
@@ -977,13 +975,13 @@ function ProjectGridCard({ card }) {
           </div>
         )}
       </div>
+      {/* Single muted foot line. "Combined: X" dropped since the total
+          already lives in the head row. Foot shows the supporting stats
+          (AI-assist %, recency) in one row with dot separators. */}
       <div className="stats-pcard-foot">
-        <span>Combined: <strong>{fmtDuration(card.combinedMs)}</strong></span>
-        {card.assistPct !== null && (
-          <span>{card.assistPct}% AI-assisted</span>
-        )}
+        {card.assistPct !== null && <span>{card.assistPct}% AI-assisted</span>}
         <span className="stats-pcard-last">
-          last {card.lastActivitySource === "claude" ? "Claude" : "task"}: {lastAgo}
+          last {card.lastActivitySource === "claude" ? "Claude" : "task"} {lastAgo}
         </span>
       </div>
     </div>
