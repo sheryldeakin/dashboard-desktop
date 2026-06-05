@@ -5359,13 +5359,39 @@ button:focus-visible {
   flex-wrap: wrap;
 }
 
+/* Dropdowns — matched to the rest of the app's flat aesthetic.
+   Strips the legacy tan-tinted border + glass background; uses
+   --rule hairline, transparent bg, ink text, custom chevron (so
+   the closed appearance is consistent across browsers — the native
+   menu popup is still browser-rendered, that's unavoidable). */
 .stats-heatmap-select {
-  padding: 5px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(182, 139, 97, 0.3);
-  background: rgba(255, 255, 255, 0.6);
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 6px 28px 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background-color: transparent;
+  /* Inline chevron — small down-pointing caret in muted ink. The
+     %23 is just a URL-encoded # for the hex color. Kept here as a
+     data URI so there's no asset request per dropdown render. */
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 9px 6px;
   font-size: 12px;
   font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease;
+}
+
+.stats-heatmap-select:hover {
+  border-color: var(--ink-muted);
+}
+
+.stats-heatmap-select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .stats-heatmap-period {
