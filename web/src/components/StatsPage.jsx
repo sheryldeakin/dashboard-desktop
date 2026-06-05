@@ -5,6 +5,12 @@ import {
   DEFAULT_CONTENT,
 } from "../utils/taskUtils.js";
 import StatGrid from "./StatGrid.jsx";
+import PageHeader from "./PageHeader.jsx";
+import Tabs from "./Tabs.jsx";
+import Section from "./Section.jsx";
+import EmptyState from "./EmptyState.jsx";
+import RelativeTime from "./RelativeTime.jsx";
+import Tooltip from "./Tooltip.jsx";
 
 /* Stats page — pure read view across pomodoro.history + taskHistory +
    todaysTasks + workSessions. Four tabs (Overview / Focus / Claude / Tasks).
@@ -542,7 +548,7 @@ function DailyDeepChart({ bars }) {
 }
 
 function BreakdownBars({ rows, formatRight, emptyMsg }) {
-  if (!rows.length) return <p className="stats-empty">{emptyMsg}</p>;
+  if (!rows.length) return <EmptyState variant="inline" message="{emptyMsg}" />;
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
     <div className="stats-breakdown">
@@ -569,7 +575,7 @@ function BreakdownBars({ rows, formatRight, emptyMsg }) {
 }
 
 function ProjectTaskSplit({ rows }) {
-  if (!rows.length) return <p className="stats-empty">No tasks yet</p>;
+  if (!rows.length) return <EmptyState variant="inline" message="No tasks yet" />;
   const max = Math.max(1, ...rows.map((r) => r.total));
   return (
     <div className="stats-breakdown">
@@ -602,7 +608,7 @@ function ProjectTaskSplit({ rows }) {
 }
 
 function ClaudeProjectRows({ rows }) {
-  if (!rows.length) return <p className="stats-empty">No Claude sessions yet.</p>;
+  if (!rows.length) return <EmptyState variant="inline" message="No Claude sessions yet" />;
   const max = Math.max(1, ...rows.map((r) => r.ms));
   return (
     <div className="stats-breakdown">
@@ -632,7 +638,7 @@ function ClaudeProjectRows({ rows }) {
 }
 
 function RecentClaudeList({ rows }) {
-  if (!rows.length) return <p className="stats-empty">No recent Claude sessions.</p>;
+  if (!rows.length) return <EmptyState variant="inline" message="No recent Claude sessions" />;
   return (
     <ul className="stats-session-list">
       {rows.map((c) => {
@@ -749,7 +755,7 @@ function HeatmapGrid({ stats }) {
         </div>
       </div>
       {max === 0 ? (
-        <p className="stats-empty">No activity in this window.</p>
+        <EmptyState variant="inline" message="No activity in this window" />
       ) : (
         <div className="stats-heatmap-table">
           <div className="stats-heatmap-row stats-heatmap-row-hdr">
@@ -871,7 +877,7 @@ function ProjectGridCard({ card }) {
 }
 
 function ProjectGrid({ cards }) {
-  if (!cards.length) return <p className="stats-empty">No project activity yet.</p>;
+  if (!cards.length) return <EmptyState variant="inline" message="No project activity yet" />;
   return (
     <div className="stats-pcard-grid">
       {cards.map((c) => <ProjectGridCard key={c.projectId} card={c} />)}
@@ -914,28 +920,24 @@ function OverviewTab({ stats }) {
         ))}
       </section>
 
-      <section className="stats-section">
-        <h2>Last 14 days — total deep work</h2>
+      <Section title="Last 14 days — total deep work">
         <DailyDeepChart bars={stats.dailyDeep} />
         <p className="stats-footnote">
           <span className="stats-swatch stats-swatch-task" /> Task timer (absorbs concurrent Claude)
           {"  "}
           <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer
         </p>
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>By project</h2>
+      <Section title="By project">
         <ProjectGrid cards={stats.projectCards} />
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>Hour-of-day heatmap</h2>
+      <Section title="Hour-of-day heatmap">
         <HeatmapGrid stats={stats} />
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>Focus streak</h2>
+      <Section title="Focus streak">
         <div className="stats-streak">
           <div>
             <span className="stats-num">{stats.currentStreak}</span>
@@ -946,7 +948,7 @@ function OverviewTab({ stats }) {
             <span className="stats-card-unit"> total pomodoros</span>
           </div>
         </div>
-      </section>
+      </Section>
     </>
   );
 }
@@ -1139,14 +1141,13 @@ function TodayTab({ stats }) {
 
   if (noActivity) {
     return (
-      <section className="stats-section">
-        <h2>Today</h2>
-        <p className="stats-empty">No work sessions logged yet today.</p>
+      <Section title="Today">
+        <EmptyState variant="inline" message="No work sessions logged yet today" />
         <p className="stats-footnote">
           Sessions populate as the hourly importer picks up new Claude transcripts
           and as task timers run. Yesterday: {fmtDuration(t.yDeepMs)} total deep work.
         </p>
-      </section>
+      </Section>
     );
   }
 
@@ -1180,20 +1181,18 @@ function TodayTab({ stats }) {
         </Card>
       </section>
 
-      <section className="stats-section">
-        <h2>Hour by hour</h2>
+      <Section title="Hour by hour">
         <HourBar hours={t.hours} max={t.hoursMax} />
         <p className="stats-footnote">
           <span className="stats-swatch stats-swatch-task" /> Task timer{" "}
           <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer.
           Hover any hour cell for the breakdown.
         </p>
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>By project — today</h2>
+      <Section title="By project — today">
         {t.byProject.length === 0 ? (
-          <p className="stats-empty">No project activity yet today.</p>
+          <EmptyState variant="inline" message="No project activity yet today" />
         ) : (
           <div className="stats-today-project-list">
             {t.byProject.map((r) => (
@@ -1201,12 +1200,11 @@ function TodayTab({ stats }) {
             ))}
           </div>
         )}
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>Sessions today — chronological</h2>
+      <Section title="Sessions today — chronological">
         {t.sessions.length === 0 ? (
-          <p className="stats-empty">No sessions logged today.</p>
+          <EmptyState variant="inline" message="No sessions logged today" />
         ) : (
           <ul className="stats-today-session-list">
             {t.sessions.map((s, i) => (
@@ -1214,16 +1212,15 @@ function TodayTab({ stats }) {
             ))}
           </ul>
         )}
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>By tag — today</h2>
+      <Section title="By tag — today">
         <BreakdownBars
           rows={t.tags.slice(0, 12)}
           formatRight={(v) => fmtDuration(v)}
           emptyMsg="No tags on today's sessions."
         />
-      </section>
+      </Section>
     </>
   );
 }
@@ -1240,24 +1237,22 @@ function FocusTab({ stats }) {
         ))}
       </section>
 
-      <section className="stats-section">
-        <h2>Focus streak</h2>
+      <Section title="Focus streak">
         <div className="stats-streak">
           <div>
             <span className="stats-num">{stats.currentStreak}</span>
             <span className="stats-card-unit"> day{stats.currentStreak === 1 ? "" : "s"} current</span>
           </div>
         </div>
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>Focus time by project — all time</h2>
+      <Section title="Focus time by project — all time">
         <BreakdownBars
           rows={stats.focusByProject}
           formatRight={(v) => fmtDuration(v)}
           emptyMsg="No task-timer sessions yet."
         />
-      </section>
+      </Section>
     </>
   );
 }
@@ -1275,24 +1270,21 @@ function ClaudeTab({ stats }) {
         ))}
       </section>
 
-      <section className="stats-section">
-        <h2>Claude time by project — all time</h2>
+      <Section title="Claude time by project — all time">
         <ClaudeProjectRows rows={stats.claudeByProject} />
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>Claude time by tag — top 15</h2>
+      <Section title="Claude time by tag — top 15">
         <BreakdownBars
           rows={stats.claudeByTag.slice(0, 15)}
           formatRight={(v) => fmtDuration(v)}
           emptyMsg="No tags yet."
         />
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>Recent Claude sessions</h2>
+      <Section title="Recent Claude sessions">
         <RecentClaudeList rows={stats.recentClaude} />
-      </section>
+      </Section>
     </>
   );
 }
@@ -1303,8 +1295,7 @@ function TasksTab({ stats }) {
   return (
     <>
       {/* Stats #1: Shipped headline — today / week / all-time */}
-      <section className="stats-section">
-        <h2>Tasks shipped (from Claude sessions)</h2>
+      <Section title="Tasks shipped (from Claude sessions)">
         <StatGrid
           variant="default"
           columns={[
@@ -1318,11 +1309,10 @@ function TasksTab({ stats }) {
           calls in your Claude sessions. Manual <code>/todo</code> completions are
           tracked separately below.
         </p>
-      </section>
+      </Section>
 
       {/* Stats #2: Daily completion velocity (14 days) */}
-      <section className="stats-section">
-        <h2>Completion velocity — last 14 days</h2>
+      <Section title="Completion velocity — last 14 days">
         <div className="stats-velocity-bars">
           {stats.dailyCompletions.map((d) => {
             const heightPct = (d.count / peakDaily) * 100;
@@ -1345,13 +1335,12 @@ function TasksTab({ stats }) {
             );
           })}
         </div>
-      </section>
+      </Section>
 
       {/* Stats #3: Completions by project */}
-      <section className="stats-section">
-        <h2>Tasks shipped by project</h2>
+      <Section title="Tasks shipped by project">
         {stats.completionsByProject.length === 0 ? (
-          <p className="stats-footnote">No completions recorded yet.</p>
+          <EmptyState variant="inline" message="No completions recorded yet" />
         ) : (
           <BreakdownBars
             rows={stats.completionsByProject.map((p) => ({
@@ -1363,12 +1352,11 @@ function TasksTab({ stats }) {
             emptyMsg="No completions yet."
           />
         )}
-      </section>
+      </Section>
 
       {/* Stats #5: Focus time per completion (project-level) */}
       {stats.focusPerCompletion.length > 0 && (
-        <section className="stats-section">
-          <h2>Focus hours per completed task</h2>
+        <Section title="Focus hours per completed task">
           <ul className="stats-fpc-list">
             {stats.focusPerCompletion.map((p) => (
               <li key={p.projectId} className="stats-fpc-row">
@@ -1387,14 +1375,13 @@ function TasksTab({ stats }) {
             Only projects with ≥3 completions shown — lower = more efficient
             shipping (caveat: tasks vary in scope).
           </p>
-        </section>
+        </Section>
       )}
 
       {/* Stats #4: Recent completions feed */}
-      <section className="stats-section">
-        <h2>Recent completions</h2>
+      <Section title="Recent completions">
         {stats.recentCompletions.length === 0 ? (
-          <p className="stats-footnote">No completions yet.</p>
+          <EmptyState variant="inline" message="No completions yet" />
         ) : (
           <ul className="stats-recent-list">
             {stats.recentCompletions.map((c, i) => (
@@ -1411,25 +1398,23 @@ function TasksTab({ stats }) {
             ))}
           </ul>
         )}
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>Tasks by project — current</h2>
+      <Section title="Tasks by project — current">
         <ProjectTaskSplit rows={stats.tasksByProject} />
         <p className="stats-footnote">
           Open <span className="stats-swatch stats-swatch-open" /> / Done <span className="stats-swatch stats-swatch-done" />{" "}
           · "AI-assist" = % of focus time that overlapped a Claude session in the same project.
         </p>
-      </section>
+      </Section>
 
-      <section className="stats-section">
-        <h2>Open tasks by tag — top 15</h2>
+      <Section title="Open tasks by tag — top 15">
         <BreakdownBars
           rows={stats.tasksByTag.slice(0, 15)}
           formatRight={(v) => v}
           emptyMsg="No tags on open tasks."
         />
-      </section>
+      </Section>
 
       <section className="stats-footer">
         <p className="stats-footnote">
@@ -1452,34 +1437,67 @@ const TABS = [
   { id: "tasks", label: "Tasks" },
 ];
 
+/* Snapshot freshness indicator used in the PageHeader actions slot.
+   Replaces the previous custom interval-tick + relative-time formatting
+   with the shared RelativeTime component. */
 function SnapshotIndicator({ loadedAtMs }) {
-  // Tells the user how stale this view is. /stats is a snapshot at page-load
-  // time — no live polling — so when the schedules ran for the last time can
-  // matter as much as when the page loaded. Both lines printed.
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, []);
-  function rel(min) {
-    if (min < 1) return "just now";
-    if (min < 60) return `${min}m ago`;
-    if (min < 60 * 24) return `${Math.floor(min / 60)}h ago`;
-    return `${Math.floor(min / 60 / 24)}d ago`;
-  }
-  const loadedMin = Math.floor((now - loadedAtMs) / 60000);
   return (
     <div className="stats-snapshot">
-      <span className="stats-snapshot-label">Snapshot loaded {rel(loadedMin)}</span>
-      <button
-        type="button"
-        className="stats-snapshot-refresh"
-        onClick={() => window.location.reload()}
-        title="Reload to fetch the latest data from the server"
-      >
-        ↻ refresh
-      </button>
+      <span className="stats-snapshot-label">
+        Loaded <RelativeTime since={loadedAtMs} />
+      </span>
+      <Tooltip content="Reload to fetch the latest data from the server">
+        <button
+          type="button"
+          className="stats-snapshot-refresh"
+          onClick={() => window.location.reload()}
+        >
+          ↻ refresh
+        </button>
+      </Tooltip>
     </div>
+  );
+}
+
+/* StatsSkeleton — matches the real page's structural skeleton so the
+   eye lands in the right place when content arrives. Title chip row,
+   tab bar with 5 placeholder pills, and 3 section frames. */
+function Skel({ w, h, style }) {
+  return (
+    <div
+      className="skel"
+      style={{
+        width: typeof w === "number" ? `${w}px` : w,
+        height: typeof h === "number" ? `${h}px` : h,
+        ...style,
+      }}
+    />
+  );
+}
+
+function StatsSkeleton() {
+  return (
+    <main className="stats-page" aria-busy="true" aria-label="Loading stats">
+      <header className="ui-page-header">
+        <div className="ui-page-header-top">
+          <Skel w={80} h={36} />
+          <Skel w={180} h={20} />
+        </div>
+      </header>
+      <div className="ui-tabs" style={{ marginBottom: 16 }}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Skel key={i} w={70} h={28} style={{ marginRight: 4 }} />
+        ))}
+      </div>
+      <div className="stats-tab-body">
+        {[0, 1, 2].map((i) => (
+          <section className="home-section" key={i}>
+            <Skel w={140} h={14} style={{ marginBottom: 16 }} />
+            <Skel w="100%" h={80} />
+          </section>
+        ))}
+      </div>
+    </main>
   );
 }
 
@@ -1510,32 +1528,17 @@ export default function StatsPage() {
   const stats = useMemo(() => computeStats(content), [content]);
 
   if (!loaded) {
-    return (
-      <main className="stats-page">
-        <p className="stats-empty">Loading…</p>
-      </main>
-    );
+    return <StatsSkeleton />;
   }
 
   return (
     <main className="stats-page">
-      <div className="stats-title-row">
-        <h1 className="stats-title">Stats</h1>
-        <SnapshotIndicator loadedAtMs={loadedAtMs} />
-      </div>
+      <PageHeader
+        title="Stats"
+        actions={<SnapshotIndicator loadedAtMs={loadedAtMs} />}
+      />
 
-      <nav className="stats-tabs" aria-label="Stats sections">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`stats-tab${tab === t.id ? " is-active" : ""}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
       <div className="stats-tab-body">
         {tab === "overview" && <OverviewTab stats={stats} />}

@@ -910,10 +910,12 @@ export default function App() {
 
   if (window.location.pathname === "/stats") {
     return (
-      <>
-        <TopNav />
-        <StatsPage />
-      </>
+      <div className="app-shell">
+        <SideNav />
+        <div className="app-shell-main">
+          <StatsPage />
+        </div>
+      </div>
     );
   }
 
