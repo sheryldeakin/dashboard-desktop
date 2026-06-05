@@ -5830,6 +5830,7 @@ button:focus-visible {
 }
 
 .ui-tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -5852,6 +5853,24 @@ button:focus-visible {
 
 .ui-tab.is-active {
   color: var(--ink);
+}
+
+/* Folder-drop: 3px tan segment hanging from the row's hairline into the
+   content area below, anchored under the active tab. Geometry: parent
+   .ui-tabs has padding-bottom: 8px + 1px hairline, so the hairline
+   bottom sits 9px below the tab's bottom edge. Drop bottom at -12px
+   with height 3px places its top exactly at the hairline → looks like
+   the active tab's content "spills out" downward. Full label width
+   (left:0; right:0) so each tab's drop is sized to its own label. */
+.ui-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -12px;
+  height: 3px;
+  background: var(--accent-tan);
+  border-radius: 1px;
 }
 
 .ui-tab:focus-visible {
