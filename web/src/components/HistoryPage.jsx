@@ -243,33 +243,26 @@ function ClaudeProjectBucket({ bucket, projectName, projectColor }) {
               const startedMs = new Date(s.startedAt).getTime();
               const aiSummary = (s.aiSummary || "").trim();
               return (
-                <li key={s.id} className="history-claude-session-item-wrap">
-                  <div className="history-claude-session-item">
-                    <Tooltip content={`${s.messageCount || 0} message${s.messageCount === 1 ? "" : "s"}`}>
-                      <span className="history-claude-session-msgs">
-                        {s.messageCount || 0} msg
-                      </span>
-                    </Tooltip>
-                    <span className="history-claude-session-duration">
-                      {fmtHrMin(s.activeMs || 0)}
+                <li key={s.id} className="history-claude-session-item">
+                  <Tooltip content={`${s.messageCount || 0} message${s.messageCount === 1 ? "" : "s"}`}>
+                    <span className="history-claude-session-msgs">
+                      {s.messageCount || 0} msg
                     </span>
-                    <Tooltip content={new Date(s.startedAt).toLocaleString()}>
-                      <span className="history-claude-session-when">
-                        <RelativeTime since={startedMs} />
-                      </span>
-                    </Tooltip>
-                  </div>
-                  {/* AI summary line — italic muted context for sessions
-                      where TaskCreate wasn't used. Distinct visual class
-                      from the ✓-checked completions so it reads as
-                      "interpretation" not "explicit completion". */}
-                  {aiSummary && (
-                    <Tooltip content="AI-generated session summary">
-                      <div className="history-claude-session-summary">
-                        {aiSummary}
-                      </div>
-                    </Tooltip>
-                  )}
+                  </Tooltip>
+                  <span className="history-claude-session-duration">
+                    {fmtHrMin(s.activeMs || 0)}
+                  </span>
+                  {/* AI summary sits inline between duration and time —
+                      italic muted, wraps to multiple lines if needed.
+                      Empty cell when no summary so columns still align. */}
+                  <span className="history-claude-session-summary">
+                    {aiSummary}
+                  </span>
+                  <Tooltip content={new Date(s.startedAt).toLocaleString()}>
+                    <span className="history-claude-session-when">
+                      <RelativeTime since={startedMs} />
+                    </span>
+                  </Tooltip>
                 </li>
               );
             })}

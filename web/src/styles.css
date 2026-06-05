@@ -1281,15 +1281,20 @@ button:focus-visible {
   gap: 1px;
 }
 
+/* Per-session row — 4-column table-like grid. AI summary sits inline
+   between duration and time so the row reads as a single record.
+   align-items: start so a multi-line summary doesn't pull the other
+   cells with it; the numeric columns stay anchored to the top. */
 .history-claude-session-item {
   display: grid;
-  grid-template-columns: 60px auto 1fr;
-  gap: 16px;
-  align-items: baseline;
-  padding: 3px 0;
+  grid-template-columns: 56px auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 5px 0;
   font-size: clamp(11px, 0.2vw + 9.5px, 12px);
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
+  line-height: 1.4;
 }
 
 .history-claude-session-msgs {
@@ -1301,29 +1306,26 @@ button:focus-visible {
   font-weight: 500;
 }
 
+/* AI summary cell — italic, muted, wraps to as many lines as it needs.
+   minmax(0, 1fr) on the column allows wrapping; without min: 0 the
+   browser would force a single line and overflow the grid. */
+.history-claude-session-summary {
+  font-style: italic;
+  color: var(--ink-muted);
+  font-variant-numeric: normal;
+  /* Allow wrap. word-break catches long unbroken tokens defensively. */
+  white-space: normal;
+  word-break: break-word;
+  opacity: 0.9;
+}
+
+/* Empty summary cell stays in the grid so the "when" column lands in
+   slot 4 consistently. No visible content; just preserves layout. */
+
 .history-claude-session-when {
   text-align: right;
   color: var(--ink-muted);
-}
-
-/* Per-session AI summary — italic muted line under the session row.
-   Visually distinct from the ✓-checked completions so it reads as
-   "interpretation" / context, not "explicit task completion". */
-.history-claude-session-item-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 2px 0;
-}
-
-.history-claude-session-summary {
-  font-style: italic;
-  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
-  color: var(--ink-muted);
-  line-height: 1.4;
-  padding-left: 0;
-  margin-top: 1px;
-  opacity: 0.85;
+  white-space: nowrap;
 }
 
 /* ── Pomodoro section ───────────────────────────────────────────
