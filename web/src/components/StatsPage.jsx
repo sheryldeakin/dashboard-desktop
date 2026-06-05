@@ -506,9 +506,18 @@ function computeStats(content) {
     recentCompletions,
     // Raw intervals + project list — passed to HeatmapGrid so it can re-bucket
     // based on its own filter/period state without re-running computeStats.
+    // IMPORTANT: project entries must include `color` so downstream
+    // resolveProjectColors() calls return the project's STORED color
+    // (and fall back to palette only for truly default-colored projects).
+    // Without it, every project looks unset and gets a palette slot by
+    // rank — which made /stats Today colors not match /home week recap.
     taskTimer,
     claude,
-    projects: [...projectName.entries()].map(([id, name]) => ({ id, name })),
+    projects: [...projectName.entries()].map(([id, name]) => ({
+      id,
+      name,
+      color: projectColor.get(id) || null,
+    })),
     projectCards,
   };
 }
