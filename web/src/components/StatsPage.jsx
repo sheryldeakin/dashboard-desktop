@@ -11,6 +11,7 @@ import Section from "./Section.jsx";
 import EmptyState from "./EmptyState.jsx";
 import RelativeTime from "./RelativeTime.jsx";
 import Tooltip from "./Tooltip.jsx";
+import MetricTable from "./MetricTable.jsx";
 
 /* Stats page — pure read view across pomodoro.history + taskHistory +
    todaysTasks + workSessions. Four tabs (Overview / Focus / Claude / Tasks).
@@ -902,10 +903,34 @@ function OverviewTab({ stats }) {
         columns={[
           { value: fmtDuration(stats.today.deep_work_ms), label: "Today" },
           { value: fmtDuration(stats.week.deep_work_ms), label: "Past 7 days" },
-          { value: stats.currentStreak, label: stats.currentStreak === 1 ? "Day streak" : "Day streak", secondary: stats.currentStreak === 0 ? "" : "" },
+          { value: stats.currentStreak, label: "Day streak" },
           { value: fmtDuration(stats.all.deep_work_ms), label: "All-time" },
         ]}
       />
+
+      <Section title="Detail">
+        <MetricTable
+          headers={["Today", "Past 7 days", "All-time"]}
+          rows={[
+            {
+              label: "Task timer",
+              cells: [
+                fmtDuration(stats.today.task_ms),
+                fmtDuration(stats.week.task_ms),
+                fmtDuration(stats.all.task_ms),
+              ],
+            },
+            {
+              label: "Claude (outside timer)",
+              cells: [
+                fmtDuration(stats.today.claude_outside_ms),
+                fmtDuration(stats.week.claude_outside_ms),
+                fmtDuration(stats.all.claude_outside_ms),
+              ],
+            },
+          ]}
+        />
+      </Section>
 
       <Section title="Last 14 days — total deep work">
         <DailyDeepChart bars={stats.dailyDeep} />
@@ -1181,6 +1206,43 @@ function TodayTab({ stats }) {
         ]}
       />
 
+      <Section title="Detail">
+        <MetricTable
+          headers={["Today", "Yesterday"]}
+          rows={[
+            {
+              label: "Task timer",
+              cells: [fmtDuration(t.taskMs), "—"],
+            },
+            {
+              label: "Claude (outside timer)",
+              cells: [fmtDuration(t.claudeOutsideMs), "—"],
+            },
+            {
+              label: "Total Claude",
+              cells: [fmtDuration(t.claudeMs), "—"],
+            },
+            {
+              label: "Claude absorbed by task timer",
+              cells: [fmtDuration(t.absorbedMs), "—"],
+            },
+            {
+              label: "Overlap rate",
+              cells: [
+                t.claudeMs > 0
+                  ? `${Math.round((t.absorbedMs / t.claudeMs) * 100)}%`
+                  : "—",
+                "—",
+              ],
+            },
+            {
+              label: "Deep work",
+              cells: [fmtDuration(t.deepMs), fmtDuration(t.yDeepMs)],
+            },
+          ]}
+        />
+      </Section>
+
       <Section title="Hour by hour">
         <HourBar hours={t.hours} max={t.hoursMax} />
         <p className="stats-footnote">
@@ -1233,10 +1295,44 @@ function FocusTab({ stats }) {
         columns={[
           { value: stats.today.pomos, label: "Pomos today" },
           { value: stats.week.pomos, label: "Past 7 days" },
-          { value: stats.currentStreak, label: stats.currentStreak === 1 ? "Day streak" : "Day streak" },
+          { value: stats.currentStreak, label: "Day streak" },
           { value: stats.all.pomos, label: "All-time" },
         ]}
       />
+
+      <Section title="Detail">
+        <MetricTable
+          headers={["Today", "Past 7 days", "All-time"]}
+          rows={[
+            {
+              label: "Focus time (task timer)",
+              cells: [
+                fmtDuration(stats.today.task_ms),
+                fmtDuration(stats.week.task_ms),
+                fmtDuration(stats.all.task_ms),
+              ],
+            },
+            {
+              label: "Pomodoros",
+              cells: [stats.today.pomos, stats.week.pomos, stats.all.pomos],
+            },
+            {
+              label: "Avg pomo length",
+              cells: [
+                stats.today.pomos
+                  ? fmtDuration(Math.round(stats.today.task_ms / stats.today.pomos))
+                  : "—",
+                stats.week.pomos
+                  ? fmtDuration(Math.round(stats.week.task_ms / stats.week.pomos))
+                  : "—",
+                stats.all.pomos
+                  ? fmtDuration(Math.round(stats.all.task_ms / stats.all.pomos))
+                  : "—",
+              ],
+            },
+          ]}
+        />
+      </Section>
 
       <Section title="Focus streak">
         <StatGrid
@@ -1278,6 +1374,44 @@ function ClaudeTab({ stats }) {
           },
         ]}
       />
+
+      <Section title="Detail">
+        <MetricTable
+          headers={["Today", "Past 7 days", "All-time"]}
+          rows={[
+            {
+              label: "Sessions",
+              cells: [
+                stats.today.claude_sessions,
+                stats.week.claude_sessions,
+                stats.all.claude_sessions,
+              ],
+            },
+            {
+              label: "Active time",
+              cells: [
+                fmtDuration(stats.today.claude_total_ms),
+                fmtDuration(stats.week.claude_total_ms),
+                fmtDuration(stats.all.claude_total_ms),
+              ],
+            },
+            {
+              label: "Msgs / session",
+              cells: [
+                stats.today.claude_sessions
+                  ? Math.round(stats.today.claude_msgs / stats.today.claude_sessions)
+                  : 0,
+                stats.week.claude_sessions
+                  ? Math.round(stats.week.claude_msgs / stats.week.claude_sessions)
+                  : 0,
+                stats.all.claude_sessions
+                  ? Math.round(stats.all.claude_msgs / stats.all.claude_sessions)
+                  : 0,
+              ],
+            },
+          ]}
+        />
+      </Section>
 
       <Section title="Claude time by project — all time">
         <ClaudeProjectRows rows={stats.claudeByProject} />
