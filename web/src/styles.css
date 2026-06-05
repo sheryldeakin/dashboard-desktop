@@ -5498,6 +5498,28 @@ button:focus-visible {
 }
 
 /* Today: project rows */
+/* Today vs typical — single muted line under the snapshot showing
+   how today compares to the 6-day prior average. Sign + arrow framing
+   matches the snapshot's per-cell delta language. Sits flush against
+   the snapshot's bottom edge so it reads as "more context for those
+   numbers", not a separate section. */
+.stats-today-vs-typical {
+  margin: -8px 0 clamp(20px, 2vw, 28px);
+  font-size: clamp(12px, 0.2vw + 10.5px, 13px);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-today-vs-typical strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.stats-today-vs-typical-baseline {
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
 .stats-today-project-list {
   display: flex;
   flex-direction: column;

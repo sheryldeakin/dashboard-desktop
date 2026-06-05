@@ -1626,6 +1626,43 @@ function TodayTab({ stats, content }) {
   // Overview chart + heatmap default. Same dropdown shape as those.
   const [hourMode, setHourMode] = useState("by-project");
 
+  // "Today vs typical" — compare today's deep work to the AVG of the
+  // prior 6 days (week window minus today / 6). Skip the line when
+  // there's no prior baseline (e.g. just started this week) — without
+  // history the "X above average" framing is meaningless.
+  const typicalMs = useMemo(() => {
+    const priorTotal = (stats.week?.deep_work_ms || 0) - t.deepMs;
+    return priorTotal > 0 ? Math.round(priorTotal / 6) : 0;
+  }, [stats.week?.deep_work_ms, t.deepMs]);
+  const typicalDeltaMs = t.deepMs - typicalMs;
+  const showTypicalLine = typicalMs > 0;
+
+  // "Today's story" — chronological feed of today's Claude sessions
+  // (ASC: oldest first, reading top-to-bottom as the day unfolded).
+  // Same row layout as Overview's Recent activity. Different filter:
+  // today-only, no count cap.
+  const todayStoryFeed = useMemo(() => {
+    const projectMap = new Map((content?.projects || []).map((p) => [p.id, p]));
+    const startMs = todayStartMs();
+    const endMs = startMs + MS_PER_DAY;
+    return (content?.workSessions || [])
+      .filter((s) => s.source === "claude_code")
+      .filter((s) => {
+        const ms = Date.parse(s.startedAt);
+        return Number.isFinite(ms) && ms >= startMs && ms < endMs;
+      })
+      .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt))
+      .map((s) => ({
+        id: s.id,
+        projectName: projectMap.get(s.projectId)?.name || "Unassigned",
+        projectColor: projectMap.get(s.projectId)?.color || null,
+        activeMs: s.activeMs || 0,
+        aiSummary: (s.aiSummary || "").trim(),
+        startedAt: s.startedAt,
+        completionCount: Array.isArray(s.completedTasks) ? s.completedTasks.length : 0,
+      }));
+  }, [content]);
+
   // Today's Claude sessions grouped by project, ready to feed straight
   // into <ClaudeProjectBucket>. Same data shape and same component as
   // /history uses — drill down to see per-session AI summaries and
@@ -1677,8 +1714,24 @@ function TodayTab({ stats, content }) {
               : "—",
             label: "Avg / session",
           },
+          { value: stats.completionCounts?.today || 0, label: "Tasks closed" },
         ]}
       />
+
+      {/* Today vs the 6-day prior average. Skip rendering when there's
+          no baseline yet (typicalMs = 0). Sign + arrow framing mirrors
+          the snapshot delta on the Deep work cell. */}
+      {showTypicalLine && (
+        <p className="stats-today-vs-typical">
+          {typicalDeltaMs >= 0 ? "▲" : "▼"}{" "}
+          <strong>{fmtDuration(Math.abs(typicalDeltaMs))}</strong>{" "}
+          {typicalDeltaMs >= 0 ? "above" : "below"} your 6-day average
+          {" "}
+          <span className="stats-today-vs-typical-baseline">
+            ({fmtDuration(typicalMs)}/day)
+          </span>
+        </p>
+      )}
 
       {/* Hour-by-hour — same mode toggle as the Overview chart/heatmap.
           Section title doubles as a flex row holding the dropdown
@@ -1715,6 +1768,45 @@ function TodayTab({ stats, content }) {
           </p>
         )}
       </section>
+
+      {/* Today's story — chronological Claude session feed for today,
+          each row showing project + duration + completions count + AI
+          summary teaser + relative time. Reads top-to-bottom as the
+          day unfolded. Uses the same .stats-recent-* row layout as
+          Overview's Recent activity (would extract to a shared
+          component if a 3rd use case appeared). */}
+      {todayStoryFeed.length > 0 && (
+        <Section title="Today's story">
+          <ul className="stats-recent-list">
+            {todayStoryFeed.map((s) => (
+              <li key={s.id} className="stats-recent-row">
+                <span className="stats-recent-project">
+                  <Dot color={s.projectColor || "rgba(0,0,0,0.25)"} size={8} />
+                  {s.projectName}
+                </span>
+                <span className="stats-recent-duration">
+                  {fmtDuration(s.activeMs)}
+                  {s.completionCount > 0 && (
+                    <span className="stats-recent-completions">
+                      {" "}· ✓ {s.completionCount}
+                    </span>
+                  )}
+                </span>
+                <span className="stats-recent-summary">
+                  {s.aiSummary || (
+                    <span className="stats-recent-no-summary">—</span>
+                  )}
+                </span>
+                <Tooltip content={new Date(s.startedAt).toLocaleString()}>
+                  <span className="stats-recent-when">
+                    <RelativeTime since={Date.parse(s.startedAt)} />
+                  </span>
+                </Tooltip>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       <Section title="By project — today">
         {t.byProject.length === 0 ? (
