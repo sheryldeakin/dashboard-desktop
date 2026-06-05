@@ -4646,20 +4646,8 @@ button:focus-visible {
   padding: 24px 32px 48px;
 }
 
-.stats-title {
-  font-size: 28px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.stats-title-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 0 0 24px;
-  flex-wrap: wrap;
-}
+/* Old .stats-title-row + .stats-title removed 2026-06-05 — replaced by
+   the shared <PageHeader> component on /stats. */
 
 .stats-snapshot,
 .home-snapshot {
@@ -4719,76 +4707,10 @@ button:focus-visible {
   opacity: 1;
 }
 
-.stats-empty {
-  color: var(--ink-muted);
-  font-size: 13px;
-  padding: 8px 0;
-}
-
-.stats-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-  margin-bottom: 28px;
-}
-
-.stats-card {
-  border: 1px solid rgba(182, 139, 97, 0.22);
-  border-radius: 10px;
-  padding: 14px 18px;
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.stats-card-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink-muted);
-  margin-bottom: 8px;
-}
-
-.stats-card-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 4px 0;
-}
-
-.stats-card-unit {
-  font-size: 12px;
-  color: var(--ink-muted);
-}
-
-.stats-num {
-  font-size: 22px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.stats-section {
-  margin-bottom: 32px;
-}
-
-.stats-section h2 {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-muted);
-  margin: 0 0 12px;
-  font-weight: 500;
-}
-
-.stats-streak {
-  display: flex;
-  gap: 36px;
-  align-items: baseline;
-}
-
-.stats-streak > div {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
+/* Old .stats-empty / .stats-cards / .stats-card* / .stats-num / .stats-streak
+   removed 2026-06-05 — replaced by EmptyState / StatGrid / Section across
+   the page. .stats-section also folded into Section (uses home-section
+   styles via Section variant). */
 
 .stats-daily {
   display: grid;
@@ -4919,40 +4841,7 @@ button:focus-visible {
 
 /* ─── Tasks-shipped stats (Stats #1-5 on TasksTab) ────────────── */
 
-/* Stats #1: shipped headline grid (today / week / all-time) */
-.stats-shipped-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin: 8px 0 4px;
-}
-
-.stats-shipped-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid var(--rule-soft);
-}
-
-.stats-shipped-num {
-  font-size: clamp(24px, 2vw + 10px, 32px);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-
-.stats-shipped-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink-muted);
-  font-weight: 600;
-}
+/* Old .stats-shipped-* removed 2026-06-05 — replaced by <StatGrid>. */
 
 /* Stats #2: velocity bar chart — 14 daily bars with count labels */
 .stats-velocity-bars {
@@ -5108,40 +4997,9 @@ button:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-/* ----- /stats tabs ----- */
-
-.stats-tabs {
-  display: flex;
-  gap: 4px;
-  margin: 16px 0 24px;
-  border-bottom: 1px solid rgba(182, 139, 97, 0.22);
-}
-
-.stats-tab {
-  border: none;
-  background: transparent;
-  padding: 9px 16px;
-  font-size: 13px;
-  color: var(--ink-muted);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 120ms, border-color 120ms;
-}
-
-.stats-tab:hover {
-  color: var(--ink);
-}
-
-.stats-tab.is-active {
-  color: var(--ink);
-  font-weight: 600;
-  border-bottom-color: #8a6940;
-}
-
-.stats-tab-body {
-  /* container */
-}
+/* Old .stats-tabs / .stats-tab rules removed 2026-06-05 — replaced by
+   the shared <Tabs> component (uses .ui-tabs styles). .stats-tab-body
+   stays as a no-op wrapper class. */
 
 /* Two-tone daily chart segments (task = tan/brown bottom, Claude outside = slate top) */
 .stats-daily-stack {

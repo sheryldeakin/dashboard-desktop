@@ -496,24 +496,6 @@ function computeStats(content) {
 
 /* ── Reusable bits ── */
 
-function Card({ label, children }) {
-  return (
-    <div className="stats-card">
-      <div className="stats-card-label">{label}</div>
-      {children}
-    </div>
-  );
-}
-
-function CardRow({ value, unit }) {
-  return (
-    <div className="stats-card-row">
-      <span className="stats-num">{value}</span>
-      <span className="stats-card-unit">{unit}</span>
-    </div>
-  );
-}
-
 function DailyDeepChart({ bars }) {
   const max = Math.max(1, ...bars.map((b) => b.totalMs));
   return (
@@ -521,26 +503,27 @@ function DailyDeepChart({ bars }) {
       {bars.map((b) => {
         const taskPct = (b.taskMs / max) * 100;
         const clPct = (b.claudeOutsideMs / max) * 100;
-        const tip =
-          `${b.day} — ${fmtDuration(b.totalMs)} total\n` +
-          `  Task timer: ${fmtDuration(b.taskMs)}\n` +
-          `  Claude (outside timer): ${fmtDuration(b.claudeOutsideMs)}`;
+        const tip = (
+          <>
+            <strong>{b.day}</strong> — {fmtDuration(b.totalMs)} total
+            <br />Task timer: {fmtDuration(b.taskMs)}
+            <br />Claude (outside): {fmtDuration(b.claudeOutsideMs)}
+          </>
+        );
         return (
-          <div
-            key={b.day}
-            className={`stats-daily-col${b.isToday ? " is-today" : ""}`}
-            title={tip}
-          >
-            <div className="stats-daily-stack">
-              {b.claudeOutsideMs > 0 && (
-                <div className="stats-daily-bar stats-daily-bar-claude" style={{ height: `${clPct}%` }} />
-              )}
-              {b.taskMs > 0 && (
-                <div className="stats-daily-bar stats-daily-bar-task" style={{ height: `${taskPct}%` }} />
-              )}
+          <Tooltip key={b.day} content={tip}>
+            <div className={`stats-daily-col${b.isToday ? " is-today" : ""}`}>
+              <div className="stats-daily-stack">
+                {b.claudeOutsideMs > 0 && (
+                  <div className="stats-daily-bar stats-daily-bar-claude" style={{ height: `${clPct}%` }} />
+                )}
+                {b.taskMs > 0 && (
+                  <div className="stats-daily-bar stats-daily-bar-task" style={{ height: `${taskPct}%` }} />
+                )}
+              </div>
+              <div className="stats-daily-label">{b.label}</div>
             </div>
-            <div className="stats-daily-label">{b.label}</div>
-          </div>
+          </Tooltip>
         );
       })}
     </div>
@@ -548,7 +531,7 @@ function DailyDeepChart({ bars }) {
 }
 
 function BreakdownBars({ rows, formatRight, emptyMsg }) {
-  if (!rows.length) return <EmptyState variant="inline" message="{emptyMsg}" />;
+  if (!rows.length) return <EmptyState variant="inline" message={emptyMsg} />;
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
     <div className="stats-breakdown">
@@ -780,16 +763,20 @@ function HeatmapGrid({ stats }) {
                   : `linear-gradient(180deg, rgba(74,90,112,${0.18 + 0.78 * intensity * (1 - taskShare)}) ${(1 - taskShare) * 100}%, rgba(138,105,64,${0.18 + 0.78 * intensity * taskShare}) ${(1 - taskShare) * 100}%)`;
                 const tooltip = total === 0
                   ? `${DOW_LABELS[dow]} ${hr}:00 — no activity`
-                  : `${DOW_LABELS[dow]} ${hr}:00 — ${fmtDuration(total)} total
-  Task timer: ${fmtDuration(cell.taskMs)}
-  Claude outside: ${fmtDuration(cell.claudeOutsideMs)}`;
+                  : (
+                      <>
+                        <strong>{DOW_LABELS[dow]} {hr}:00</strong> — {fmtDuration(total)}
+                        <br />Task: {fmtDuration(cell.taskMs)}
+                        <br />Claude (outside): {fmtDuration(cell.claudeOutsideMs)}
+                      </>
+                    );
                 return (
-                  <span
-                    key={hr}
-                    className="stats-heatmap-cell"
-                    style={{ background: bg }}
-                    title={tooltip}
-                  />
+                  <Tooltip key={hr} content={tooltip}>
+                    <span
+                      className="stats-heatmap-cell"
+                      style={{ background: bg }}
+                    />
+                  </Tooltip>
                 );
               })}
             </div>
@@ -910,15 +897,15 @@ function OverviewTab({ stats }) {
     <>
       <TriageBanner count={stats.triageCount || 0} />
 
-      <section className="stats-cards">
-        {[["Today", stats.today], ["This week", stats.week], ["All-time", stats.all]].map(([label, r]) => (
-          <Card key={label} label={label}>
-            <CardRow value={fmtDuration(r.deep_work_ms)} unit="total deep work" />
-            <CardRow value={fmtDuration(r.task_ms)} unit="task timer" />
-            <CardRow value={fmtDuration(r.claude_outside_ms)} unit="claude (outside)" />
-          </Card>
-        ))}
-      </section>
+      <StatGrid
+        variant="snapshot"
+        columns={[
+          { value: fmtDuration(stats.today.deep_work_ms), label: "Today" },
+          { value: fmtDuration(stats.week.deep_work_ms), label: "Past 7 days" },
+          { value: stats.currentStreak, label: stats.currentStreak === 1 ? "Day streak" : "Day streak", secondary: stats.currentStreak === 0 ? "" : "" },
+          { value: fmtDuration(stats.all.deep_work_ms), label: "All-time" },
+        ]}
+      />
 
       <Section title="Last 14 days — total deep work">
         <DailyDeepChart bars={stats.dailyDeep} />
@@ -938,16 +925,19 @@ function OverviewTab({ stats }) {
       </Section>
 
       <Section title="Focus streak">
-        <div className="stats-streak">
-          <div>
-            <span className="stats-num">{stats.currentStreak}</span>
-            <span className="stats-card-unit"> day{stats.currentStreak === 1 ? "" : "s"} current</span>
-          </div>
-          <div>
-            <span className="stats-num">{stats.all.pomos}</span>
-            <span className="stats-card-unit"> total pomodoros</span>
-          </div>
-        </div>
+        <StatGrid
+          variant="default"
+          columns={[
+            {
+              value: stats.currentStreak,
+              label: stats.currentStreak === 1 ? "Day current" : "Days current",
+            },
+            {
+              value: stats.all.pomos,
+              label: "Total pomodoros",
+            },
+          ]}
+        />
       </Section>
     </>
   );
@@ -1062,9 +1052,11 @@ function HourBar({ hours, max }) {
           const total = h.taskMs + h.claudeOutsideMs;
           if (total === 0) {
             return (
-              <span key={i} className="stats-hourbar-cell" title={`${i}:00 — no activity`}>
-                <span className="stats-hourbar-label">{i}</span>
-              </span>
+              <Tooltip key={i} content={`${i}:00 — no activity`}>
+                <span className="stats-hourbar-cell">
+                  <span className="stats-hourbar-label">{i}</span>
+                </span>
+              </Tooltip>
             );
           }
           const intensity = total / max;
@@ -1072,16 +1064,22 @@ function HourBar({ hours, max }) {
           const bg = `linear-gradient(180deg,
             rgba(74,90,112,${0.25 + 0.7 * intensity * (1 - taskShare)}) ${(1 - taskShare) * 100}%,
             rgba(138,105,64,${0.25 + 0.7 * intensity * taskShare}) ${(1 - taskShare) * 100}%)`;
-          const tip = `${i}:00 — ${fmtDuration(total)}\n  Task: ${fmtDuration(h.taskMs)}\n  Claude outside: ${fmtDuration(h.claudeOutsideMs)}`;
+          const tip = (
+            <>
+              <strong>{i}:00</strong> — {fmtDuration(total)}
+              <br />Task: {fmtDuration(h.taskMs)}
+              <br />Claude (outside): {fmtDuration(h.claudeOutsideMs)}
+            </>
+          );
           return (
-            <span
-              key={i}
-              className="stats-hourbar-cell stats-hourbar-cell-active"
-              style={{ background: bg }}
-              title={tip}
-            >
-              <span className="stats-hourbar-label">{i}</span>
-            </span>
+            <Tooltip key={i} content={tip}>
+              <span
+                className="stats-hourbar-cell stats-hourbar-cell-active"
+                style={{ background: bg }}
+              >
+                <span className="stats-hourbar-label">{i}</span>
+              </span>
+            </Tooltip>
           );
         })}
       </div>
@@ -1118,10 +1116,14 @@ function TodayProjectRow({ row, max }) {
       <span className="stats-today-project-name">{row.label}</span>
       <div className="stats-today-project-track">
         {row.taskMs > 0 && (
-          <div className="stats-today-project-bar stats-today-project-bar-task" style={{ width: `${taskPct}%` }} title={`${fmtDuration(row.taskMs)} task timer`} />
+          <Tooltip content={`${fmtDuration(row.taskMs)} task timer`}>
+            <div className="stats-today-project-bar stats-today-project-bar-task" style={{ width: `${taskPct}%` }} />
+          </Tooltip>
         )}
         {row.claudeOutsideMs > 0 && (
-          <div className="stats-today-project-bar stats-today-project-bar-claude" style={{ width: `${claudePct}%` }} title={`${fmtDuration(row.claudeOutsideMs)} Claude outside`} />
+          <Tooltip content={`${fmtDuration(row.claudeOutsideMs)} Claude outside`}>
+            <div className="stats-today-project-bar stats-today-project-bar-claude" style={{ width: `${claudePct}%` }} />
+          </Tooltip>
         )}
       </div>
       <span className="stats-today-project-val">
@@ -1153,33 +1155,31 @@ function TodayTab({ stats }) {
 
   return (
     <>
-      <section className="stats-cards">
-        <Card label="Total today">
-          <CardRow value={fmtDuration(t.deepMs)} unit="deep work" />
-          <CardRow value={fmtDuration(t.taskMs)} unit="task timer" />
-          <CardRow value={fmtDuration(t.claudeOutsideMs)} unit="claude (outside)" />
-        </Card>
-        <Card label="Sessions">
-          <CardRow value={t.sessions.length} unit="total" />
-          <CardRow value={t.todayPomos} unit="pomodoros done" />
-          <CardRow
-            value={t.sessions.length ? fmtDuration(Math.round(t.deepMs / t.sessions.length)) : "—"}
-            unit="avg deep work / session"
-          />
-        </Card>
-        <Card label="Claude breakdown">
-          <CardRow value={fmtDuration(t.claudeMs)} unit="total claude" />
-          <CardRow value={fmtDuration(t.absorbedMs)} unit="absorbed by task timer" />
-          <CardRow
-            value={t.claudeMs > 0 ? `${Math.round((t.absorbedMs / t.claudeMs) * 100)}%` : "—"}
-            unit="overlap rate"
-          />
-        </Card>
-        <Card label="vs yesterday">
-          <CardRow value={`${deltaSign}${deltaMin}m`} unit="vs yesterday's deep work" />
-          <CardRow value={fmtDuration(t.yDeepMs)} unit="yesterday's total" />
-        </Card>
-      </section>
+      <StatGrid
+        variant="snapshot"
+        columns={[
+          {
+            value: fmtDuration(t.deepMs),
+            label: "Deep work",
+            delta: t.yDeepMs > 0 || t.deepMs > 0
+              ? {
+                  sign: deltaMin > 0 ? "up" : deltaMin < 0 ? "down" : "neutral",
+                  label: deltaMin === 0
+                    ? "same as yesterday"
+                    : `${deltaSign}${deltaMin}m vs yesterday`,
+                }
+              : null,
+          },
+          { value: t.sessions.length, label: "Sessions" },
+          { value: t.todayPomos, label: "Pomodoros" },
+          {
+            value: t.sessions.length
+              ? fmtDuration(Math.round(t.deepMs / t.sessions.length))
+              : "—",
+            label: "Avg / session",
+          },
+        ]}
+      />
 
       <Section title="Hour by hour">
         <HourBar hours={t.hours} max={t.hoursMax} />
@@ -1228,22 +1228,26 @@ function TodayTab({ stats }) {
 function FocusTab({ stats }) {
   return (
     <>
-      <section className="stats-cards">
-        {[["Today", stats.today], ["This week", stats.week], ["All-time", stats.all]].map(([label, r]) => (
-          <Card key={label} label={label}>
-            <CardRow value={r.pomos} unit="pomodoros completed" />
-            <CardRow value={fmtDuration(r.task_ms)} unit="focus time" />
-          </Card>
-        ))}
-      </section>
+      <StatGrid
+        variant="snapshot"
+        columns={[
+          { value: stats.today.pomos, label: "Pomos today" },
+          { value: stats.week.pomos, label: "Past 7 days" },
+          { value: stats.currentStreak, label: stats.currentStreak === 1 ? "Day streak" : "Day streak" },
+          { value: stats.all.pomos, label: "All-time" },
+        ]}
+      />
 
       <Section title="Focus streak">
-        <div className="stats-streak">
-          <div>
-            <span className="stats-num">{stats.currentStreak}</span>
-            <span className="stats-card-unit"> day{stats.currentStreak === 1 ? "" : "s"} current</span>
-          </div>
-        </div>
+        <StatGrid
+          variant="default"
+          columns={[
+            {
+              value: stats.currentStreak,
+              label: stats.currentStreak === 1 ? "Day current" : "Days current",
+            },
+          ]}
+        />
       </Section>
 
       <Section title="Focus time by project — all time">
@@ -1260,15 +1264,20 @@ function FocusTab({ stats }) {
 function ClaudeTab({ stats }) {
   return (
     <>
-      <section className="stats-cards">
-        {[["Today", stats.today], ["This week", stats.week], ["All-time", stats.all]].map(([label, r]) => (
-          <Card key={label} label={label}>
-            <CardRow value={r.claude_sessions} unit="claude sessions" />
-            <CardRow value={fmtDuration(r.claude_total_ms)} unit="active time" />
-            <CardRow value={r.claude_sessions ? Math.round(r.claude_msgs / r.claude_sessions) : 0} unit="msgs / session" />
-          </Card>
-        ))}
-      </section>
+      <StatGrid
+        variant="snapshot"
+        columns={[
+          { value: stats.today.claude_sessions, label: "Sessions today" },
+          { value: stats.week.claude_sessions, label: "Past 7 days" },
+          { value: fmtDuration(stats.all.claude_total_ms), label: "All-time active" },
+          {
+            value: stats.all.claude_sessions
+              ? Math.round(stats.all.claude_msgs / stats.all.claude_sessions)
+              : 0,
+            label: "Avg msgs/session",
+          },
+        ]}
+      />
 
       <Section title="Claude time by project — all time">
         <ClaudeProjectRows rows={stats.claudeByProject} />
@@ -1317,21 +1326,24 @@ function TasksTab({ stats }) {
           {stats.dailyCompletions.map((d) => {
             const heightPct = (d.count / peakDaily) * 100;
             return (
-              <div
+              <Tooltip
                 key={d.day}
-                className={`stats-velocity-col${d.isToday ? " is-today" : ""}${d.count > 0 ? " has-any" : ""}`}
-                title={`${d.day} — ${d.count} completed`}
+                content={`${d.day} — ${d.count} completed`}
               >
-                <div className="stats-velocity-bar-wrap">
-                  <div
-                    className="stats-velocity-bar"
-                    style={{ height: `${Math.max(3, heightPct)}%` }}
-                  />
+                <div
+                  className={`stats-velocity-col${d.isToday ? " is-today" : ""}${d.count > 0 ? " has-any" : ""}`}
+                >
+                  <div className="stats-velocity-bar-wrap">
+                    <div
+                      className="stats-velocity-bar"
+                      style={{ height: `${Math.max(3, heightPct)}%` }}
+                    />
+                  </div>
+                  <div className="stats-velocity-count">
+                    {d.count > 0 ? d.count : ""}
+                  </div>
                 </div>
-                <div className="stats-velocity-count">
-                  {d.count > 0 ? d.count : ""}
-                </div>
-              </div>
+              </Tooltip>
             );
           })}
         </div>
