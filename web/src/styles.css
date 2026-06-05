@@ -5815,33 +5815,35 @@ button:focus-visible {
 .ui-stat-delta.is-neutral { color: var(--ink-muted); opacity: 0.7; }
 
 /* ── Reusable: Tabs ───────────────────────────────────────────── */
-/* Refined underline tabs: no full-width hairline, larger type, wider
-   gaps, thicker underline only under the active tab. Hover/active rely
-   on color contrast (muted → ink) without changing weight so labels
-   don't shift width between states. */
+/* Section-label tabs: pulls typography directly from .home-section-title
+   and .history-date-header (uppercase, 11-12px, 0.06em tracking, 600
+   weight, ink-muted). Active state shown by color only — full ink — so
+   tabs read like another section header in the page's idiom. A single
+   --rule-soft hairline runs under the whole row to match the dividers
+   used by .home-section-title and .history-date-header. */
 .ui-tabs {
   display: flex;
-  gap: clamp(20px, 2vw, 32px);
+  gap: clamp(20px, 2.5vw, 36px);
   margin-bottom: clamp(20px, 2vw, 28px);
+  border-bottom: 1px solid var(--rule-soft);
+  padding-bottom: 8px;
 }
 
 .ui-tab {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 0;
+  padding: 0;
   background: transparent;
   border: none;
-  border-bottom: 3px solid transparent;
   color: var(--ink-muted);
   font-family: inherit;
-  font-size: clamp(15px, 0.3vw + 12.5px, 16px);
-  font-weight: 500;
-  letter-spacing: -0.005em;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   cursor: pointer;
-  transition:
-    color var(--motion-fast) ease,
-    border-color var(--motion-fast) ease;
+  transition: color var(--motion-fast) ease;
 }
 
 .ui-tab:hover {
@@ -5850,12 +5852,11 @@ button:focus-visible {
 
 .ui-tab.is-active {
   color: var(--ink);
-  border-bottom-color: var(--accent-tan);
 }
 
 .ui-tab:focus-visible {
   outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline-offset: 3px;
   border-radius: 2px;
 }
 
