@@ -5815,27 +5815,30 @@ button:focus-visible {
 .ui-stat-delta.is-neutral { color: var(--ink-muted); opacity: 0.7; }
 
 /* ── Reusable: Tabs ───────────────────────────────────────────── */
+/* Refined underline tabs: no full-width hairline, larger type, wider
+   gaps, thicker underline only under the active tab. Hover/active rely
+   on color contrast (muted → ink) without changing weight so labels
+   don't shift width between states. */
 .ui-tabs {
   display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--rule);
-  margin-bottom: 16px;
+  gap: clamp(20px, 2vw, 32px);
+  margin-bottom: clamp(20px, 2vw, 28px);
 }
 
 .ui-tab {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 10px 0;
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   color: var(--ink-muted);
   font-family: inherit;
-  font-size: clamp(13px, 0.3vw + 10.5px, 14px);
+  font-size: clamp(15px, 0.3vw + 12.5px, 16px);
   font-weight: 500;
+  letter-spacing: -0.005em;
   cursor: pointer;
-  margin-bottom: -1px;
   transition:
     color var(--motion-fast) ease,
     border-color var(--motion-fast) ease;
@@ -5853,6 +5856,7 @@ button:focus-visible {
 .ui-tab:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .ui-tab-icon {
