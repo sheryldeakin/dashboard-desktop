@@ -6192,6 +6192,14 @@ button:focus-visible {
   list-style: none;
   cursor: pointer;
   user-select: none;
+  /* Default size for plain-text summaries (e.g. "Sessions today —
+     chronological"). Matches the body text idiom used elsewhere on
+     /stats. Summaries with custom inner spans (e.g. ClaudeProjectBucket's
+     project name + meta) override this via their own explicit sizes,
+     so this only takes effect when no inner sizing is set. */
+  font-size: clamp(12px, 0.2vw + 10.5px, 13px);
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .ui-collapsible-summary::-webkit-details-marker {
