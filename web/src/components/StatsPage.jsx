@@ -12,6 +12,8 @@ import EmptyState from "./EmptyState.jsx";
 import RelativeTime from "./RelativeTime.jsx";
 import Tooltip from "./Tooltip.jsx";
 import MetricTable from "./MetricTable.jsx";
+import Collapsible from "./Collapsible.jsx";
+import WeekRecap, { buildWeekRecap } from "./WeekRecap.jsx";
 
 /* Stats page — pure read view across pomodoro.history + taskHistory +
    todaysTasks + workSessions. Four tabs (Overview / Focus / Claude / Tasks).
@@ -893,7 +895,16 @@ function TriageBanner({ count }) {
 
 /* ── Tab views ── */
 
-function OverviewTab({ stats }) {
+function OverviewTab({ stats, content }) {
+  // 14-day project-segmented bar chart data. Mirrors /home's "This
+  // week" recap pattern (WeekRecap component) but over a 14-day window.
+  // Computed via the shared buildWeekRecap helper so the same project
+  // resolves to the same color on /home and /stats.
+  const weekRecap14 = useMemo(
+    () => buildWeekRecap(content, { days: 14 }),
+    [content]
+  );
+
   return (
     <>
       <TriageBanner count={stats.triageCount || 0} />
@@ -908,45 +919,22 @@ function OverviewTab({ stats }) {
         ]}
       />
 
-      <Section title="Detail">
-        <MetricTable
-          headers={["Today", "Past 7 days", "All-time"]}
-          rows={[
-            {
-              label: "Task timer",
-              cells: [
-                fmtDuration(stats.today.task_ms),
-                fmtDuration(stats.week.task_ms),
-                fmtDuration(stats.all.task_ms),
-              ],
-            },
-            {
-              label: "Claude (outside timer)",
-              cells: [
-                fmtDuration(stats.today.claude_outside_ms),
-                fmtDuration(stats.week.claude_outside_ms),
-                fmtDuration(stats.all.claude_outside_ms),
-              ],
-            },
-          ]}
-        />
-      </Section>
-
-      <Section title="Last 14 days — total deep work">
-        <DailyDeepChart bars={stats.dailyDeep} />
-        <p className="stats-footnote">
-          <span className="stats-swatch stats-swatch-task" /> Task timer (absorbs concurrent Claude)
-          {"  "}
-          <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer
-        </p>
-      </Section>
+      {/* Headline chart: 14 days of focused time, project-colored bars.
+          Same component as /home's "This week" rail card — see
+          flag-reuse-opportunities memory: 2nd use is the extraction
+          trigger. WeekRecap brings its own .home-section chrome (title
+          row + meta + hairline), so we don't wrap it in <Section>. */}
+      <WeekRecap
+        weekDays={weekRecap14.weekDays}
+        weekTotalMs={weekRecap14.weekTotalMs}
+        weekActiveDays={weekRecap14.weekActiveDays}
+        weekLegend={weekRecap14.weekLegend}
+        title="Last 14 days"
+        placement="main"
+      />
 
       <Section title="By project">
         <ProjectGrid cards={stats.projectCards} />
-      </Section>
-
-      <Section title="Hour-of-day heatmap">
-        <HeatmapGrid stats={stats} />
       </Section>
 
       <Section title="Focus streak">
@@ -963,6 +951,49 @@ function OverviewTab({ stats }) {
             },
           ]}
         />
+      </Section>
+
+      {/* Deep-dive breakdowns sit below the headline chart, collapsed by
+          default so the at-a-glance view stays clean. Each toggle is one
+          click; users who want the detail aren't blocked. */}
+      <Section title="Breakdowns">
+        <Collapsible summary="Task timer vs Claude (outside timer)">
+          <MetricTable
+            headers={["Today", "Past 7 days", "All-time"]}
+            rows={[
+              {
+                label: "Task timer",
+                cells: [
+                  fmtDuration(stats.today.task_ms),
+                  fmtDuration(stats.week.task_ms),
+                  fmtDuration(stats.all.task_ms),
+                ],
+              },
+              {
+                label: "Claude (outside timer)",
+                cells: [
+                  fmtDuration(stats.today.claude_outside_ms),
+                  fmtDuration(stats.week.claude_outside_ms),
+                  fmtDuration(stats.all.claude_outside_ms),
+                ],
+              },
+            ]}
+          />
+          {/* The 14-day stacked task-vs-claude chart that used to live
+              up top — kept here as the canonical view for the
+              "where did the time go" task/Claude split. The Overview's
+              headline chart now shows project segmentation instead. */}
+          <DailyDeepChart bars={stats.dailyDeep} />
+          <p className="stats-footnote">
+            <span className="stats-swatch stats-swatch-task" /> Task timer (absorbs concurrent Claude)
+            {"  "}
+            <span className="stats-swatch stats-swatch-claude" /> Claude outside any task timer
+          </p>
+        </Collapsible>
+
+        <Collapsible summary="Hour-of-day heatmap">
+          <HeatmapGrid stats={stats} />
+        </Collapsible>
       </Section>
     </>
   );
@@ -1696,7 +1727,7 @@ export default function StatsPage() {
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
 
       <div className="stats-tab-body">
-        {tab === "overview" && <OverviewTab stats={stats} />}
+        {tab === "overview" && <OverviewTab stats={stats} content={content} />}
         {tab === "today" && <TodayTab stats={stats} />}
         {tab === "focus" && <FocusTab stats={stats} />}
         {tab === "claude" && <ClaudeTab stats={stats} />}

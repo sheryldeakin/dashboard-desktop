@@ -18,6 +18,7 @@ import Stat from "./Stat.jsx";
 import StatGrid from "./StatGrid.jsx";
 import RailCard from "./RailCard.jsx";
 import RelativeTime from "./RelativeTime.jsx";
+import WeekRecap from "./WeekRecap.jsx";
 import Chip from "./Chip.jsx";
 
 /* Icon-button glyphs for UnfinishedSection row actions. Replaces the
@@ -1744,175 +1745,10 @@ function UnfinishedSection({
   );
 }
 
-/* ── This week recap ──
-   7-bar focused-time chart for the past week, oldest → today. Each bar's
-   height is normalized to the peak of the 7 days (so even a quiet week
-   shows shape, not a flat line). Today's bar uses the sage accent so the
-   page's "you are here" cursor extends from the header into the chart.
-   Whole section is clickable to /stats?tab=time for the full breakdown.
-   When the week is genuinely empty we just show the chart-frame with
-   "No focused time logged this week yet." — no fake data, no skeleton.
-
-   Why a 7-day window (not Mon-Sun calendar week): the rolling window
-   is what dashboards like Stripe and GitHub use because it always shows
-   you the same amount of history regardless of what day you load it. */
-function WeekRecap({ weekDays, weekTotalMs, weekActiveDays, weekLegend, placement = "main" }) {
-  const peak = Math.max(...weekDays.map((d) => d.focusedMs), 1);
-  const hasAny = weekTotalMs > 0;
-  const isRail = placement === "rail";
-
-  // Hover state — { dayIdx, segIdx, day, seg } or null. Carries enough
-  // info to render the contextual meta line at the top of the section
-  // without re-deriving anything inside it. Cleared when the mouse leaves
-  // the bars container.
-  const [hover, setHover] = useState(null);
-
-  // Meta line content: weekly totals by default; hovered segment's
-  // project/day/duration when something is hovered. The slot is the same
-  // DOM element so the swap is a content change, not a layout shift.
-  // In rail placement the meta is hidden when there's no hover (compact
-  // footprint) and only appears on hover for context.
-  const metaContent = hover
-    ? (
-        <span className="home-section-meta is-hover">
-          <span className="home-week-meta-dot" style={{ background: hover.seg.fullColor }} />
-          <strong>{hover.seg.name}</strong>
-          <span className="home-section-meta-sep" aria-hidden="true">·</span>
-          {fmtHrMin(hover.seg.ms)}
-          <span className="home-section-meta-sep" aria-hidden="true">·</span>
-          <span className="home-section-meta-day">{hover.day.fullLabel}</span>
-        </span>
-      )
-    : hasAny && !isRail
-      ? (
-          <span className="home-section-meta">
-            <strong>{fmtHrMin(weekTotalMs)}</strong> across {weekActiveDays}
-            {weekActiveDays === 1 ? " day" : " days"}
-          </span>
-        )
-      : null;
-
-  const bars = (
-    <div
-      className="home-week-bars"
-      onMouseLeave={() => setHover(null)}
-    >
-      {weekDays.map((d, dayIdx) => {
-        const heightPct = (d.focusedMs / peak) * 100;
-        return (
-          <div
-            key={d.dayKey}
-            className={`home-week-col${d.isToday ? " is-today" : ""}${d.focusedMs > 0 ? " has-any" : ""}`}
-          >
-            <div className="home-week-bar-wrap">
-              <div
-                className="home-week-bar"
-                style={{ height: `${Math.max(3, heightPct)}%` }}
-              >
-                {d.segments.map((s, segIdx) => {
-                  const isHovered =
-                    hover && hover.dayIdx === dayIdx && hover.segIdx === segIdx;
-                  const isFaded = hover && !isHovered;
-                  return (
-                    <div
-                      key={s.id}
-                      className={`home-week-bar-seg${isHovered ? " is-hovered" : ""}${isFaded ? " is-faded" : ""}`}
-                      style={{
-                        flexBasis: `${(s.ms / d.focusedMs) * 100}%`,
-                        background: isHovered ? s.fullColor : s.color,
-                      }}
-                      onMouseEnter={() =>
-                        setHover({ dayIdx, segIdx, day: d, seg: s })
-                      }
-                    />
-                  );
-                })}
-              </div>
-            </div>
-            <div className="home-week-label">{d.dayLabel}</div>
-            {/* Per-day time label is hidden in rail mode to save vertical
-                space — the hover meta surfaces it on demand. */}
-            {!isRail && (
-              <div className="home-week-time">
-                {d.focusedMs > 0 ? fmtHrMin(d.focusedMs) : "—"}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  // Legend hidden in rail placement — too tight to render the full row.
-  // The hover-meta line + tooltips carry the project mapping there.
-  const legend = !isRail && hasAny && weekLegend.length > 0 && (
-    <ul className="home-week-legend">
-      {weekLegend.map((p) => (
-        <li key={p.id} className="home-week-legend-row">
-          <span className="home-week-legend-dot" style={{ background: p.color }} />
-          <span className="home-week-legend-name">{p.name}</span>
-          <span className="home-week-legend-ms">{fmtHrMin(p.ms)}</span>
-        </li>
-      ))}
-    </ul>
-  );
-
-  const emptyState = !hasAny && (
-    <div className="home-week-empty">
-      <EmptyState
-        variant="inline"
-        message="No focused time this week"
-        hint="Start a timer on any task and your week will fill in."
-      />
-    </div>
-  );
-
-  // Rail variant — compact rail-card chrome with icon title + total chip.
-  if (isRail) {
-    return (
-      <section className={`home-rail-card home-week-recap-card${hover ? " is-hovering" : ""}`}>
-        <div className="home-rail-card-title home-rail-card-title-row">
-          <span className="home-rail-icon-wrap">{RAIL_ICONS.hours}</span>
-          <span>This week</span>
-          {hasAny && (
-            <span className="home-week-rail-total">{fmtHrMin(weekTotalMs)}</span>
-          )}
-        </div>
-        <a
-          href="/stats?tab=time"
-          className="home-week-recap home-week-recap--rail"
-          aria-label="Open this week's breakdown in stats"
-        >
-          {bars}
-          {emptyState}
-        </a>
-        {/* Hover meta sits below the bars in rail mode so it doesn't
-            disturb the bar layout. Reserved height keeps the card from
-            jumping when hover state toggles. */}
-        <div className="home-week-rail-meta">{metaContent}</div>
-      </section>
-    );
-  }
-
-  // Default (main column) variant — full section.
-  return (
-    <section className={`home-section${hover ? " is-hovering" : ""}`}>
-      <h2 className="home-section-title home-section-title-row">
-        <span>This week</span>
-        {metaContent}
-      </h2>
-      <a
-        href="/stats?tab=time"
-        className="home-week-recap"
-        aria-label="Open this week's breakdown in stats"
-      >
-        {bars}
-        {legend}
-        {emptyState}
-      </a>
-    </section>
-  );
-}
+/* This week recap ── extracted to components/WeekRecap.jsx so /stats
+   Overview can reuse the same chart for its 14-day view. The component
+   is the same; /home passes placement="rail", icon=RAIL_ICONS.hours,
+   and href="/stats?tab=time" at the call site below. */
 
 /* ── Loading skeleton ──
    Mimics the real /home layout so the eye lands in the right place when
@@ -2432,6 +2268,9 @@ export default function HomePage() {
             weekTotalMs={todayStats.weekTotalMs}
             weekActiveDays={todayStats.weekActiveDays}
             weekLegend={todayStats.weekLegend}
+            title="This week"
+            href="/stats?tab=overview"
+            icon={RAIL_ICONS.hours}
             placement="rail"
           />
           <PeakHourCard workSessions={content.workSessions} />
