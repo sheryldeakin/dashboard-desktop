@@ -660,12 +660,120 @@ function computeStats(content) {
     })
     .sort((a, b) => a.msPerCompletion - b.msPerCompletion); // most efficient first
 
-  // Recent completions feed — flat list of last 50 with project resolution.
-  const recentCompletions = allCompletions.slice(0, 50).map((c) => ({
-    ...c,
-    projectName: projectName.get(c.projectId) || "Unassigned",
-    color: projectColor.get(c.projectId),
-  }));
+  // Quick session lookup: id → {aiSummary, source} so the Tasks tab
+  // Recent completions list can show what was happening when the task
+  // was closed AND whether the closure was Claude-assisted (used by
+  // both the AI-summary inline and the Claude-share stat below).
+  const sessionMeta = new Map();
+  for (const ws of content.workSessions || []) {
+    if (!ws.id) continue;
+    sessionMeta.set(ws.id, {
+      aiSummary: typeof ws.aiSummary === "string" ? ws.aiSummary.trim() : "",
+      source: ws.source || "",
+    });
+  }
+
+  // Recent completions feed — flat list of last 50 with project
+  // resolution + AI summary from the source session. The aiSummary
+  // gives "what was happening when this was closed" context.
+  const recentCompletions = allCompletions.slice(0, 50).map((c) => {
+    const meta = sessionMeta.get(c.sessionId);
+    return {
+      ...c,
+      projectName: projectName.get(c.projectId) || "Unassigned",
+      color: projectColor.get(c.projectId),
+      aiSummary: meta?.aiSummary || "",
+      claudeAssisted: meta?.source === "claude_code",
+    };
+  });
+
+  // 14-day completion velocity with project segments. Shape mirrors
+  // focusDaily14 / claudeDaily14 so DailyStackedBars renders it the
+  // same way — only the value unit differs (count vs ms). byProject
+  // is Map<projectId, count> here, not Map<projectId, ms>.
+  const completionsDaily14 = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = todayMs - i * MS_PER_DAY;
+      days.push({
+        dayKey: ymd(new Date(dayStart)),
+        dayStart,
+        count: 0,
+        byProject: new Map(),
+        isToday: i === 0,
+      });
+    }
+    const byKey = new Map(days.map((d) => [d.dayKey, d]));
+    for (const c of allCompletions) {
+      const t = Date.parse(c.completedAt);
+      if (!Number.isFinite(t)) continue;
+      const key = ymd(new Date(t));
+      const slot = byKey.get(key);
+      if (!slot) continue;
+      slot.count += 1;
+      const pid = c.projectId || "";
+      slot.byProject.set(pid, (slot.byProject.get(pid) || 0) + 1);
+    }
+    return days;
+  })();
+
+  // "Tasks-closed-via-Claude" split: of the completions in each
+  // window, what fraction happened during a claude_code session?
+  // Shows up as a muted comparison line under the Tasks snapshot.
+  function claudeShareSince(startMs) {
+    let total = 0;
+    let claude = 0;
+    for (const c of allCompletions) {
+      const t = Date.parse(c.completedAt);
+      if (!Number.isFinite(t) || t < startMs) continue;
+      total += 1;
+      if (sessionMeta.get(c.sessionId)?.source === "claude_code") claude += 1;
+    }
+    return total > 0 ? { total, claude, pct: Math.round((claude / total) * 100) } : null;
+  }
+  const completionsByClaudeShare = {
+    today: claudeShareSince(todayStart),
+    week: claudeShareSince(weekStart),
+    all: (() => {
+      let claude = 0;
+      for (const c of allCompletions) {
+        if (sessionMeta.get(c.sessionId)?.source === "claude_code") claude += 1;
+      }
+      const total = allCompletions.length;
+      return total > 0 ? { total, claude, pct: Math.round((claude / total) * 100) } : null;
+    })(),
+  };
+
+  // Open-tasks-by-age — bucket open todaysTasks by how long ago they
+  // were created. Surfaces stale work. Three buckets balance summary
+  // size + granularity for typical task lists.
+  const openTasksByAge = (() => {
+    const todayMs = todayStart;
+    const buckets = {
+      "0-7d": 0,
+      "8-30d": 0,
+      "30d+": 0,
+    };
+    for (const t of content.todaysTasks || []) {
+      if (t.done) continue;
+      const created = Date.parse(t.createdAt);
+      if (!Number.isFinite(created)) {
+        // Tasks without a parseable createdAt land in 0-7d so they
+        // don't get artificially stale-marked.
+        buckets["0-7d"] += 1;
+        continue;
+      }
+      const ageMs = todayMs - created;
+      const ageDays = ageMs / MS_PER_DAY;
+      if (ageDays <= 7) buckets["0-7d"] += 1;
+      else if (ageDays <= 30) buckets["8-30d"] += 1;
+      else buckets["30d+"] += 1;
+    }
+    return buckets;
+  })();
 
   return {
     today, week, all,
@@ -717,6 +825,11 @@ function computeStats(content) {
     // Claude tab: 14-day daily activity + theme tags from AI summaries.
     claudeDaily14,
     claudeThemes,
+    // Tasks tab: 14-day completion velocity (project-segmented),
+    // Claude-assisted share by window, and open-tasks-by-age buckets.
+    completionsDaily14,
+    completionsByClaudeShare,
+    openTasksByAge,
   };
 }
 
@@ -2383,6 +2496,33 @@ function FocusDailyChart({ days, projectName, projectColor }) {
   );
 }
 
+/* CompletionsDailyChart — task completions → DailyStackedBars wrapper.
+   Bar height driven by count per day (not ms); tooltip surfaces total
+   completions + per-project breakdown. Same visual shape as the time-
+   based charts even though the unit is counts. */
+function CompletionsDailyChart({ days, projectName, projectColor }) {
+  return (
+    <DailyStackedBars
+      days={days}
+      projectName={projectName}
+      projectColor={projectColor}
+      valueAccessor={(d) => d.count}
+      tooltipFor={(d, segs) => (
+        <>
+          <strong>{d.dayKey}</strong> — {d.count} completion{d.count === 1 ? "" : "s"}
+          {segs.map(([pid, count]) => (
+            <span key={pid || "unassigned"}>
+              <br />
+              {projectName.get(pid) || "Unassigned"}: {count}
+            </span>
+          ))}
+          {d.count === 0 && (<><br />no completions</>)}
+        </>
+      )}
+    />
+  );
+}
+
 /* ClaudeDailyChart — Claude activity → DailyStackedBars wrapper. Bar
    height driven by active ms per day; tooltip surfaces session count
    + per-project breakdown. */
@@ -2742,50 +2882,87 @@ function ClaudeTab({ stats }) {
 
 function TasksTab({ stats }) {
   const c = stats.completionCounts;
-  const peakDaily = Math.max(...stats.dailyCompletions.map((d) => d.count), 1);
+  // Project lookup maps for the chart (same shape used on Focus + Claude).
+  const projectName = useMemo(
+    () => new Map((stats.projects || []).map((p) => [p.id, p.name])),
+    [stats.projects]
+  );
+  const projectColor = useMemo(() => {
+    const map = new Map();
+    for (const p of stats.projects || []) {
+      if (p.color) map.set(p.id, p.color);
+    }
+    return map;
+  }, [stats.projects]);
+
+  // 4th snapshot cell: avg shipped per day across the past 7 days.
+  // Single decimal so "1.4 / day" still reads as a number rather than
+  // being rounded to 1.
+  const avgShipped = c.week / 7;
+  const avgShippedDisplay =
+    avgShipped >= 1 ? avgShipped.toFixed(1) : (avgShipped > 0 ? avgShipped.toFixed(2) : "0");
+
+  // Open-tasks-by-age — total + the stale slice. The bar component
+  // below renders the three buckets; this just powers the section.
+  const openAge = stats.openTasksByAge;
+  const openTotal = openAge["0-7d"] + openAge["8-30d"] + openAge["30d+"];
+  const openMaxBucket = Math.max(1, openAge["0-7d"], openAge["8-30d"], openAge["30d+"]);
+
+  // Claude-assist share line — single muted line under the snapshot,
+  // same pattern as Today's "vs typical" line. Pulls the last 7 days
+  // by default since today alone is noisy.
+  const claudeShare = stats.completionsByClaudeShare?.week;
+
   return (
     <>
-      {/* Stats #1: Shipped headline at top of tab — matches the snapshot
-          strip pattern used by Overview/Today/Focus/Claude tabs. */}
+      {/* Snapshot: 4 cells now (was 3). Added Avg shipped/day from the
+          7-day window so the snapshot mirrors the pace question the
+          rest of the tab answers in detail. */}
       <StatGrid
         variant="snapshot"
         columns={[
           { value: c.today, label: "Today" },
           { value: c.week, label: "Past 7 days" },
+          { value: avgShippedDisplay, label: "Avg / day (7d)" },
           { value: c.all, label: "All-time shipped" },
         ]}
       />
 
-      {/* Stats #2: Daily completion velocity (14 days) */}
-      <Section title="Completion velocity — last 14 days">
-        <div className="stats-velocity-bars">
-          {stats.dailyCompletions.map((d) => {
-            const heightPct = (d.count / peakDaily) * 100;
-            return (
-              <Tooltip
-                key={d.day}
-                content={`${d.day} — ${d.count} completed`}
-              >
-                <div
-                  className={`stats-velocity-col${d.isToday ? " is-today" : ""}${d.count > 0 ? " has-any" : ""}`}
-                >
-                  <div className="stats-velocity-bar-wrap">
-                    <div
-                      className="stats-velocity-bar"
-                      style={{ height: `${Math.max(3, heightPct)}%` }}
-                    />
-                  </div>
-                  <div className="stats-velocity-count">
-                    {d.count > 0 ? d.count : ""}
-                  </div>
-                </div>
-              </Tooltip>
-            );
-          })}
-        </div>
-      </Section>
+      {/* Claude-assist share — muted comparison line. Skipped when
+          there's no completion data in the week window. */}
+      {claudeShare && (
+        <p className="stats-today-vs-typical">
+          <strong>{claudeShare.pct}%</strong> of completions this week happened
+          during a Claude session ({claudeShare.claude} of {claudeShare.total}).
+        </p>
+      )}
 
-      {/* Stats #3: Completions by project */}
+      {/* Completion velocity — now project-segmented via DailyStackedBars.
+          Same compact shape as Focus + Claude charts but the unit is
+          count, not ms. */}
+      <section className="home-section">
+        <h2 className="home-section-title home-section-title-row">
+          <span>Last 14 days</span>
+          <span className="home-section-meta">
+            <strong>{c.week}</strong>{" "}
+            shipped in last 7 days
+          </span>
+        </h2>
+        {stats.completionsDaily14.every((d) => d.count === 0) ? (
+          <EmptyState
+            variant="inline"
+            message="No completions in the last 14 days"
+            hint="Tasks closed during a Claude session (via TaskCreate/TaskUpdate) land here automatically."
+          />
+        ) : (
+          <CompletionsDailyChart
+            days={stats.completionsDaily14}
+            projectName={projectName}
+            projectColor={projectColor}
+          />
+        )}
+      </section>
+
       <Section title="Tasks shipped by project">
         {stats.completionsByProject.length === 0 ? (
           <EmptyState variant="inline" message="No completions recorded yet" />
@@ -2802,31 +2979,11 @@ function TasksTab({ stats }) {
         )}
       </Section>
 
-      {/* Stats #5: Focus time per completion (project-level) */}
-      {stats.focusPerCompletion.length > 0 && (
-        <Section title="Focus hours per completed task">
-          <ul className="stats-fpc-list">
-            {stats.focusPerCompletion.map((p) => (
-              <li key={p.projectId} className="stats-fpc-row">
-                <span className="stats-fpc-dot" style={{ background: p.color }} />
-                <span className="stats-fpc-name">{p.name}</span>
-                <span className="stats-fpc-ratio">
-                  {fmtDuration(p.msPerCompletion)} <span className="stats-fpc-unit">/ task</span>
-                </span>
-                <span className="stats-fpc-detail">
-                  {fmtDuration(p.focusMs)} · {p.count} done
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="stats-footnote">
-            Only projects with ≥3 completions shown — lower = more efficient
-            shipping (caveat: tasks vary in scope).
-          </p>
-        </Section>
-      )}
-
-      {/* Stats #4: Recent completions feed */}
+      {/* Recent completions — rewrote to use the .stats-recent-row
+          4-col layout (same as Overview/Today/Claude). Each row now
+          shows project · subject · AI summary from the source session
+          · relative time. The AI summary teaser is the headline change:
+          "this task closed during a session about <X>" context. */}
       <Section title="Recent completions">
         {stats.recentCompletions.length === 0 ? (
           <EmptyState variant="inline" message="No completions yet" />
@@ -2834,34 +2991,104 @@ function TasksTab({ stats }) {
           <ul className="stats-recent-list">
             {stats.recentCompletions.map((c, i) => (
               <li key={i} className="stats-recent-row">
-                <span className="stats-recent-dot" style={{ background: c.color }} />
-                <span className="stats-recent-subject">{c.subject}</span>
-                <span className="stats-recent-project">{c.projectName}</span>
-                <span className="stats-recent-when">
-                  {c.completedAt ? new Date(c.completedAt).toLocaleDateString(undefined, {
-                    month: "short", day: "numeric"
-                  }) : ""}
+                <span className="stats-recent-project">
+                  <Dot color={c.color || "rgba(0,0,0,0.25)"} size={8} />
+                  {c.projectName}
                 </span>
+                <span className="stats-recent-subject-cell">{c.subject}</span>
+                <span className="stats-recent-summary">
+                  {c.aiSummary || (
+                    <span className="stats-recent-no-summary">—</span>
+                  )}
+                </span>
+                <Tooltip content={c.completedAt ? new Date(c.completedAt).toLocaleString() : ""}>
+                  <span className="stats-recent-when">
+                    {c.completedAt ? (
+                      <RelativeTime since={Date.parse(c.completedAt)} />
+                    ) : ""}
+                  </span>
+                </Tooltip>
               </li>
             ))}
           </ul>
         )}
       </Section>
 
-      <Section title="Tasks by project — current">
-        <ProjectTaskSplit rows={stats.tasksByProject} />
-        <p className="stats-footnote">
-          Open <span className="stats-swatch stats-swatch-open" /> / Done <span className="stats-swatch stats-swatch-done" />{" "}
-          · "AI-assist" = % of focus time that overlapped a Claude session in the same project.
-        </p>
-      </Section>
+      {/* Open-tasks-by-age — surfaces stale work without forcing the
+          user to walk every open row in /todo. Three buckets. */}
+      {openTotal > 0 && (
+        <Section title="Open tasks by age">
+          <div className="stats-age-buckets">
+            {["0-7d", "8-30d", "30d+"].map((bucket) => {
+              const count = openAge[bucket];
+              const pct = (count / openMaxBucket) * 100;
+              return (
+                <div key={bucket} className="stats-age-row">
+                  <span className="stats-age-label">{bucket}</span>
+                  <div className="stats-age-bar-wrap">
+                    <div
+                      className="stats-age-bar"
+                      style={{
+                        width: `${pct}%`,
+                        background: bucket === "30d+"
+                          ? "#c45c4a"
+                          : bucket === "8-30d"
+                            ? "#b08a66"
+                            : "#5a7e5f",
+                      }}
+                    />
+                  </div>
+                  <span className="stats-age-count">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="stats-footnote">
+            {openTotal} open tasks total. Stale (30d+) work in red — worth
+            either finishing, dropping, or moving to backlog.
+          </p>
+        </Section>
+      )}
 
-      <Section title="Open tasks by tag — top 15">
-        <BreakdownBars
-          rows={stats.tasksByTag.slice(0, 15)}
-          formatRight={(v) => v}
-          emptyMsg="No tags on open tasks."
-        />
+      {/* Focus hours per completed task — lowered threshold to ≥1 so
+          projects with a single completion still show up. Moved into
+          the More collapsible since it's a niche metric. */}
+      <Section title="More">
+        {stats.focusPerCompletion.length > 0 && (
+          <Collapsible summary="Focus hours per completed task">
+            <ul className="stats-fpc-list">
+              {stats.focusPerCompletion.map((p) => (
+                <li key={p.projectId} className="stats-fpc-row">
+                  <span className="stats-fpc-dot" style={{ background: p.color }} />
+                  <span className="stats-fpc-name">{p.name}</span>
+                  <span className="stats-fpc-ratio">
+                    {fmtDuration(p.msPerCompletion)} <span className="stats-fpc-unit">/ task</span>
+                  </span>
+                  <span className="stats-fpc-detail">
+                    {fmtDuration(p.focusMs)} · {p.count} done
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="stats-footnote">
+              Lower = more efficient shipping (caveat: tasks vary in scope).
+            </p>
+          </Collapsible>
+        )}
+        <Collapsible summary="Tasks by project — current (open vs done)">
+          <ProjectTaskSplit rows={stats.tasksByProject} />
+          <p className="stats-footnote">
+            Open <span className="stats-swatch stats-swatch-open" /> / Done <span className="stats-swatch stats-swatch-done" />{" "}
+            · "AI-assist" = % of focus time that overlapped a Claude session in the same project.
+          </p>
+        </Collapsible>
+        <Collapsible summary="Open tasks by tag — top 15">
+          <BreakdownBars
+            rows={stats.tasksByTag.slice(0, 15)}
+            formatRight={(v) => v}
+            emptyMsg="No tags on open tasks."
+          />
+        </Collapsible>
       </Section>
 
       <section className="stats-footer">

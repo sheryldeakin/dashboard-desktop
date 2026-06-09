@@ -5347,6 +5347,63 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+/* Tasks tab Recent completions row — has a subject AND a summary (vs.
+   the duration+summary shape used by the other tabs). Both cells need
+   to fit + truncate. Hooks into the parent .stats-recent-row class via
+   a :has() selector so we don't have to add a modifier class. */
+.stats-recent-row:has(.stats-recent-subject-cell) {
+  grid-template-columns: minmax(140px, auto) minmax(0, 1.6fr) minmax(0, 1fr) auto;
+}
+
+.stats-recent-subject-cell {
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Open-tasks-by-age — three horizontal bars showing how stale your
+   open work is. The 30d+ bar uses the warn coral so it draws the eye
+   when it has anything in it. */
+.stats-age-buckets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stats-age-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 40px;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.stats-age-label {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-age-bar-wrap {
+  height: 14px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stats-age-bar {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.stats-age-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
 .stats-pcard-foot strong { color: var(--ink); font-weight: 600; }
 .stats-pcard-last { margin-left: auto; }
 
