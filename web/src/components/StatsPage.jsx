@@ -640,26 +640,37 @@ function computeStats(content) {
     }))
     .sort((a, b) => b.count - a.count);
 
-  // Hours-per-completion ratio per project — focus time spent vs tasks
-  // shipped. Threshold relaxed to ≥1 completion AND ≥1 minute of focus
-  // time. The previous lookup pulled from focusByProject (which uses
-  // `value` not `ms` and has no projectId field), so every entry was
-  // reading 0 — bug now fixed by reading from focusByProjectMap
-  // directly. Filtering on focus time > 0 hides projects where tasks
-  // were closed without any task-timer activity (e.g. Claude-only
-  // closures); those would show "0m / task" which is misleading rather
-  // than informative.
+  // Hours-per-completion ratio per project — DEEP-WORK time spent vs
+  // tasks shipped. Deep work = task_timer + claude_outside (time NOT
+  // absorbed by a task timer, to avoid double-count). Using just
+  // task_timer was wrong for Sheryl's workflow: nearly all task closures
+  // come from Claude TaskUpdate calls, with task_timer time concentrated
+  // on a single Inbox task — so a task_timer-only denominator made the
+  // entire section disappear via the focus-time filter. Including
+  // claude_outside surfaces "deep work hours per task shipped" which
+  // is the real productivity question.
+  const deepMsByProject = new Map();
+  for (const [pid, ms] of focusByProjectMap) {
+    deepMsByProject.set(pid, ms);
+  }
+  // Add per-project claude_outside ms. claudeByProjectMap stores
+  // total Claude ms, but for deep work we want outside-of-task-timer
+  // ms only, so walk the claude intervals directly.
+  for (const c of claude) {
+    const pid = c.projectId || "";
+    deepMsByProject.set(pid, (deepMsByProject.get(pid) || 0) + (c.outsideMs || 0));
+  }
   const focusPerCompletion = completionsByProject
     .filter((p) => p.count >= 1)
     .map((p) => {
-      const ms = focusByProjectMap.get(p.projectId) || 0;
+      const ms = deepMsByProject.get(p.projectId) || 0;
       return {
         ...p,
         focusMs: ms,
         msPerCompletion: p.count > 0 ? ms / p.count : 0,
       };
     })
-    .filter((p) => p.focusMs >= MS_PER_MIN) // skip projects with no real focus time
+    .filter((p) => p.focusMs >= MS_PER_MIN) // skip projects with no real deep work
     .sort((a, b) => a.msPerCompletion - b.msPerCompletion); // most efficient first
 
   // Quick session lookup: id → {aiSummary, source} so the Tasks tab
@@ -3061,7 +3072,7 @@ function TasksTab({ stats }) {
           the More collapsible since it's a niche metric. */}
       <Section title="More">
         {stats.focusPerCompletion.length > 0 && (
-          <Collapsible summary="Focus hours per completed task">
+          <Collapsible summary="Deep work per completed task">
             <ul className="stats-fpc-list">
               {stats.focusPerCompletion.map((p) => (
                 <li key={p.projectId} className="stats-fpc-row">
@@ -3077,7 +3088,8 @@ function TasksTab({ stats }) {
               ))}
             </ul>
             <p className="stats-footnote">
-              Lower = more efficient shipping (caveat: tasks vary in scope).
+              Deep work = task-timer + Claude-outside-timer time. Lower =
+              more efficient shipping (caveat: tasks vary in scope).
             </p>
           </Collapsible>
         )}
