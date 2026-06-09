@@ -297,6 +297,10 @@ app.put("/api/content", async (req, res) => {
         existing.content.chatLinks,
         payload.chatLinks,
       ),
+      manualSyncTriggers: mergeHeartbeats(
+        existing.content.manualSyncTriggers,
+        payload.manualSyncTriggers,
+      ),
     };
     const normalizedPayload = normalizeContentRecord(mergedPayload);
     const updatedAt = await saveContentDocument(collection, normalizedPayload);

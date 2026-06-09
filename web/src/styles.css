@@ -5624,6 +5624,27 @@ button:focus-visible {
   cursor: progress;
 }
 
+/* Sync status flash — small inline label next to the button while a
+   sync is in flight or just completed. Color hints at the phase
+   without being shouty (no big red/green callouts). */
+.stats-day-picker-sync-status {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-day-picker-sync-status.is-complete {
+  color: #5a7e5f; /* muted sage — success without being too loud */
+  font-style: normal;
+}
+
+.stats-day-picker-sync-status.is-timeout,
+.stats-day-picker-sync-status.is-error {
+  color: #b76e35; /* muted tan — soft warning, matches app palette */
+  font-style: normal;
+}
+
 /* Today vs typical — single muted line under the snapshot showing
    how today compares to the 6-day prior average. Sign + arrow framing
    matches the snapshot's per-cell delta language. Sits flush against

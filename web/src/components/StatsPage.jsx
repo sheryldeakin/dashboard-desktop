@@ -3,6 +3,8 @@ import {
   loadAndHydratePreferredContent,
   cloneContent,
   DEFAULT_CONTENT,
+  requestManualSync,
+  fetchRemoteContentSnapshot,
 } from "../utils/taskUtils.js";
 import StatGrid from "./StatGrid.jsx";
 import PageHeader from "./PageHeader.jsx";
@@ -1639,7 +1641,7 @@ function TodayProjectRow({ row, max }) {
   );
 }
 
-function TodayTab({ stats, content, onReload, refreshing }) {
+function TodayTab({ stats, content, onSync, syncStatus = { phase: "idle", message: "" } }) {
   // Day picker: lets the user view "Today"-style data for any past
   // day. Defaults to today, but if today has no activity yet we auto-
   // fall back to the most recent day with workSessions so the page
@@ -1846,14 +1848,27 @@ function TodayTab({ stats, content, onReload, refreshing }) {
             </span>
           </Tooltip>
         )}
+        {/* Status flash — only shown while a sync is in progress or
+            just-completed. "waiting" can take up to 60-75s because the
+            local watcher polls on a 60s cadence; the message keeps the
+            user oriented during that wait. */}
+        {syncStatus.phase !== "idle" && (
+          <span className={`stats-day-picker-sync-status is-${syncStatus.phase}`}>
+            {syncStatus.message}
+          </span>
+        )}
         <button
           type="button"
           className="stats-day-picker-sync-btn"
-          onClick={onReload}
-          disabled={refreshing}
-          aria-label="Refresh from server"
+          onClick={onSync}
+          disabled={syncStatus.phase === "requesting" || syncStatus.phase === "waiting"}
+          aria-label="Trigger Claude importer and refresh"
         >
-          {refreshing ? "Syncing…" : "Sync now"}
+          {syncStatus.phase === "waiting"
+            ? "Waiting…"
+            : syncStatus.phase === "requesting"
+              ? "Requesting…"
+              : "Sync now"}
         </button>
       </div>
     </div>
@@ -2433,21 +2448,91 @@ export default function StatsPage() {
     return TABS.some((t) => t.id === urlTab) ? urlTab : "overview";
   });
   const [loadedAtMs, setLoadedAtMs] = useState(Date.now());
-  const [refreshing, setRefreshing] = useState(false);
+  // syncStatus shape: { phase, message } where phase is one of:
+  //   "idle"        nothing in flight
+  //   "requesting"  PUT-ing the trigger flag
+  //   "waiting"     trigger sent, polling for heartbeat to catch up
+  //   "complete"    heartbeat advanced, content refreshed
+  //   "timeout"     gave up waiting for heartbeat (importer didn't run)
+  //   "error"       network / PUT failure
+  // Drives the Sync button label + a brief status flash. Resets to
+  // "idle" automatically a few seconds after "complete".
+  const [syncStatus, setSyncStatus] = useState({ phase: "idle", message: "" });
 
-  // Reload from the API and re-render. Used both for initial mount and
-  // by the Today tab's "Sync now" button. setRefreshing toggles a UI
-  // pending state on the button; setLoadedAtMs powers the SnapshotIndicator
-  // in the PageHeader.
+  // Reload from the API and re-render. Used by the initial mount only
+  // now — the Sync button on Today takes a richer path (trigger + poll)
+  // via syncContentWithImporter below.
   function reloadContent() {
-    setRefreshing(true);
+    setSyncStatus({ phase: "requesting", message: "Refreshing…" });
     loadAndHydratePreferredContent()
       .then((c) => {
         setContent(c);
         setLoadedAtMs(Date.now());
         setLoaded(true);
+        setSyncStatus({ phase: "idle", message: "" });
       })
-      .finally(() => setRefreshing(false));
+      .catch((err) => {
+        console.error("Reload failed:", err);
+        setSyncStatus({ phase: "error", message: "Refresh failed" });
+        setTimeout(() => setSyncStatus({ phase: "idle", message: "" }), 4000);
+      });
+  }
+
+  /* syncContentWithImporter()
+     Full "Sync now" flow:
+       1. PUT manualSyncTriggers["claude-import"] = nowIso to the API.
+       2. Poll /api/content every 4s for up to 120s, comparing the
+          incoming scheduledTaskHeartbeats["import-claude-sessions"]
+          against the trigger we just sent.
+       3. When the heartbeat catches up, the local watcher has fired
+          the importer — refresh content state and flash "Synced".
+       4. If we time out, surface that — the watcher might be stopped
+          or the importer crashed. The trigger remains in place; a
+          future watcher tick can still pick it up.
+     The polling cadence is conservative (4s) — local watcher runs
+     every 60s so a tighter poll won't catch the importer any sooner. */
+  async function syncContentWithImporter() {
+    const HEARTBEAT_KEY = "import-claude-sessions";
+    const POLL_INTERVAL_MS = 4000;
+    const TIMEOUT_MS = 120000;
+    try {
+      setSyncStatus({ phase: "requesting", message: "Requesting sync…" });
+      const triggerIso = await requestManualSync("claude-import", content);
+      const triggerMs = Date.parse(triggerIso);
+      setSyncStatus({ phase: "waiting", message: "Waiting for importer…" });
+
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < TIMEOUT_MS) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        let snap;
+        try {
+          snap = await fetchRemoteContentSnapshot();
+        } catch {
+          continue; // transient network error — keep polling
+        }
+        if (!snap) continue;
+        const beatIso = snap?.scheduledTaskHeartbeats?.[HEARTBEAT_KEY];
+        const beatMs = beatIso ? Date.parse(beatIso) : null;
+        if (Number.isFinite(beatMs) && beatMs >= triggerMs) {
+          // Importer ran. Use the snapshot we just fetched as the new
+          // content state (saves an extra round trip).
+          setContent(snap);
+          setLoadedAtMs(Date.now());
+          setSyncStatus({ phase: "complete", message: "Synced" });
+          setTimeout(() => setSyncStatus({ phase: "idle", message: "" }), 3000);
+          return;
+        }
+      }
+      setSyncStatus({
+        phase: "timeout",
+        message: "Importer didn't run in time",
+      });
+      setTimeout(() => setSyncStatus({ phase: "idle", message: "" }), 6000);
+    } catch (err) {
+      console.error("Sync failed:", err);
+      setSyncStatus({ phase: "error", message: "Sync failed" });
+      setTimeout(() => setSyncStatus({ phase: "idle", message: "" }), 5000);
+    }
   }
 
   useEffect(() => {
@@ -2498,8 +2583,8 @@ export default function StatsPage() {
           <TodayTab
             stats={stats}
             content={content}
-            onReload={reloadContent}
-            refreshing={refreshing}
+            onSync={syncContentWithImporter}
+            syncStatus={syncStatus}
           />
         )}
         {tab === "focus" && <FocusTab stats={stats} />}

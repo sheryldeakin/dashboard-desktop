@@ -605,6 +605,23 @@ function normalizeScheduledTaskHeartbeats(value) {
   return out;
 }
 
+// manualSyncTriggers: {<task-key>: <ISO timestamp>}
+// Web app writes here when the user clicks "Sync now" — local watcher
+// scripts poll this and fire the corresponding import/sync job when a
+// trigger is newer than the last-run heartbeat. Same per-key newest-
+// wins shape as heartbeats (same merge function). Currently used keys:
+//   "claude-import"  → fires import-claude-sessions.py
+function normalizeManualSyncTriggers(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (typeof k !== "string" || typeof v !== "string") continue;
+    if (parseIsoMs(v) === null) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 function normalizeWorkSessions(value) {
   if (!Array.isArray(value)) return [];
   // Dedupe by id; cap at MAX; newest first (by startedAt desc).
@@ -647,6 +664,7 @@ export function createDefaultContent() {
     dailyTop3History: [],
     scheduledTaskHeartbeats: {},
     chatLinks: [],
+    manualSyncTriggers: {},
   };
 }
 
@@ -677,6 +695,7 @@ export function normalizeContentRecord(record) {
     dailyTop3History: normalizeDailyTop3History(record.dailyTop3History),
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
     chatLinks: normalizeChatLinks(record.chatLinks),
+    manualSyncTriggers: normalizeManualSyncTriggers(record.manualSyncTriggers),
   };
 }
 
@@ -722,5 +741,13 @@ export function isContentPayload(payload) {
     return false;
   }
   if (payload.chatLinks !== undefined && !Array.isArray(payload.chatLinks)) return false;
+  if (
+    payload.manualSyncTriggers !== undefined &&
+    (typeof payload.manualSyncTriggers !== "object" ||
+      payload.manualSyncTriggers === null ||
+      Array.isArray(payload.manualSyncTriggers))
+  ) {
+    return false;
+  }
   return true;
 }

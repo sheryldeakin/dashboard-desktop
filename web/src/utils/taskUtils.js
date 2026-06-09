@@ -707,6 +707,7 @@ export const DEFAULT_CONTENT = {
   dailyTop3History: [],
   scheduledTaskHeartbeats: {},
   chatLinks: [],
+  manualSyncTriggers: {},
 };
 
 export function cloneTask(task) {
@@ -757,7 +758,23 @@ export function cloneContent(content) {
     dailyTop3History: normalizeDailyTop3History(content.dailyTop3History),
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(content.scheduledTaskHeartbeats),
     chatLinks: normalizeChatLinks(content.chatLinks),
+    manualSyncTriggers: normalizeManualSyncTriggers(content.manualSyncTriggers),
   };
+}
+
+/* manualSyncTriggers — see backend/lib/content-schema.js for canonical
+   definition. {<task-key>: <ISO timestamp>}. Same shape as
+   scheduledTaskHeartbeats — the watcher script compares trigger vs
+   heartbeat to decide whether to run a task on demand. */
+export function normalizeManualSyncTriggers(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (typeof k !== "string" || typeof v !== "string") continue;
+    if (parseIsoMs(v) === null) continue;
+    out[k] = v;
+  }
+  return out;
 }
 
 /* See backend/lib/content-schema.js for the canonical definition.
@@ -805,6 +822,7 @@ export function normalizeContentRecord(record) {
     dailyTop3History: normalizeDailyTop3History(record.dailyTop3History),
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
     chatLinks: normalizeChatLinks(record.chatLinks),
+    manualSyncTriggers: normalizeManualSyncTriggers(record.manualSyncTriggers),
   };
 }
 
@@ -988,6 +1006,45 @@ async function saveRemoteContent(nextContent) {
   if (pushSerial === saveSerial) {
     try { window.localStorage.removeItem(DIRTY_KEY); } catch {}
   }
+}
+
+/* requestManualSync(triggerKey, currentContent)
+   PUTs a new trigger timestamp into content.manualSyncTriggers so a
+   local watcher script can pick it up and run the corresponding import
+   job on demand. The current content is sent as a full body so the
+   backend's per-field merge logic preserves everything else.
+   Returns the trigger ISO timestamp on success — callers can use it
+   to poll for the matching heartbeat update. */
+export async function requestManualSync(triggerKey, currentContent) {
+  if (!API_BASE_URL) {
+    throw new Error("API_BASE_URL not configured");
+  }
+  const triggerIso = new Date().toISOString();
+  const payload = normalizeContentRecord({
+    ...currentContent,
+    manualSyncTriggers: {
+      ...(currentContent?.manualSyncTriggers || {}),
+      [triggerKey]: triggerIso,
+    },
+  });
+  const response = await fetch(getApiUrl("/api/content"), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to request sync (${response.status})`);
+  }
+  return triggerIso;
+}
+
+/* fetchRemoteContentSnapshot()
+   Lightweight wrapper around the GET endpoint that just returns the
+   raw content (or null if unconfigured). Used by the Sync button's
+   polling loop to compare heartbeats without going through the full
+   load-and-hydrate path. */
+export async function fetchRemoteContentSnapshot() {
+  return fetchRemoteContent();
 }
 
 export function persistContent(nextContent) {
