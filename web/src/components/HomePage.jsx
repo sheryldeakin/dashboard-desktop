@@ -1509,8 +1509,14 @@ function TodayIntent() {
 }
 
 /* ── Today's Top 3 (editable) ── */
-function Top3Editor({ dailyTop3, tasks, onSlotChange }) {
+function Top3Editor({ dailyTop3, tasks, projects = [], onSlotChange }) {
   const slots = dailyTop3.slots;
+  // Filter projects to non-Inbox for the dropdown — Inbox is the
+  // implicit fallback when no slot project is picked, so showing it
+  // as a choice adds noise. User can still see Inbox tasks elsewhere.
+  // Keep Inbox in the list anyway in case the user actually wants
+  // to route a slot there.
+  const projectOptions = projects;
   // Quick lookup from taskId → task so we can render running/paused state
   // for each slot's backing task and color the dot accordingly.
   const taskById = useMemo(
@@ -1562,6 +1568,30 @@ function Top3Editor({ dailyTop3, tasks, onSlotChange }) {
                 value={s.text}
                 onChange={(e) => onSlotChange(i, { text: e.target.value })}
               />
+              {/* Per-slot project picker. When unset, falls back to
+                  the global default (Inbox) on auto-promote. Once set,
+                  the slot's backing task gets routed to that project
+                  AND the preference inherits to tomorrow's same-index
+                  slot via the rollover code. Disabled once the slot
+                  has been promoted to a task (changing it after that
+                  wouldn't move the existing task). */}
+              <select
+                className="home-top3-project"
+                value={s.projectId || ""}
+                onChange={(e) => onSlotChange(i, { projectId: e.target.value })}
+                disabled={Boolean(s.promotedTaskId)}
+                title={
+                  s.promotedTaskId
+                    ? "Already promoted — change via /todo"
+                    : "Project for this slot's task"
+                }
+                aria-label={`Project for Top 3 slot ${i + 1}`}
+              >
+                <option value="">— project —</option>
+                {projectOptions.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
               {linkedTask && (isRunning || isPaused) && (
                 <span
                   className={`home-top3-timerdot${isRunning ? " is-running" : " is-paused"}`}
@@ -1894,7 +1924,11 @@ export default function HomePage() {
       : content.dailyTop3History;
 
     const nowIso = new Date().toISOString();
-    const freshSlots = Array.from({ length: 3 }, () => ({
+    // Inherit the per-slot project preference from yesterday's same-
+    // index slot. "Slot 1 = AAAI work" sticks across days once set;
+    // the user only needs to configure each slot's project once.
+    const prevSlots = content.dailyTop3?.slots || [];
+    const freshSlots = Array.from({ length: 3 }, (_, i) => ({
       text: "",
       done: false,
       updatedAt: nowIso,
@@ -1904,6 +1938,7 @@ export default function HomePage() {
       carriedToDate: null,
       promoted: false,
       promotedTaskId: null,
+      projectId: prevSlots[i]?.projectId || "",
     }));
 
     patchContent({
@@ -1990,12 +2025,18 @@ export default function HomePage() {
       newSlot.promotedTaskId = null;
     } else if (newSlot.text && newSlot.text.trim() && !newSlot.promotedTaskId) {
       // First time this slot has text — create the backing task.
-      const defaultProjectId =
+      // Project preference cascade:
+      //   1. Slot's own projectId (set via the per-slot project picker)
+      //   2. Fall back to projects[0] (Inbox by default)
+      // Without the slot preference, every Top-3 promotion landed in
+      // Inbox — that's how /stats Today ended up dominated by Inbox.
+      const fallbackProjectId =
         (content.projects && content.projects[0] && content.projects[0].id) || "";
+      const chosenProjectId = (newSlot.projectId && newSlot.projectId.trim()) || fallbackProjectId;
       const newTask = createDefaultTask({
         id: newId("task"),
         text: newSlot.text.trim(),
-        projectId: defaultProjectId,
+        projectId: chosenProjectId,
         done: !!newSlot.done,
         inTodayQueue: true,
         tags: ["top-3", `from-${today}`],
@@ -2272,6 +2313,7 @@ export default function HomePage() {
           <Top3Editor
             dailyTop3={content.dailyTop3}
             tasks={content.todaysTasks}
+            projects={content.projects || []}
             onSlotChange={updateSlot}
           />
 

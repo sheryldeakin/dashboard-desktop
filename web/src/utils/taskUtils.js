@@ -609,6 +609,11 @@ function normalizeTop3Slot(slot) {
         : null,
     promoted: Boolean(slot.promoted),
     promotedTaskId: typeof slot.promotedTaskId === "string" ? slot.promotedTaskId : null,
+    // Per-slot project preference. Used by Top3Editor's project picker
+    // and inherited by the auto-promoted backing task. Survives
+    // rollover via the lazy-rollover code in HomePage. Empty = no
+    // preference, fall back to the global default (still Inbox).
+    projectId: typeof slot.projectId === "string" ? slot.projectId : "",
   };
 }
 

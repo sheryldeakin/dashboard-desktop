@@ -550,6 +550,12 @@ function normalizeTop3Slot(slot) {
         : null,
     promoted: Boolean(slot.promoted),
     promotedTaskId: typeof slot.promotedTaskId === "string" ? slot.promotedTaskId : null,
+    // Per-slot project preference. When set, the auto-promoted backing
+    // task is created with this projectId instead of the global default
+    // (which lands in Inbox). Survives rollover by being inherited
+    // from the previous day's slot at the same index. Empty string
+    // means "no preference, use the global default."
+    projectId: typeof slot.projectId === "string" ? slot.projectId : "",
   };
 }
 

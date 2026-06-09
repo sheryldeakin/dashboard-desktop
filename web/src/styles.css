@@ -5645,6 +5645,43 @@ button:focus-visible {
   font-style: normal;
 }
 
+/* Streak calendar — GitHub-style 13 × 7 grid of squares for the Focus
+   tab. Each column is a week (oldest left, newest right); each row is
+   a day of the week (Sun top, Sat bottom). Cell color intensity = focus
+   time that day. Cells without any focus pomos render at the neutral
+   track color so the grid stays rectangular but quiet days don't shout.
+   Sized to fit comfortably across the section width. */
+.stats-streak-cal {
+  display: flex;
+  gap: 3px;
+  padding: 4px 0;
+}
+
+.stats-streak-cal-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stats-streak-cal-cell {
+  display: block;
+  width: clamp(12px, 1.2vw, 16px);
+  height: clamp(12px, 1.2vw, 16px);
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.05);
+  cursor: default;
+}
+
+.stats-streak-cal-cell.is-blank {
+  background: transparent;
+  cursor: default;
+}
+
+.stats-streak-cal-cell.is-today {
+  outline: 1.5px solid var(--ink);
+  outline-offset: 1px;
+}
+
 /* Today vs typical — single muted line under the snapshot showing
    how today compares to the 6-day prior average. Sign + arrow framing
    matches the snapshot's per-cell delta language. Sits flush against
@@ -7435,7 +7472,7 @@ button:focus-visible {
    the done flip so checking the box feels deliberate, not abrupt. */
 .home-top3-slot {
   display: grid;
-  grid-template-columns: 22px 22px 1fr auto auto;
+  grid-template-columns: 22px 22px 1fr auto auto auto;
   gap: 12px;
   align-items: center;
   padding: 8px 12px;
@@ -7468,6 +7505,52 @@ button:focus-visible {
 
 /* "Focus →" link on the right of each Top 3 row. Hidden-by-hover style
    so it doesn't clutter when not needed. */
+/* Per-slot project picker — small dropdown sitting after the text
+   input. Same flat hairline aesthetic as the /stats dropdowns; muted
+   when no project is set so it doesn't shout for attention when the
+   user hasn't configured it yet. Disabled once the slot has been
+   promoted to a backing task (changing it then wouldn't move the
+   existing task). */
+.home-top3-project {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 4px 22px 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background-color: transparent;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 8px 5px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--ink-muted);
+  cursor: pointer;
+  max-width: 130px;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.home-top3-project:hover:not(:disabled) {
+  border-color: var(--ink-muted);
+  color: var(--ink);
+}
+
+.home-top3-project:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.home-top3-project:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* When a real project IS selected, bump text to full ink so it reads
+   as a confirmed setting rather than a placeholder. */
+.home-top3-project:not([value=""]) {
+  color: var(--ink);
+}
+
 .home-top3-focus {
   font-size: 11px;
   color: var(--ink-muted);

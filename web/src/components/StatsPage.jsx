@@ -136,6 +136,28 @@ function computeStats(content) {
   const claude = extractClaudeIntervals(content.workSessions);
   const focusPomos = (content.pomodoro?.history || []).filter((e) => e.type === "focus");
 
+  // Pomo → project lookup. Each focusPomo has a taskId pointing at a
+  // task that may or may not still exist in content.todaysTasks. We
+  // also need to walk content.taskHistory so historical pomos (whose
+  // tasks have rotated off) still resolve to the right project.
+  // Returns "" (unassigned) when the taskId can't be found anywhere.
+  const taskProjectByTaskId = new Map();
+  for (const t of content.todaysTasks || []) {
+    if (t.id && t.projectId) taskProjectByTaskId.set(t.id, t.projectId);
+  }
+  for (const t of content.taskHistory || []) {
+    // taskHistory entries can have `sourceTaskId` or `id` depending on
+    // when they were written. Cover both so older history rows still
+    // resolve.
+    const tid = t.sourceTaskId || t.id;
+    if (tid && t.projectId && !taskProjectByTaskId.has(tid)) {
+      taskProjectByTaskId.set(tid, t.projectId);
+    }
+  }
+  function projectForPomo(pomoEntry) {
+    return taskProjectByTaskId.get(pomoEntry.taskId) || "";
+  }
+
   // Index task_timer intervals by day so overlap math is O(claude × tasks_in_day),
   // not O(claude × all_tasks_ever).
   const taskByDay = new Map();
@@ -273,6 +295,78 @@ function computeStats(content) {
       color: projectColor.get(pid),
       value: ms,
     }));
+
+  // ── Focus tab: daily focus (14 days) + streak calendar (90 days) ─────
+  // Both walk focusPomos and bucket by local date. For per-project
+  // segments we use the projectForPomo helper above (which checks
+  // todaysTasks first, then taskHistory) so pomos on rotated-off
+  // tasks still attribute correctly.
+  const focusDaily14 = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = todayMs - i * MS_PER_DAY;
+      days.push({
+        dayKey: ymd(new Date(dayStart)),
+        dayStart,
+        pomoCount: 0,
+        focusMs: 0,
+        byProject: new Map(),
+        isToday: i === 0,
+      });
+    }
+    const byKey = new Map(days.map((d) => [d.dayKey, d]));
+    for (const p of focusPomos) {
+      const pStart = Date.parse(p.startedAt);
+      if (!Number.isFinite(pStart)) continue;
+      const key = ymd(new Date(pStart));
+      const slot = byKey.get(key);
+      if (!slot) continue;
+      slot.pomoCount += 1;
+      slot.focusMs += p.durationMs || 0;
+      const pid = projectForPomo(p);
+      slot.byProject.set(pid, (slot.byProject.get(pid) || 0) + (p.durationMs || 0));
+    }
+    return days;
+  })();
+
+  // Streak calendar: 91 cells (13 weeks × 7 days). Newest week is the
+  // current week ending today (Saturday→Friday in the order the user's
+  // locale prefers — we'll lay out by day-of-week in render). Returns
+  // a flat array of { dayKey, dayStart, pomoCount, focusMs, isToday,
+  // hasActivity }; the renderer slots them into a 2D grid.
+  const focusCalendar90 = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const days = [];
+    for (let i = 90; i >= 0; i--) {
+      const dayStart = todayMs - i * MS_PER_DAY;
+      days.push({
+        dayKey: ymd(new Date(dayStart)),
+        dayStart,
+        dow: new Date(dayStart).getDay(),
+        pomoCount: 0,
+        focusMs: 0,
+        isToday: i === 0,
+        hasActivity: false,
+      });
+    }
+    const byKey = new Map(days.map((d) => [d.dayKey, d]));
+    for (const p of focusPomos) {
+      const pStart = Date.parse(p.startedAt);
+      if (!Number.isFinite(pStart)) continue;
+      const key = ymd(new Date(pStart));
+      const slot = byKey.get(key);
+      if (!slot) continue;
+      slot.pomoCount += 1;
+      slot.focusMs += p.durationMs || 0;
+      slot.hasActivity = true;
+    }
+    return days;
+  })();
 
   // Per-project "% Claude-assisted" — of total task_timer ms for project P,
   // what fraction overlapped with any Claude session in project P?
@@ -532,6 +626,9 @@ function computeStats(content) {
     // Full completions list (sorted newest-first) so the day picker can
     // count completions for arbitrary days, not just today/week/all.
     allCompletions,
+    // Focus tab: 14-day daily focus pomos + 91-day streak calendar grid.
+    focusDaily14,
+    focusCalendar90,
   };
 }
 
@@ -2083,63 +2180,211 @@ function TodayTab({ stats, content, onSync, syncStatus = { phase: "idle", messag
   );
 }
 
+/* FocusDailyChart — 14-day stacked-segment bar chart for focus pomos.
+   Each bar shows focus minutes for that day with per-project color
+   segments. Same compact .stats-daily-* shape used by DeepWorkBars.
+   Hovering shows pomo count + focus time + project breakdown. */
+function FocusDailyChart({ days, projectName, projectColor }) {
+  const max = Math.max(1, ...days.map((d) => d.focusMs));
+  return (
+    <div className="stats-daily">
+      {days.map((d) => {
+        // Sort segments largest → smallest, then reverse for DOM order
+        // (visual top = first DOM child under flex-end column). Largest
+        // segment anchors the bottom of the bar.
+        const segs = [...d.byProject.entries()]
+          .filter(([, ms]) => ms > 0)
+          .sort((a, b) => b[1] - a[1]);
+        const tip = (
+          <>
+            <strong>{d.dayKey}</strong> — {d.pomoCount} pomo{d.pomoCount === 1 ? "" : "s"}, {fmtDuration(d.focusMs)} focus
+            {segs.map(([pid, ms]) => (
+              <span key={pid || "unassigned"}>
+                <br />
+                {projectName.get(pid) || "Unassigned"}: {fmtDuration(ms)}
+              </span>
+            ))}
+            {d.focusMs === 0 && (<><br />no focus pomos</>)}
+          </>
+        );
+        return (
+          <Tooltip key={d.dayKey} content={tip}>
+            <div className={`stats-daily-col${d.isToday ? " is-today" : ""}`}>
+              <div className="stats-daily-stack">
+                {[...segs].reverse().map(([pid, ms], i) => {
+                  const pct = (ms / max) * 100;
+                  if (pct <= 0) return null;
+                  const baseColor = projectColor.get(pid) || "rgba(0,0,0,0.25)";
+                  return (
+                    <div
+                      key={pid || "unassigned"}
+                      className="stats-daily-bar"
+                      style={{
+                        height: `${pct}%`,
+                        background: softenColor(baseColor, 0.45),
+                        borderRadius: i === 0 ? "3px 3px 0 0" : "0",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="stats-daily-label">
+                {d.dayKey.slice(8).replace(/^0/, "")}
+              </div>
+            </div>
+          </Tooltip>
+        );
+      })}
+    </div>
+  );
+}
+
+/* FocusStreakCalendar — 91-day grid (rows = days of week, columns =
+   weeks). Each cell colored by focus-time intensity that day; cells
+   without any focus pomos get a neutral gray. Reads as "the shape of
+   your focus practice" — streaks become visible as runs of dark cells. */
+function FocusStreakCalendar({ days }) {
+  // Layout: build 13 columns of 7 days each. The newest column ends
+  // on the day-of-week of today; older columns extend backward in
+  // 7-day jumps. Within each column the cells run Sun → Sat top-to-
+  // bottom to match a calendar's reading order.
+  const maxFocusMs = Math.max(1, ...days.map((d) => d.focusMs));
+  // Group into columns of 7. The rightmost column always ends on today;
+  // we walk backward in groups of 7. Result: oldest column on the left.
+  const todayDow = days[days.length - 1].dow;
+  // Pad start so the bottom-right cell lands on today's dow row.
+  // Pad amount = 6 - todayDow extra cells (placeholders) on the right
+  // side of the newest column. Or more simply: the newest column has
+  // todayDow + 1 cells from Sunday→today; the rest of that column is
+  // future days (rendered as blank placeholders).
+  // We'll build the grid as a flat array of cells PLUS blanks for the
+  // future positions in the current (rightmost) column.
+  const cells = [...days];
+  // Append blanks for the days AFTER today in the current week so the
+  // current week's column has 7 slots — keeps the grid rectangular.
+  const futureBlanks = 6 - todayDow;
+  for (let i = 0; i < futureBlanks; i++) {
+    cells.push({ blank: true, key: `blank-${i}` });
+  }
+  // Total cells now = 91 + (6 - todayDow). Group into columns of 7.
+  const totalCols = Math.ceil(cells.length / 7);
+  const columns = [];
+  for (let c = 0; c < totalCols; c++) {
+    columns.push(cells.slice(c * 7, c * 7 + 7));
+  }
+  return (
+    <div className="stats-streak-cal" role="img" aria-label="90-day focus streak calendar">
+      {columns.map((col, ci) => (
+        <div key={ci} className="stats-streak-cal-col">
+          {col.map((cell, ri) => {
+            if (cell.blank) {
+              return <span key={cell.key} className="stats-streak-cal-cell is-blank" />;
+            }
+            const intensity = cell.focusMs > 0 ? cell.focusMs / maxFocusMs : 0;
+            const tip = cell.focusMs > 0 ? (
+              <>
+                <strong>{cell.dayKey}</strong>
+                <br />{cell.pomoCount} pomo{cell.pomoCount === 1 ? "" : "s"} · {fmtDuration(cell.focusMs)}
+              </>
+            ) : `${cell.dayKey} — no focus pomos`;
+            const bg = cell.hasActivity
+              ? `rgba(90, 126, 95, ${0.2 + 0.75 * intensity})` // sage at intensity-scaled alpha
+              : "rgba(0,0,0,0.05)";
+            return (
+              <Tooltip key={cell.dayKey} content={tip}>
+                <span
+                  className={`stats-streak-cal-cell${cell.isToday ? " is-today" : ""}${cell.hasActivity ? " has-activity" : ""}`}
+                  style={{ background: bg }}
+                />
+              </Tooltip>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FocusTab({ stats }) {
+  // Project name + color lookup for the daily chart. Same project
+  // resolution as the rest of /stats — stored color preferred, palette
+  // fallback by rank. (Note: stats.projects already runs through the
+  // computeStats palette logic for color, so we can use it directly.)
+  const projectName = useMemo(
+    () => new Map((stats.projects || []).map((p) => [p.id, p.name])),
+    [stats.projects]
+  );
+  const projectColor = useMemo(() => {
+    const map = new Map();
+    for (const p of stats.projects || []) {
+      if (p.color) map.set(p.id, p.color);
+    }
+    return map;
+  }, [stats.projects]);
+
+  // Avg pomo length helpers — kept as MetricTable rows but the
+  // duplicate "Pomodoros" row from before was dropped (same numbers
+  // as the snapshot cells, no reason to repeat).
+  const avgToday = stats.today.pomos
+    ? fmtDuration(Math.round(stats.today.task_ms / stats.today.pomos))
+    : "—";
+  const avgWeek = stats.week.pomos
+    ? fmtDuration(Math.round(stats.week.task_ms / stats.week.pomos))
+    : "—";
+  const avgAll = stats.all.pomos
+    ? fmtDuration(Math.round(stats.all.task_ms / stats.all.pomos))
+    : "—";
+
   return (
     <>
+      {/* Rebalanced snapshot: mix of time + count so the headline
+          isn't four pomo-count cells in a row. Focus time today/7d
+          gives the volume view; streak gives the consistency view;
+          all-time pomos is the lifetime-achievement number. */}
       <StatGrid
         variant="snapshot"
         columns={[
-          { value: stats.today.pomos, label: "Pomos today" },
-          { value: stats.week.pomos, label: "Past 7 days" },
+          { value: fmtDuration(stats.today.task_ms), label: "Focus today" },
+          { value: fmtDuration(stats.week.task_ms), label: "Past 7 days" },
           { value: stats.currentStreak, label: "Day streak" },
-          { value: stats.all.pomos, label: "All-time" },
+          { value: stats.all.pomos, label: "All-time pomos" },
         ]}
       />
 
-      <Section title="Detail">
-        <MetricTable
-          headers={["Today", "Past 7 days", "All-time"]}
-          rows={[
-            {
-              label: "Focus time (task timer)",
-              cells: [
-                fmtDuration(stats.today.task_ms),
-                fmtDuration(stats.week.task_ms),
-                fmtDuration(stats.all.task_ms),
-              ],
-            },
-            {
-              label: "Pomodoros",
-              cells: [stats.today.pomos, stats.week.pomos, stats.all.pomos],
-            },
-            {
-              label: "Avg pomo length",
-              cells: [
-                stats.today.pomos
-                  ? fmtDuration(Math.round(stats.today.task_ms / stats.today.pomos))
-                  : "—",
-                stats.week.pomos
-                  ? fmtDuration(Math.round(stats.week.task_ms / stats.week.pomos))
-                  : "—",
-                stats.all.pomos
-                  ? fmtDuration(Math.round(stats.all.task_ms / stats.all.pomos))
-                  : "—",
-              ],
-            },
-          ]}
-        />
-      </Section>
+      {/* Headline chart: 14 days of focus pomos with per-project segments.
+          Same compact shape as DeepWorkBars on Overview, but pomo data. */}
+      <section className="home-section">
+        <h2 className="home-section-title home-section-title-row">
+          <span>Last 14 days</span>
+          <span className="home-section-meta">
+            <strong>{stats.week.pomos}</strong>{" "}
+            {stats.week.pomos === 1 ? "pomo" : "pomos"} in last 7 days
+          </span>
+        </h2>
+        {stats.focusDaily14.every((d) => d.focusMs === 0) ? (
+          <EmptyState
+            variant="inline"
+            message="No focus pomos in the last 14 days"
+            hint="Start a pomodoro on any task and the chart will fill in."
+          />
+        ) : (
+          <FocusDailyChart
+            days={stats.focusDaily14}
+            projectName={projectName}
+            projectColor={projectColor}
+          />
+        )}
+      </section>
 
-      <Section title="Focus streak">
-        <StatGrid
-          variant="default"
-          columns={[
-            {
-              value: stats.currentStreak,
-              label: stats.currentStreak === 1 ? "Day current" : "Days current",
-            },
-          ]}
-        />
+      {/* Streak calendar — replaces the old single-stat "Focus streak"
+          section. 91 days of cells, intensity by focus time. The
+          streak number from the snapshot finally has visual context. */}
+      <Section title="Streak — last 90 days">
+        <FocusStreakCalendar days={stats.focusCalendar90} />
+        <p className="stats-footnote">
+          Each cell is one day; intensity scales with focus time.
+          Lighter = lower; gray = no pomos.
+        </p>
       </Section>
 
       <Section title="Focus time by project — all time">
@@ -2148,6 +2393,32 @@ function FocusTab({ stats }) {
           formatRight={(v) => fmtDuration(v)}
           emptyMsg="No task-timer sessions yet."
         />
+      </Section>
+
+      {/* Detail collapsed by default — surfaces avg pomo length per
+          window, which is the one piece of info the snapshot/chart
+          don't already show. Pomodoros count row dropped (duplicate
+          of the snapshot). */}
+      <Section title="More">
+        <Collapsible summary="Focus time + avg pomo length by window">
+          <MetricTable
+            headers={["Today", "Past 7 days", "All-time"]}
+            rows={[
+              {
+                label: "Focus time (task timer)",
+                cells: [
+                  fmtDuration(stats.today.task_ms),
+                  fmtDuration(stats.week.task_ms),
+                  fmtDuration(stats.all.task_ms),
+                ],
+              },
+              {
+                label: "Avg pomo length",
+                cells: [avgToday, avgWeek, avgAll],
+              },
+            ]}
+          />
+        </Collapsible>
       </Section>
     </>
   );
