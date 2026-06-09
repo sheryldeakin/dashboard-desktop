@@ -760,6 +760,190 @@ function computeStats(content) {
     })(),
   };
 
+  // ── Trends tab ──────────────────────────────────────────────────────
+  // Patterns surfaced across all-time data (or rolling windows). Each
+  // block walks workSessions / allCompletions once and aggregates into
+  // the shape the Trends tab renders. Kept inline in computeStats so
+  // it shares the same projectName / projectColor maps.
+
+  // Day-of-week buckets — avg deep ms per ACTIVE day of that DoW
+  // (so a single Tuesday with a marathon session doesn't make Tuesdays
+  // look high if you only worked one Tuesday ever; we divide by the
+  // count of distinct active days, not the count of weeks).
+  const dowBuckets = Array.from({ length: 7 }, () => ({
+    totalDeepMs: 0,
+    totalCompletions: 0,
+    activeDayKeys: new Set(),
+  }));
+  for (const ws of content.workSessions || []) {
+    const start = Date.parse(ws.startedAt);
+    if (!Number.isFinite(start)) continue;
+    const d = new Date(start);
+    const dow = d.getDay();
+    const activeMs = ws.activeMs || 0;
+    if (activeMs <= 0) continue;
+    dowBuckets[dow].totalDeepMs += activeMs;
+    dowBuckets[dow].activeDayKeys.add(ymd(d));
+  }
+  for (const c of allCompletions) {
+    const t = Date.parse(c.completedAt);
+    if (!Number.isFinite(t)) continue;
+    const dow = new Date(t).getDay();
+    dowBuckets[dow].totalCompletions += 1;
+  }
+  const DOW_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayOfWeekStats = dowBuckets.map((b, i) => ({
+    label: DOW_FULL[i],
+    dow: i,
+    activeDays: b.activeDayKeys.size,
+    avgDeepMs: b.activeDayKeys.size > 0 ? Math.round(b.totalDeepMs / b.activeDayKeys.size) : 0,
+    avgCompletions: b.activeDayKeys.size > 0 ? b.totalCompletions / b.activeDayKeys.size : 0,
+    totalCompletions: b.totalCompletions,
+  }));
+
+  // Workday rhythm — per-day first/last session times averaged across
+  // every day with any activity. avgSessionDurationMs uses total
+  // sessions in the denominator (so it's a true session-length avg, not
+  // a per-day average).
+  const dayMap = new Map();
+  for (const ws of content.workSessions || []) {
+    const start = Date.parse(ws.startedAt);
+    const end = Date.parse(ws.endedAt) || start;
+    if (!Number.isFinite(start)) continue;
+    const dayKey = ymd(new Date(start));
+    let slot = dayMap.get(dayKey);
+    if (!slot) {
+      slot = { firstMs: start, lastMs: end, sessionCount: 0, totalActiveMs: 0 };
+      dayMap.set(dayKey, slot);
+    }
+    if (start < slot.firstMs) slot.firstMs = start;
+    if (end > slot.lastMs) slot.lastMs = end;
+    slot.sessionCount += 1;
+    slot.totalActiveMs += ws.activeMs || 0;
+  }
+  let sumStartMins = 0, sumEndMins = 0, sumSessions = 0, sumActiveMs = 0;
+  for (const [, slot] of dayMap) {
+    const startD = new Date(slot.firstMs);
+    const endD = new Date(slot.lastMs);
+    sumStartMins += startD.getHours() * 60 + startD.getMinutes();
+    sumEndMins += endD.getHours() * 60 + endD.getMinutes();
+    sumSessions += slot.sessionCount;
+    sumActiveMs += slot.totalActiveMs;
+  }
+  const totalActiveDays = dayMap.size;
+  const workdayRhythm = totalActiveDays > 0 ? {
+    avgStartMin: Math.round(sumStartMins / totalActiveDays),
+    avgEndMin: Math.round(sumEndMins / totalActiveDays),
+    avgSessionsPerDay: Math.round((sumSessions / totalActiveDays) * 10) / 10,
+    avgSessionDurationMs: sumSessions > 0 ? Math.round(sumActiveMs / sumSessions) : 0,
+    totalDays: totalActiveDays,
+  } : null;
+
+  // Hot projects — last 7 days share of total active ms.
+  const sevenDaysAgo = Date.now() - 7 * MS_PER_DAY;
+  const hotProjMap = new Map();
+  let weekTotalMs = 0;
+  for (const ws of content.workSessions || []) {
+    const start = Date.parse(ws.startedAt);
+    if (!Number.isFinite(start) || start < sevenDaysAgo) continue;
+    const pid = ws.projectId || "";
+    const ms = ws.activeMs || 0;
+    hotProjMap.set(pid, (hotProjMap.get(pid) || 0) + ms);
+    weekTotalMs += ms;
+  }
+  const hotProjects7d = [...hotProjMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([pid, ms]) => ({
+      projectId: pid,
+      name: projectName.get(pid) || "Unassigned",
+      color: projectColor.get(pid) || null,
+      ms,
+      shareOfWeek: weekTotalMs > 0 ? ms / weekTotalMs : 0,
+    }));
+
+  // At-risk projects — projects with open tasks AND no workSession
+  // activity in the last 14 days. Sorted staler-first.
+  const lastActivityByProject = new Map();
+  for (const ws of content.workSessions || []) {
+    const end = Date.parse(ws.endedAt) || Date.parse(ws.startedAt);
+    if (!Number.isFinite(end)) continue;
+    const pid = ws.projectId || "";
+    if (!lastActivityByProject.has(pid) || end > lastActivityByProject.get(pid)) {
+      lastActivityByProject.set(pid, end);
+    }
+  }
+  const openTasksByProject = new Map();
+  for (const t of content.todaysTasks || []) {
+    if (t.done) continue;
+    const pid = t.projectId || "";
+    openTasksByProject.set(pid, (openTasksByProject.get(pid) || 0) + 1);
+  }
+  const fourteenDaysAgo = Date.now() - 14 * MS_PER_DAY;
+  const atRiskProjects = [...openTasksByProject.entries()]
+    .map(([pid, count]) => ({
+      projectId: pid,
+      name: projectName.get(pid) || "Unassigned",
+      color: projectColor.get(pid) || null,
+      openCount: count,
+      lastActivityMs: lastActivityByProject.get(pid) || 0,
+    }))
+    .filter((p) => p.lastActivityMs > 0 && p.lastActivityMs < fourteenDaysAgo)
+    .sort((a, b) => a.lastActivityMs - b.lastActivityMs)
+    .slice(0, 5);
+
+  // Trending callouts — this week vs avg of last 4 weeks; best single
+  // day ever (by completions); best week ever (by completions, by
+  // calendar-week buckets).
+  const callout_thisWeekStart = Date.now() - 7 * MS_PER_DAY;
+  const callout_fiveWeeksAgo = Date.now() - 5 * 7 * MS_PER_DAY;
+  let thisWeekDeepMs = 0;
+  let prior4WeeksDeepMs = 0;
+  for (const ws of content.workSessions || []) {
+    const start = Date.parse(ws.startedAt);
+    if (!Number.isFinite(start)) continue;
+    const ms = ws.activeMs || 0;
+    if (start >= callout_thisWeekStart) thisWeekDeepMs += ms;
+    else if (start >= callout_fiveWeeksAgo) prior4WeeksDeepMs += ms;
+  }
+  const priorWeekAvgMs = prior4WeeksDeepMs / 4;
+  const thisWeekVsAvg = priorWeekAvgMs > 0 ? {
+    thisWeekMs: thisWeekDeepMs,
+    priorAvgMs: Math.round(priorWeekAvgMs),
+    pctDiff: Math.round(((thisWeekDeepMs - priorWeekAvgMs) / priorWeekAvgMs) * 100),
+  } : null;
+
+  const completionsByDayKey = new Map();
+  for (const c of allCompletions) {
+    const t = Date.parse(c.completedAt);
+    if (!Number.isFinite(t)) continue;
+    const key = ymd(new Date(t));
+    completionsByDayKey.set(key, (completionsByDayKey.get(key) || 0) + 1);
+  }
+  let bestDayEver = null;
+  for (const [dayKey, count] of completionsByDayKey) {
+    if (!bestDayEver || count > bestDayEver.count) {
+      bestDayEver = { dayKey, count };
+    }
+  }
+
+  // Best week ever — calendar-week buckets (Sunday-start) summed.
+  const weekBuckets = new Map();
+  for (const [dayKey, count] of completionsByDayKey) {
+    const d = new Date(dayKey + "T00:00:00");
+    const sunday = new Date(d);
+    sunday.setDate(d.getDate() - d.getDay());
+    sunday.setHours(0, 0, 0, 0);
+    const wKey = ymd(sunday);
+    weekBuckets.set(wKey, (weekBuckets.get(wKey) || 0) + count);
+  }
+  let bestWeekEver = null;
+  for (const [wKey, count] of weekBuckets) {
+    if (!bestWeekEver || count > bestWeekEver.count) {
+      bestWeekEver = { weekStart: wKey, count };
+    }
+  }
+
   // Open-tasks-by-age — bucket open todaysTasks by how long ago they
   // were created. Surfaces stale work. Three buckets balance summary
   // size + granularity for typical task lists.
@@ -843,6 +1027,17 @@ function computeStats(content) {
     completionsDaily14,
     completionsByClaudeShare,
     openTasksByAge,
+    // Trends tab: day-of-week pattern, workday rhythm, hot/at-risk
+    // projects, trending callouts.
+    dayOfWeekStats,
+    workdayRhythm,
+    hotProjects7d,
+    atRiskProjects,
+    trendingCallouts: {
+      thisWeekVsAvg,
+      bestDayEver,
+      bestWeekEver,
+    },
   };
 }
 
@@ -2925,11 +3120,6 @@ function TasksTab({ stats }) {
   const openTotal = openAge["0-7d"] + openAge["8-30d"] + openAge["30d+"];
   const openMaxBucket = Math.max(1, openAge["0-7d"], openAge["8-30d"], openAge["30d+"]);
 
-  // Claude-assist share line — single muted line under the snapshot,
-  // same pattern as Today's "vs typical" line. Pulls the last 7 days
-  // by default since today alone is noisy.
-  const claudeShare = stats.completionsByClaudeShare?.week;
-
   return (
     <>
       {/* Snapshot: 4 cells now (was 3). Added Avg shipped/day from the
@@ -2944,15 +3134,6 @@ function TasksTab({ stats }) {
           { value: c.all, label: "All-time shipped" },
         ]}
       />
-
-      {/* Claude-assist share — muted comparison line. Skipped when
-          there's no completion data in the week window. */}
-      {claudeShare && (
-        <p className="stats-today-vs-typical">
-          <strong>{claudeShare.pct}%</strong> of completions this week happened
-          during a Claude session ({claudeShare.claude} of {claudeShare.total}).
-        </p>
-      )}
 
       {/* Completion velocity — now project-segmented via DailyStackedBars.
           Same compact shape as Focus + Claude charts but the unit is
@@ -3120,6 +3301,212 @@ function TasksTab({ stats }) {
   );
 }
 
+/* Format minutes-since-midnight (0–1439) as a readable wall-clock
+   time. Used by the Workday rhythm card on the Trends tab. */
+function formatMinAsTime(mins) {
+  if (!Number.isFinite(mins) || mins < 0) return "—";
+  const h24 = Math.floor(mins / 60);
+  const m = mins % 60;
+  const ampm = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 || 12;
+  return `${h12}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+
+/* DowChart — one row of bars, one per day-of-week (Sun..Sat). Bar
+   height scales to the busiest DoW's avgDeepMs. Today's day-of-week is
+   highlighted in the existing .is-today style. Hovering shows the
+   actual averages. */
+function DowChart({ days }) {
+  const max = Math.max(1, ...days.map((d) => d.avgDeepMs));
+  const todayDow = new Date().getDay();
+  return (
+    <div className="stats-daily stats-dow">
+      {days.map((d) => {
+        const pct = (d.avgDeepMs / max) * 100;
+        const tip = (
+          <>
+            <strong>{d.label}</strong> — avg {fmtDuration(d.avgDeepMs)} of deep work
+            <br />avg {d.avgCompletions.toFixed(1)} completions / active {d.label}
+            <br />active {d.activeDays} {d.label}{d.activeDays === 1 ? "" : "s"}
+          </>
+        );
+        return (
+          <Tooltip key={d.dow} content={tip}>
+            <div
+              className={`stats-daily-col${d.dow === todayDow ? " is-today" : ""}${d.avgDeepMs > 0 ? " has-any" : ""}`}
+            >
+              <div className="stats-daily-stack">
+                {pct > 0 && (
+                  <div
+                    className="stats-daily-bar"
+                    style={{
+                      height: `${pct}%`,
+                      background: "#5a7e5f", // sage
+                      borderRadius: "3px 3px 0 0",
+                    }}
+                  />
+                )}
+              </div>
+              <div className="stats-daily-label">{d.label}</div>
+            </div>
+          </Tooltip>
+        );
+      })}
+    </div>
+  );
+}
+
+function TrendsTab({ stats }) {
+  const { dayOfWeekStats, workdayRhythm, hotProjects7d, atRiskProjects, trendingCallouts } = stats;
+  const tw = trendingCallouts?.thisWeekVsAvg;
+  const bd = trendingCallouts?.bestDayEver;
+  const bw = trendingCallouts?.bestWeekEver;
+
+  // Top day-of-week by avg completions — text used in the callout line.
+  const topDow = useMemo(() => {
+    let best = null;
+    for (const d of dayOfWeekStats || []) {
+      if (d.avgCompletions <= 0) continue;
+      if (!best || d.avgCompletions > best.avgCompletions) best = d;
+    }
+    return best;
+  }, [dayOfWeekStats]);
+
+  return (
+    <>
+      {/* Trending callouts — short muted lines that read as headlines.
+          Each is independently optional (rendered only when there's
+          data to compute it). */}
+      <div className="stats-trend-callouts">
+        {tw && (
+          <p className="stats-trend-callout">
+            This week:{" "}
+            <strong>{fmtDuration(tw.thisWeekMs)}</strong> of deep work —{" "}
+            <span className={tw.pctDiff >= 0 ? "is-up" : "is-down"}>
+              {tw.pctDiff >= 0 ? "▲" : "▼"} {Math.abs(tw.pctDiff)}%
+            </span>{" "}
+            vs your 4-week average ({fmtDuration(tw.priorAvgMs)}/week).
+          </p>
+        )}
+        {bd && (
+          <p className="stats-trend-callout">
+            Best shipping day ever:{" "}
+            <strong>{bd.dayKey}</strong> with {bd.count} task{bd.count === 1 ? "" : "s"} closed.
+          </p>
+        )}
+        {bw && (
+          <p className="stats-trend-callout">
+            Best shipping week ever: week of{" "}
+            <strong>{bw.weekStart}</strong> — {bw.count} closed.
+          </p>
+        )}
+        {topDow && (
+          <p className="stats-trend-callout">
+            You ship the most on{" "}
+            <strong>{topDow.label}s</strong> ({topDow.avgCompletions.toFixed(1)} tasks/day on avg).
+          </p>
+        )}
+      </div>
+
+      <Section title="Day of week — avg deep work">
+        {dayOfWeekStats && dayOfWeekStats.some((d) => d.avgDeepMs > 0) ? (
+          <DowChart days={dayOfWeekStats} />
+        ) : (
+          <EmptyState variant="inline" message="Not enough activity yet to surface a day-of-week pattern." />
+        )}
+      </Section>
+
+      <Section title="Workday rhythm">
+        {workdayRhythm ? (
+          <ul className="stats-rhythm-grid">
+            <li className="stats-rhythm-cell">
+              <span className="stats-rhythm-label">Avg start</span>
+              <span className="stats-rhythm-value">{formatMinAsTime(workdayRhythm.avgStartMin)}</span>
+            </li>
+            <li className="stats-rhythm-cell">
+              <span className="stats-rhythm-label">Avg end</span>
+              <span className="stats-rhythm-value">{formatMinAsTime(workdayRhythm.avgEndMin)}</span>
+            </li>
+            <li className="stats-rhythm-cell">
+              <span className="stats-rhythm-label">Avg session</span>
+              <span className="stats-rhythm-value">{fmtDuration(workdayRhythm.avgSessionDurationMs)}</span>
+            </li>
+            <li className="stats-rhythm-cell">
+              <span className="stats-rhythm-label">Sessions/day</span>
+              <span className="stats-rhythm-value">{workdayRhythm.avgSessionsPerDay}</span>
+            </li>
+          </ul>
+        ) : (
+          <EmptyState variant="inline" message="Not enough sessions yet." />
+        )}
+        {workdayRhythm && (
+          <p className="stats-footnote">
+            Averaged across {workdayRhythm.totalDays} active days.
+          </p>
+        )}
+      </Section>
+
+      <Section title="Hot projects — last 7 days">
+        {hotProjects7d.length === 0 ? (
+          <EmptyState variant="inline" message="No project activity this week." />
+        ) : (
+          <ul className="stats-hot-list">
+            {hotProjects7d.map((p) => (
+              <li key={p.projectId} className="stats-hot-row">
+                <span className="stats-hot-project">
+                  <Dot color={p.color || "rgba(0,0,0,0.25)"} size={8} />
+                  {p.name}
+                </span>
+                <div className="stats-hot-bar-wrap">
+                  <div
+                    className="stats-hot-bar"
+                    style={{
+                      width: `${p.shareOfWeek * 100}%`,
+                      background: softenColor(p.color || "rgba(0,0,0,0.25)", 0.45),
+                    }}
+                  />
+                </div>
+                <span className="stats-hot-share">
+                  {Math.round(p.shareOfWeek * 100)}%
+                  <span className="stats-hot-ms"> · {fmtDuration(p.ms)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {atRiskProjects.length > 0 && (
+        <Section title="At-risk projects (no activity in 14+ days)">
+          <ul className="stats-atrisk-list">
+            {atRiskProjects.map((p) => {
+              const ageDays = Math.floor((Date.now() - p.lastActivityMs) / MS_PER_DAY);
+              return (
+                <li key={p.projectId} className="stats-atrisk-row">
+                  <span className="stats-atrisk-project">
+                    <Dot color={p.color || "rgba(0,0,0,0.25)"} size={8} />
+                    {p.name}
+                  </span>
+                  <span className="stats-atrisk-meta">
+                    <strong>{p.openCount}</strong> open task{p.openCount === 1 ? "" : "s"}
+                  </span>
+                  <span className="stats-atrisk-age">
+                    no activity in {ageDays} days
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="stats-footnote">
+            Projects you've started but haven't touched in 2+ weeks. Worth either
+            picking back up or clearing the open tasks.
+          </p>
+        </Section>
+      )}
+    </>
+  );
+}
+
 /* ── Page shell ── */
 
 const TABS = [
@@ -3128,6 +3515,7 @@ const TABS = [
   { id: "focus", label: "Focus" },
   { id: "claude", label: "Claude" },
   { id: "tasks", label: "Tasks" },
+  { id: "trends", label: "Trends" },
 ];
 
 /* Snapshot freshness indicator used in the PageHeader actions slot.
@@ -3347,6 +3735,7 @@ export default function StatsPage() {
         {tab === "focus" && <FocusTab stats={stats} />}
         {tab === "claude" && <ClaudeTab stats={stats} />}
         {tab === "tasks" && <TasksTab stats={stats} />}
+        {tab === "trends" && <TrendsTab stats={stats} />}
       </div>
     </main>
   );

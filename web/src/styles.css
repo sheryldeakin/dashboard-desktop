@@ -5707,6 +5707,159 @@ button:focus-visible {
   font-style: normal;
 }
 
+/* Trending callouts on the Trends tab — short muted lines stacked
+   above the per-trend sections. Each callout reads as a headline.
+   Up/down deltas use sage/coral tints. */
+.stats-trend-callouts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: clamp(20px, 2vw, 28px);
+}
+
+.stats-trend-callout {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-trend-callout strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.stats-trend-callout .is-up {
+  color: #5a7e5f;
+}
+
+.stats-trend-callout .is-down {
+  color: #b76e35;
+}
+
+/* Workday rhythm grid — 4 cells in one row showing avg start/end/etc. */
+.stats-rhythm-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: clamp(16px, 1.5vw, 24px);
+}
+
+.stats-rhythm-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-rhythm-label {
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+.stats-rhythm-value {
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Hot projects list — 3 rows showing project share of the 7-day window
+   with a softened-color bar (same idiom as the project bars elsewhere). */
+.stats-hot-list,
+.stats-atrisk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stats-hot-row {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.stats-hot-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.stats-hot-bar-wrap {
+  height: 14px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stats-hot-bar {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.stats-hot-share {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.stats-hot-ms {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+/* At-risk projects list — name + open count + last-activity gap. */
+.stats-atrisk-row {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) auto 1fr;
+  gap: 14px;
+  align-items: center;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.stats-atrisk-row:last-child {
+  border-bottom: none;
+}
+
+.stats-atrisk-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.stats-atrisk-meta {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-atrisk-meta strong {
+  font-weight: 600;
+}
+
+.stats-atrisk-age {
+  text-align: right;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Theme tags on the Claude tab — top words from this week's AI
    summaries rendered as small flat chips. Each chip shows the word +
    a muted count. Layout: wrapping inline-flex so chips fit any width. */
