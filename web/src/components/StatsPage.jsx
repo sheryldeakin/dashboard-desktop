@@ -1639,7 +1639,7 @@ function TodayProjectRow({ row, max }) {
   );
 }
 
-function TodayTab({ stats, content }) {
+function TodayTab({ stats, content, onReload, refreshing }) {
   // Day picker: lets the user view "Today"-style data for any past
   // day. Defaults to today, but if today has no activity yet we auto-
   // fall back to the most recent day with workSessions so the page
@@ -1778,11 +1778,19 @@ function TodayTab({ stats, content }) {
     [content, selectedDayStart]
   );
 
-  // Day picker UI — prev / [date input + label] / next. Disabled-next
-  // when selected day === today (no future days to show). Used in
-  // both the no-activity branch and the main render below so the user
-  // can ALWAYS navigate to another day, including from an empty
-  // today.
+  // Last sync timestamp for the Claude importer. Written by
+  // `import-claude-sessions.py` on each successful run (the hourly
+  // scheduled task `DashboardImportClaude`). Surfaced inline next to
+  // the "Sync now" button so the user can tell at a glance whether
+  // their recent work is likely to be reflected yet.
+  const importHeartbeatIso = content?.scheduledTaskHeartbeats?.["import-claude-sessions"];
+  const importHeartbeatMs = importHeartbeatIso ? Date.parse(importHeartbeatIso) : null;
+
+  // Day picker UI — prev / [date input + label] / next, plus a
+  // refresh button + last-sync indicator on the right. The refresh
+  // button re-fetches /api/content; it does NOT trigger the local
+  // importer (that runs hourly on the Windows machine). After the
+  // hourly task lands, hit Sync to see the new sessions without F5.
   const dayPicker = (
     <div className="stats-day-picker">
       <button
@@ -1828,6 +1836,26 @@ function TodayTab({ stats, content }) {
           Jump to today
         </button>
       )}
+      <div className="stats-day-picker-sync">
+        {importHeartbeatMs && (
+          <Tooltip
+            content={`Last Claude import ran ${new Date(importHeartbeatMs).toLocaleString()}`}
+          >
+            <span className="stats-day-picker-sync-meta">
+              imported <RelativeTime since={importHeartbeatMs} />
+            </span>
+          </Tooltip>
+        )}
+        <button
+          type="button"
+          className="stats-day-picker-sync-btn"
+          onClick={onReload}
+          disabled={refreshing}
+          aria-label="Refresh from server"
+        >
+          {refreshing ? "Syncing…" : "Sync now"}
+        </button>
+      </div>
     </div>
   );
 
@@ -2405,6 +2433,22 @@ export default function StatsPage() {
     return TABS.some((t) => t.id === urlTab) ? urlTab : "overview";
   });
   const [loadedAtMs, setLoadedAtMs] = useState(Date.now());
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Reload from the API and re-render. Used both for initial mount and
+  // by the Today tab's "Sync now" button. setRefreshing toggles a UI
+  // pending state on the button; setLoadedAtMs powers the SnapshotIndicator
+  // in the PageHeader.
+  function reloadContent() {
+    setRefreshing(true);
+    loadAndHydratePreferredContent()
+      .then((c) => {
+        setContent(c);
+        setLoadedAtMs(Date.now());
+        setLoaded(true);
+      })
+      .finally(() => setRefreshing(false));
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -2450,7 +2494,14 @@ export default function StatsPage() {
 
       <div className="stats-tab-body">
         {tab === "overview" && <OverviewTab stats={stats} content={content} />}
-        {tab === "today" && <TodayTab stats={stats} content={content} />}
+        {tab === "today" && (
+          <TodayTab
+            stats={stats}
+            content={content}
+            onReload={reloadContent}
+            refreshing={refreshing}
+          />
+        )}
         {tab === "focus" && <FocusTab stats={stats} />}
         {tab === "claude" && <ClaudeTab stats={stats} />}
         {tab === "tasks" && <TasksTab stats={stats} />}

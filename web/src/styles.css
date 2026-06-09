@@ -5570,7 +5570,6 @@ button:focus-visible {
 }
 
 .stats-day-picker-today {
-  margin-left: auto;
   padding: 6px 10px;
   border-radius: 4px;
   border: 1px solid var(--rule);
@@ -5585,6 +5584,44 @@ button:focus-visible {
 .stats-day-picker-today:hover {
   border-color: var(--ink-muted);
   color: var(--ink);
+}
+
+/* Right-side cluster: last-sync indicator + "Sync now" button. The
+   single margin-left: auto on the cluster pushes everything from
+   here to the right edge of the picker, regardless of whether the
+   "Jump to today" button is visible. */
+.stats-day-picker-sync {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stats-day-picker-sync-meta {
+  font-size: 12px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-day-picker-sync-btn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.stats-day-picker-sync-btn:hover:not(:disabled) {
+  border-color: var(--ink-muted);
+}
+
+.stats-day-picker-sync-btn:disabled {
+  opacity: 0.5;
+  cursor: progress;
 }
 
 /* Today vs typical — single muted line under the snapshot showing
