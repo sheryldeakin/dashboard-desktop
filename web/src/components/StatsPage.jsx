@@ -519,6 +519,17 @@ function computeStats(content) {
       color: projectColor.get(id) || null,
     })),
     projectCards,
+    // Raw focus pomodoro timestamps so the Today tab can count pomos
+    // for ANY selected day, not just today (`stats.today.pomos` is
+    // hardcoded to today and breaks when the day picker shows prior
+    // days). Sorted ascending.
+    focusPomoMs: focusPomos
+      .map((e) => Date.parse(e.startedAt))
+      .filter((t) => Number.isFinite(t))
+      .sort((a, b) => a - b),
+    // Full completions list (sorted newest-first) so the day picker can
+    // count completions for arbitrary days, not just today/week/all.
+    allCompletions,
   };
 }
 
@@ -1345,8 +1356,14 @@ function OverviewTab({ stats, content }) {
   );
 }
 
-function buildTodayData(stats) {
-  const todayStart = todayStartMs();
+/* buildDayData(stats, dayStartMs)
+   Aggregates one day's worth of data into the shape TodayTab renders.
+   Originally hardcoded to "today" (todayStartMs()); generalized to any
+   dayStartMs so the day picker can show prior days too. The "y" prefix
+   variables (yTaskMs etc.) now mean "day before the selected day" —
+   used for the delta-vs-prior-day on the snapshot. */
+function buildTodayData(stats, dayStartMs = todayStartMs()) {
+  const todayStart = dayStartMs;
   const todayEnd = todayStart + MS_PER_DAY;
   const yStart = todayStart - MS_PER_DAY;
 
@@ -1459,6 +1476,12 @@ function buildTodayData(stats) {
     .sort((a, b) => b[1] - a[1])
     .map(([t, ms]) => ({ label: `#${t}`, value: ms }));
 
+  // Focus pomodoros in the selected day's window. Was hardcoded to
+  // `stats.today.pomos` (today only) which was wrong when the day
+  // picker showed prior days.
+  const todayPomos = (stats.focusPomoMs || [])
+    .filter((ms) => ms >= todayStart && ms < todayEnd).length;
+
   return {
     taskMs, claudeMs, claudeOutsideMs, absorbedMs, deepMs,
     yTaskMs, yClaudeOutsideMs, yDeepMs,
@@ -1467,7 +1490,7 @@ function buildTodayData(stats) {
     hoursByProject,
     projectColorsToday,
     projectNamesToday: projectName,
-    todayPomos: stats.today.pomos,
+    todayPomos,
   };
 }
 
@@ -1617,7 +1640,64 @@ function TodayProjectRow({ row, max }) {
 }
 
 function TodayTab({ stats, content }) {
-  const t = useMemo(() => buildTodayData(stats), [stats]);
+  // Day picker: lets the user view "Today"-style data for any past
+  // day. Defaults to today, but if today has no activity yet we auto-
+  // fall back to the most recent day with workSessions so the page
+  // isn't empty on a quiet morning. User can navigate freely from
+  // there via prev/next + the date input.
+  const [selectedDayStart, setSelectedDayStart] = useState(() => {
+    const todayMs = todayStartMs();
+    // Cheap check: does today have any activity? Walk workSessions
+    // once. Same check buildTodayData would do, but inline here so we
+    // don't pay for the full aggregation just to decide initial state.
+    const todayEnd = todayMs + MS_PER_DAY;
+    const hasTodayActivity = (content?.workSessions || []).some((s) => {
+      const ms = Date.parse(s.startedAt);
+      return Number.isFinite(ms) && ms >= todayMs && ms < todayEnd;
+    });
+    if (hasTodayActivity) return todayMs;
+    // Find the most recent day with any workSession activity. If the
+    // history is empty altogether, fall back to today (we'll just
+    // show the empty-state).
+    let latestSessionMs = 0;
+    for (const s of content?.workSessions || []) {
+      const ms = Date.parse(s.startedAt);
+      if (Number.isFinite(ms) && ms > latestSessionMs) latestSessionMs = ms;
+    }
+    if (latestSessionMs === 0) return todayMs;
+    const d = new Date(latestSessionMs);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  });
+
+  const todayMs = todayStartMs();
+  const isToday = selectedDayStart === todayMs;
+  const canGoNext = selectedDayStart < todayMs;
+
+  function dayLabel(dayMs) {
+    if (dayMs === todayMs) return "Today";
+    if (dayMs === todayMs - MS_PER_DAY) return "Yesterday";
+    return new Date(dayMs).toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  }
+  function dayInputValue(dayMs) {
+    // Format as YYYY-MM-DD in LOCAL time (not UTC) so the input matches
+    // what the user sees as "the date." `toISOString` gives UTC which
+    // can shift the date in some timezones.
+    const d = new Date(dayMs);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  const t = useMemo(
+    () => buildTodayData(stats, selectedDayStart),
+    [stats, selectedDayStart]
+  );
   const noActivity = t.deepMs === 0 && t.sessions.length === 0;
   const maxProjectMs = Math.max(1, ...t.byProject.map((r) => r.combinedMs));
   const deltaMin = Math.round(t.deepDelta / MS_PER_MIN);
@@ -1626,30 +1706,53 @@ function TodayTab({ stats, content }) {
   // Overview chart + heatmap default. Same dropdown shape as those.
   const [hourMode, setHourMode] = useState("by-project");
 
-  // "Today vs typical" — compare today's deep work to the AVG of the
-  // prior 6 days (week window minus today / 6). Skip the line when
-  // there's no prior baseline (e.g. just started this week) — without
-  // history the "X above average" framing is meaningless.
+  // Selected-day vs typical — compare to the 6-day prior average.
+  // For non-today days, the prior window is the 6 days BEFORE the
+  // selected day (computed inline since stats.week is today-relative).
   const typicalMs = useMemo(() => {
-    const priorTotal = (stats.week?.deep_work_ms || 0) - t.deepMs;
+    if (isToday) {
+      const priorTotal = (stats.week?.deep_work_ms || 0) - t.deepMs;
+      return priorTotal > 0 ? Math.round(priorTotal / 6) : 0;
+    }
+    // Walk taskTimer + claude for the 6 days before the selected day.
+    const windowStart = selectedDayStart - 6 * MS_PER_DAY;
+    let priorTask = 0;
+    let priorClaudeOutside = 0;
+    for (const tt of stats.taskTimer) {
+      if (tt.start >= windowStart && tt.start < selectedDayStart) {
+        priorTask += tt.durationMs;
+      }
+    }
+    for (const cc of stats.claude) {
+      if (cc.start >= windowStart && cc.start < selectedDayStart) {
+        priorClaudeOutside += cc.outsideMs;
+      }
+    }
+    const priorTotal = priorTask + priorClaudeOutside;
     return priorTotal > 0 ? Math.round(priorTotal / 6) : 0;
-  }, [stats.week?.deep_work_ms, t.deepMs]);
+  }, [isToday, selectedDayStart, stats.week?.deep_work_ms, stats.taskTimer, stats.claude, t.deepMs]);
   const typicalDeltaMs = t.deepMs - typicalMs;
   const showTypicalLine = typicalMs > 0;
 
-  // "Today's story" — chronological feed of today's Claude sessions
-  // (ASC: oldest first, reading top-to-bottom as the day unfolded).
-  // Same row layout as Overview's Recent activity. Different filter:
-  // today-only, no count cap.
+  // Tasks closed in the selected day — count from stats.allCompletions
+  // instead of stats.completionCounts.today (which is today-only).
+  const tasksClosedOnDay = useMemo(() => {
+    const endMs = selectedDayStart + MS_PER_DAY;
+    return (stats.allCompletions || []).filter((c) => {
+      const ts = Date.parse(c.completedAt);
+      return Number.isFinite(ts) && ts >= selectedDayStart && ts < endMs;
+    }).length;
+  }, [stats.allCompletions, selectedDayStart]);
+
+  // Chronological Claude feed for the selected day (oldest first).
   const todayStoryFeed = useMemo(() => {
     const projectMap = new Map((content?.projects || []).map((p) => [p.id, p]));
-    const startMs = todayStartMs();
-    const endMs = startMs + MS_PER_DAY;
+    const endMs = selectedDayStart + MS_PER_DAY;
     return (content?.workSessions || [])
       .filter((s) => s.source === "claude_code")
       .filter((s) => {
         const ms = Date.parse(s.startedAt);
-        return Number.isFinite(ms) && ms >= startMs && ms < endMs;
+        return Number.isFinite(ms) && ms >= selectedDayStart && ms < endMs;
       })
       .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt))
       .map((s) => ({
@@ -1661,36 +1764,104 @@ function TodayTab({ stats, content }) {
         startedAt: s.startedAt,
         completionCount: Array.isArray(s.completedTasks) ? s.completedTasks.length : 0,
       }));
-  }, [content]);
+  }, [content, selectedDayStart]);
 
-  // Today's Claude sessions grouped by project, ready to feed straight
-  // into <ClaudeProjectBucket>. Same data shape and same component as
-  // /history uses — drill down to see per-session AI summaries and
-  // tasks completed during that project's work today.
-  const todayStart = useMemo(() => todayStartMs(), []);
+  // Selected-day Claude sessions grouped by project, ready to feed
+  // straight into <ClaudeProjectBucket>. Window driven by the day
+  // picker so this updates when the user picks a prior day.
   const claudeBucketsToday = useMemo(
     () => buildClaudeBuckets(
       content?.workSessions || [],
       content?.projects || [],
-      { since: todayStart, until: todayStart + MS_PER_DAY }
+      { since: selectedDayStart, until: selectedDayStart + MS_PER_DAY }
     ),
-    [content, todayStart]
+    [content, selectedDayStart]
+  );
+
+  // Day picker UI — prev / [date input + label] / next. Disabled-next
+  // when selected day === today (no future days to show). Used in
+  // both the no-activity branch and the main render below so the user
+  // can ALWAYS navigate to another day, including from an empty
+  // today.
+  const dayPicker = (
+    <div className="stats-day-picker">
+      <button
+        type="button"
+        className="stats-day-picker-nav"
+        onClick={() => setSelectedDayStart(selectedDayStart - MS_PER_DAY)}
+        aria-label="Previous day"
+      >
+        ←
+      </button>
+      <span className="stats-day-picker-label">{dayLabel(selectedDayStart)}</span>
+      <input
+        type="date"
+        className="stats-day-picker-input"
+        value={dayInputValue(selectedDayStart)}
+        max={dayInputValue(todayMs)}
+        onChange={(e) => {
+          // <input type="date"> emits YYYY-MM-DD; reconstruct a local-midnight
+          // ms timestamp so day math stays in the same zone as todayStartMs().
+          const v = e.target.value;
+          if (!v) return;
+          const [y, m, d] = v.split("-").map(Number);
+          if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return;
+          const next = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+          if (next <= todayMs) setSelectedDayStart(next);
+        }}
+      />
+      <button
+        type="button"
+        className="stats-day-picker-nav"
+        onClick={() => setSelectedDayStart(selectedDayStart + MS_PER_DAY)}
+        disabled={!canGoNext}
+        aria-label="Next day"
+      >
+        →
+      </button>
+      {!isToday && (
+        <button
+          type="button"
+          className="stats-day-picker-today"
+          onClick={() => setSelectedDayStart(todayMs)}
+        >
+          Jump to today
+        </button>
+      )}
+    </div>
   );
 
   if (noActivity) {
     return (
-      <Section title="Today">
-        <EmptyState variant="inline" message="No work sessions logged yet today" />
-        <p className="stats-footnote">
-          Sessions populate as the hourly importer picks up new Claude transcripts
-          and as task timers run. Yesterday: {fmtDuration(t.yDeepMs)} total deep work.
-        </p>
-      </Section>
+      <>
+        {dayPicker}
+        <Section title={isToday ? "Today" : dayLabel(selectedDayStart)}>
+          <EmptyState
+            variant="inline"
+            message={
+              isToday
+                ? "No work sessions logged yet today"
+                : `No work sessions logged on ${dayLabel(selectedDayStart)}`
+            }
+          />
+          <p className="stats-footnote">
+            {isToday
+              ? "Sessions populate as the hourly importer picks up new Claude transcripts and as task timers run."
+              : "Use the picker above to view another day."}
+            {t.yDeepMs > 0 && (
+              <>
+                {" "}Prior day: {fmtDuration(t.yDeepMs)} total deep work.
+              </>
+            )}
+          </p>
+        </Section>
+      </>
     );
   }
 
   return (
     <>
+      {dayPicker}
       <StatGrid
         variant="snapshot"
         columns={[
@@ -1701,8 +1872,8 @@ function TodayTab({ stats, content }) {
               ? {
                   sign: deltaMin > 0 ? "up" : deltaMin < 0 ? "down" : "neutral",
                   label: deltaMin === 0
-                    ? "same as yesterday"
-                    : `${deltaSign}${deltaMin}m vs yesterday`,
+                    ? `same as ${isToday ? "yesterday" : "prior day"}`
+                    : `${deltaSign}${deltaMin}m vs ${isToday ? "yesterday" : "prior day"}`,
                 }
               : null,
           },
@@ -1714,7 +1885,7 @@ function TodayTab({ stats, content }) {
               : "—",
             label: "Avg / session",
           },
-          { value: stats.completionCounts?.today || 0, label: "Tasks closed" },
+          { value: tasksClosedOnDay, label: "Tasks closed" },
         ]}
       />
 

@@ -5498,6 +5498,95 @@ button:focus-visible {
 }
 
 /* Today: project rows */
+/* Day picker — prev/next arrows + date label + native date input,
+   sits above the snapshot on the Today tab. Lets the user view "Today"
+   for any past day. Uses hairline border + transparent bg to match the
+   rest of the /stats chrome. */
+.stats-day-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: clamp(16px, 1.5vw, 22px);
+  flex-wrap: wrap;
+}
+
+.stats-day-picker-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.stats-day-picker-nav:hover:not(:disabled) {
+  border-color: var(--ink-muted);
+}
+
+.stats-day-picker-nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.stats-day-picker-label {
+  font-size: clamp(13px, 0.3vw + 10.5px, 14px);
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 90px;
+  text-align: center;
+}
+
+/* Native <input type="date"> — restyle the closed-state chrome to
+   match .stats-heatmap-select. The picker popup itself is browser-
+   rendered (unavoidable for native date inputs). */
+.stats-day-picker-input {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease;
+}
+
+.stats-day-picker-input:hover {
+  border-color: var(--ink-muted);
+}
+
+.stats-day-picker-input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.stats-day-picker-today {
+  margin-left: auto;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.stats-day-picker-today:hover {
+  border-color: var(--ink-muted);
+  color: var(--ink);
+}
+
 /* Today vs typical — single muted line under the snapshot showing
    how today compares to the 6-day prior average. Sign + arrow framing
    matches the snapshot's per-cell delta language. Sits flush against
