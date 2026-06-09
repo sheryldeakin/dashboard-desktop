@@ -5645,6 +5645,39 @@ button:focus-visible {
   font-style: normal;
 }
 
+/* Theme tags on the Claude tab — top words from this week's AI
+   summaries rendered as small flat chips. Each chip shows the word +
+   a muted count. Layout: wrapping inline-flex so chips fit any width. */
+.stats-themes {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stats-theme-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.stats-theme-word {
+  font-weight: 500;
+}
+
+.stats-theme-count {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
 /* Streak calendar — GitHub-style 13 × 7 grid of squares for the Focus
    tab. Each column is a week (oldest left, newest right); each row is
    a day of the week (Sun top, Sat bottom). Cell color intensity = focus

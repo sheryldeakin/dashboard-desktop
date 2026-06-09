@@ -83,6 +83,7 @@ function extractClaudeIntervals(workSessions) {
     out.push({
       start,
       end,
+      startedAt: ws.startedAt,
       durationMs: ws.activeMs || Math.max(0, end - start),
       projectId: ws.projectId,
       tags: ws.tags || [],
@@ -92,6 +93,10 @@ function extractClaudeIntervals(workSessions) {
       cwd: ws.cwd,
       // Carried for project-card "last activity" summary line.
       aiSummary: ws.aiSummary || "",
+      // Per-session task closures (from TaskCreate/TaskUpdate tool calls
+      // parsed at import time). Used by the Claude tab to flag sessions
+      // that actually shipped something.
+      completedTaskCount: Array.isArray(ws.completedTasks) ? ws.completedTasks.length : 0,
     });
   }
   return out;
@@ -283,6 +288,83 @@ function computeStats(content) {
     .sort((a, b) => b[1] - a[1])
     .map(([tag, ms]) => ({ label: `#${tag}`, value: ms }));
 
+  // ── Claude tab: 14-day daily activity chart ─────────────────────────
+  // Same shape as focusDaily14: per-day { dayKey, dayStart, sessionCount,
+  // activeMs, byProject, isToday }. byProject maps projectId → ms for
+  // the project-color segmented bars. Walks the `claude` intervals
+  // (already filtered to claude_code source + projectId/messageCount
+  // attached).
+  const claudeDaily14 = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = todayMs - i * MS_PER_DAY;
+      days.push({
+        dayKey: ymd(new Date(dayStart)),
+        dayStart,
+        sessionCount: 0,
+        activeMs: 0,
+        byProject: new Map(),
+        isToday: i === 0,
+      });
+    }
+    const byKey = new Map(days.map((d) => [d.dayKey, d]));
+    for (const c of claude) {
+      const key = ymd(new Date(c.start));
+      const slot = byKey.get(key);
+      if (!slot) continue;
+      slot.sessionCount += 1;
+      slot.activeMs += c.durationMs;
+      const pid = c.projectId || "";
+      slot.byProject.set(pid, (slot.byProject.get(pid) || 0) + c.durationMs);
+    }
+    return days;
+  })();
+
+  // ── Claude tab: theme tags from AI summaries (last 7 days) ──────────
+  // Lightweight word-frequency on aiSummary text. Filters stopwords +
+  // short words + common verb forms so the top entries surface actual
+  // topics ("debug", "styling", "refactor") rather than noise ("the",
+  // "and", "for"). Top 12 returned. Skipped entirely if no summaries
+  // in window — empty list lets the renderer hide the section.
+  const claudeThemes = (() => {
+    const cutoff = Date.now() - 7 * MS_PER_DAY;
+    const STOPWORDS = new Set([
+      "this", "that", "with", "from", "into", "have", "been", "were",
+      "they", "them", "your", "what", "when", "which", "while", "after",
+      "before", "would", "could", "should", "their", "there", "where",
+      "also", "than", "then", "some", "more", "most", "such", "only",
+      "user", "users", "session", "sessions", "claude", "code",
+      "added", "removed", "made", "make", "made", "doing", "done",
+      "using", "used", "will", "just", "like", "able", "lots",
+      "task", "tasks", "files", "file", "thing", "things",
+      "still", "really", "actually", "back", "next", "first",
+      "much", "many", "well", "good", "want", "wants", "ask", "asked",
+      "talk", "talked", "say", "said", "tell", "told", "see", "look",
+      "looking", "looked", "show", "showed", "shown", "asked", "ran",
+    ]);
+    const counts = new Map();
+    for (const c of claude) {
+      if (c.start < cutoff) continue;
+      const summary = (c.aiSummary || "").toLowerCase();
+      if (!summary) continue;
+      // Match runs of letters/digits, ≥4 chars (drops "the", "and", "of"
+      // before they even hit the stopword set).
+      const words = summary.match(/[a-z][a-z0-9-]{3,}/g) || [];
+      for (const w of words) {
+        if (STOPWORDS.has(w)) continue;
+        counts.set(w, (counts.get(w) || 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .filter(([, n]) => n >= 2) // need at least 2 occurrences to count as a theme
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([word, count]) => ({ word, count }));
+  })();
+
   // Task-timer focus by project (so Focus tab can also break down by project)
   const focusByProjectMap = new Map();
   for (const t of taskTimer) {
@@ -424,6 +506,9 @@ function computeStats(content) {
     .map((c) => ({
       ...c,
       projectName: projectName.get(c.projectId) || "Unknown",
+      // Project color via the same resolution logic used elsewhere.
+      // Lets the new .stats-recent-row layout show the project dot.
+      projectColor: projectColor.get(c.projectId) || null,
       startStr: new Date(c.start).toLocaleString(undefined, {
         month: "short",
         day: "numeric",
@@ -629,6 +714,9 @@ function computeStats(content) {
     // Focus tab: 14-day daily focus pomos + 91-day streak calendar grid.
     focusDaily14,
     focusCalendar90,
+    // Claude tab: 14-day daily activity + theme tags from AI summaries.
+    claudeDaily14,
+    claudeThemes,
   };
 }
 
@@ -758,23 +846,42 @@ function ClaudeProjectRows({ rows }) {
   );
 }
 
+/* RecentClaudeList — rebuilt to use the .stats-recent-row layout
+   (same as Overview's Recent activity feed + Today's story). Each
+   row shows project dot · name · duration · ✓completions · AI
+   summary teaser · relative time. The AI summary integration is
+   the headline change here — flat list of "20 most recent sessions"
+   now also tells you WHAT Claude did in each one. */
 function RecentClaudeList({ rows }) {
   if (!rows.length) return <EmptyState variant="inline" message="No recent Claude sessions" />;
   return (
-    <ul className="stats-session-list">
+    <ul className="stats-recent-list">
       {rows.map((c) => {
-        const sub = c.absorbedMs > 0
-          ? `${fmtDuration(c.absorbedMs)} absorbed by task timer`
-          : "outside any task timer";
+        const aiSummary = (c.aiSummary || "").trim();
         return (
-          <li key={c.id} className="stats-session-row">
-            <span className="stats-session-time">{c.startStr}</span>
-            <span className="stats-session-proj">{c.projectName}</span>
-            <span className="stats-session-tags">
-              {c.tags.slice(0, 3).map((t) => `#${t}`).join(" ")}
+          <li key={c.id} className="stats-recent-row">
+            <span className="stats-recent-project">
+              <Dot color={c.projectColor || "rgba(0,0,0,0.25)"} size={8} />
+              {c.projectName}
             </span>
-            <span className="stats-session-dur">{fmtDuration(c.durationMs)}</span>
-            <span className="stats-session-meta">{c.messageCount} msgs · {sub}</span>
+            <span className="stats-recent-duration">
+              {fmtDuration(c.durationMs)}
+              {c.completedTaskCount > 0 && (
+                <span className="stats-recent-completions">
+                  {" "}· ✓ {c.completedTaskCount}
+                </span>
+              )}
+            </span>
+            <span className="stats-recent-summary">
+              {aiSummary || (
+                <span className="stats-recent-no-summary">—</span>
+              )}
+            </span>
+            <Tooltip content={new Date(c.start).toLocaleString()}>
+              <span className="stats-recent-when">
+                <RelativeTime since={c.start} />
+              </span>
+            </Tooltip>
           </li>
         );
       })}
@@ -2180,12 +2287,18 @@ function TodayTab({ stats, content, onSync, syncStatus = { phase: "idle", messag
   );
 }
 
-/* FocusDailyChart — 14-day stacked-segment bar chart for focus pomos.
-   Each bar shows focus minutes for that day with per-project color
-   segments. Same compact .stats-daily-* shape used by DeepWorkBars.
-   Hovering shows pomo count + focus time + project breakdown. */
-function FocusDailyChart({ days, projectName, projectColor }) {
-  const max = Math.max(1, ...days.map((d) => d.focusMs));
+/* DailyStackedBars — shared 14-day project-segmented chart used by the
+   Focus and Claude tabs. Both build a `days` array of {dayKey, byProject:
+   Map<pid, ms>, isToday, ...} plus their own per-day total (focus minutes,
+   Claude active ms). Generic over:
+     valueAccessor(day) → number for the bar height (used as the max-scale
+                          basis and to determine "empty" days)
+     tooltipFor(day, segs) → node rendered in the hover tooltip
+   See flag-reuse-opportunities memory — this is the third use of the
+   project-segmented daily-bar pattern, so it's extracted instead of
+   duplicated. */
+function DailyStackedBars({ days, projectName, projectColor, valueAccessor, tooltipFor }) {
+  const max = Math.max(1, ...days.map(valueAccessor));
   return (
     <div className="stats-daily">
       {days.map((d) => {
@@ -2195,18 +2308,7 @@ function FocusDailyChart({ days, projectName, projectColor }) {
         const segs = [...d.byProject.entries()]
           .filter(([, ms]) => ms > 0)
           .sort((a, b) => b[1] - a[1]);
-        const tip = (
-          <>
-            <strong>{d.dayKey}</strong> — {d.pomoCount} pomo{d.pomoCount === 1 ? "" : "s"}, {fmtDuration(d.focusMs)} focus
-            {segs.map(([pid, ms]) => (
-              <span key={pid || "unassigned"}>
-                <br />
-                {projectName.get(pid) || "Unassigned"}: {fmtDuration(ms)}
-              </span>
-            ))}
-            {d.focusMs === 0 && (<><br />no focus pomos</>)}
-          </>
-        );
+        const tip = tooltipFor(d, segs);
         return (
           <Tooltip key={d.dayKey} content={tip}>
             <div className={`stats-daily-col${d.isToday ? " is-today" : ""}`}>
@@ -2236,6 +2338,58 @@ function FocusDailyChart({ days, projectName, projectColor }) {
         );
       })}
     </div>
+  );
+}
+
+/* FocusDailyChart — pomo data → DailyStackedBars wrapper. Bar height
+   driven by focus minutes per day; tooltip surfaces pomo count + per-
+   project breakdown. */
+function FocusDailyChart({ days, projectName, projectColor }) {
+  return (
+    <DailyStackedBars
+      days={days}
+      projectName={projectName}
+      projectColor={projectColor}
+      valueAccessor={(d) => d.focusMs}
+      tooltipFor={(d, segs) => (
+        <>
+          <strong>{d.dayKey}</strong> — {d.pomoCount} pomo{d.pomoCount === 1 ? "" : "s"}, {fmtDuration(d.focusMs)} focus
+          {segs.map(([pid, ms]) => (
+            <span key={pid || "unassigned"}>
+              <br />
+              {projectName.get(pid) || "Unassigned"}: {fmtDuration(ms)}
+            </span>
+          ))}
+          {d.focusMs === 0 && (<><br />no focus pomos</>)}
+        </>
+      )}
+    />
+  );
+}
+
+/* ClaudeDailyChart — Claude activity → DailyStackedBars wrapper. Bar
+   height driven by active ms per day; tooltip surfaces session count
+   + per-project breakdown. */
+function ClaudeDailyChart({ days, projectName, projectColor }) {
+  return (
+    <DailyStackedBars
+      days={days}
+      projectName={projectName}
+      projectColor={projectColor}
+      valueAccessor={(d) => d.activeMs}
+      tooltipFor={(d, segs) => (
+        <>
+          <strong>{d.dayKey}</strong> — {d.sessionCount} session{d.sessionCount === 1 ? "" : "s"}, {fmtDuration(d.activeMs)} active
+          {segs.map(([pid, ms]) => (
+            <span key={pid || "unassigned"}>
+              <br />
+              {projectName.get(pid) || "Unassigned"}: {fmtDuration(ms)}
+            </span>
+          ))}
+          {d.activeMs === 0 && (<><br />no Claude sessions</>)}
+        </>
+      )}
+    />
   );
 }
 
@@ -2425,75 +2579,146 @@ function FocusTab({ stats }) {
 }
 
 function ClaudeTab({ stats }) {
+  // Project lookup maps for the chart (same shape used on Focus tab).
+  const projectName = useMemo(
+    () => new Map((stats.projects || []).map((p) => [p.id, p.name])),
+    [stats.projects]
+  );
+  const projectColor = useMemo(() => {
+    const map = new Map();
+    for (const p of stats.projects || []) {
+      if (p.color) map.set(p.id, p.color);
+    }
+    return map;
+  }, [stats.projects]);
+
+  // Tasks closed in Claude sessions today — completions whose source
+  // session was a Claude session. Computed from stats.allCompletions
+  // (the full completions list with sessionId) cross-referenced against
+  // claude_code session ids.
+  const todayClaudeCompletions = useMemo(() => {
+    const todayStart = todayStartMs();
+    const claudeSessionIds = new Set((stats.claude || []).map((c) => c.id));
+    return (stats.allCompletions || []).filter((c) => {
+      if (!claudeSessionIds.has(c.sessionId)) return false;
+      const t = Date.parse(c.completedAt);
+      return Number.isFinite(t) && t >= todayStart;
+    }).length;
+  }, [stats.allCompletions, stats.claude]);
+
   return (
     <>
+      {/* Snapshot: kept the 4-cell shape, swapped "Avg msgs/session"
+          (novelty) for "Tasks closed via Claude today" (signal). */}
       <StatGrid
         variant="snapshot"
         columns={[
           { value: stats.today.claude_sessions, label: "Sessions today" },
           { value: stats.week.claude_sessions, label: "Past 7 days" },
           { value: fmtDuration(stats.all.claude_total_ms), label: "All-time active" },
-          {
-            value: stats.all.claude_sessions
-              ? Math.round(stats.all.claude_msgs / stats.all.claude_sessions)
-              : 0,
-            label: "Avg msgs/session",
-          },
+          { value: todayClaudeCompletions, label: "Tasks closed today" },
         ]}
       />
 
-      <Section title="Detail">
-        <MetricTable
-          headers={["Today", "Past 7 days", "All-time"]}
-          rows={[
-            {
-              label: "Sessions",
-              cells: [
-                stats.today.claude_sessions,
-                stats.week.claude_sessions,
-                stats.all.claude_sessions,
-              ],
-            },
-            {
-              label: "Active time",
-              cells: [
-                fmtDuration(stats.today.claude_total_ms),
-                fmtDuration(stats.week.claude_total_ms),
-                fmtDuration(stats.all.claude_total_ms),
-              ],
-            },
-            {
-              label: "Msgs / session",
-              cells: [
-                stats.today.claude_sessions
-                  ? Math.round(stats.today.claude_msgs / stats.today.claude_sessions)
-                  : 0,
-                stats.week.claude_sessions
-                  ? Math.round(stats.week.claude_msgs / stats.week.claude_sessions)
-                  : 0,
-                stats.all.claude_sessions
-                  ? Math.round(stats.all.claude_msgs / stats.all.claude_sessions)
-                  : 0,
-              ],
-            },
-          ]}
-        />
-      </Section>
+      {/* Headline chart: 14-day Claude activity, project-colored.
+          Same compact shape as the Focus and Overview charts. */}
+      <section className="home-section">
+        <h2 className="home-section-title home-section-title-row">
+          <span>Last 14 days</span>
+          <span className="home-section-meta">
+            <strong>{stats.week.claude_sessions}</strong>{" "}
+            {stats.week.claude_sessions === 1 ? "session" : "sessions"} in last 7 days
+          </span>
+        </h2>
+        {stats.claudeDaily14.every((d) => d.activeMs === 0) ? (
+          <EmptyState
+            variant="inline"
+            message="No Claude sessions in the last 14 days"
+            hint="The hourly import (or Sync now on Today) pulls new sessions in."
+          />
+        ) : (
+          <ClaudeDailyChart
+            days={stats.claudeDaily14}
+            projectName={projectName}
+            projectColor={projectColor}
+          />
+        )}
+      </section>
 
       <Section title="Claude time by project — all time">
         <ClaudeProjectRows rows={stats.claudeByProject} />
       </Section>
 
-      <Section title="Claude time by tag — top 15">
-        <BreakdownBars
-          rows={stats.claudeByTag.slice(0, 15)}
-          formatRight={(v) => fmtDuration(v)}
-          emptyMsg="No tags yet."
-        />
-      </Section>
-
+      {/* Recent Claude sessions — now with AI summary teasers + ✓
+          completion counts. Same row layout as Overview's Recent
+          activity. The headline payoff of the AI-summary backfill
+          finally lands on the Claude tab. */}
       <Section title="Recent Claude sessions">
         <RecentClaudeList rows={stats.recentClaude} />
+      </Section>
+
+      {/* Theme tags from the last 7 days of AI summaries. Lightweight
+          word-frequency surface — top 12 words by count, ≥2 hits.
+          Hidden when there's nothing meaningful to show. */}
+      {stats.claudeThemes.length > 0 && (
+        <Section title="Themes this week">
+          <ul className="stats-themes">
+            {stats.claudeThemes.map((t) => (
+              <li key={t.word} className="stats-theme-chip">
+                <span className="stats-theme-word">{t.word}</span>
+                <span className="stats-theme-count">{t.count}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="stats-footnote">
+            Most-mentioned words across this week's AI summaries.
+            Stopwords + short words excluded.
+          </p>
+        </Section>
+      )}
+
+      {/* Lower-frequency drill-downs — Tags + MetricTable detail.
+          Tags moved here since they're a less-asked question once
+          themes (above) give a similar "what have I been doing"
+          read in plainer English. MetricTable trimmed to drop the
+          Sessions row (duplicate of the snapshot). */}
+      <Section title="More">
+        <Collapsible summary="Claude time by tag — top 15">
+          <BreakdownBars
+            rows={stats.claudeByTag.slice(0, 15)}
+            formatRight={(v) => fmtDuration(v)}
+            emptyMsg="No tags yet."
+          />
+        </Collapsible>
+        <Collapsible summary="Detail — active time + msgs/session by window">
+          <MetricTable
+            headers={["Today", "Past 7 days", "All-time"]}
+            rows={[
+              {
+                label: "Active time",
+                cells: [
+                  fmtDuration(stats.today.claude_total_ms),
+                  fmtDuration(stats.week.claude_total_ms),
+                  fmtDuration(stats.all.claude_total_ms),
+                ],
+              },
+              {
+                label: "Msgs / session",
+                cells: [
+                  stats.today.claude_sessions
+                    ? Math.round(stats.today.claude_msgs / stats.today.claude_sessions)
+                    : 0,
+                  stats.week.claude_sessions
+                    ? Math.round(stats.week.claude_msgs / stats.week.claude_sessions)
+                    : 0,
+                  stats.all.claude_sessions
+                    ? Math.round(stats.all.claude_msgs / stats.all.claude_sessions)
+                    : 0,
+                ],
+              },
+            ]}
+          />
+        </Collapsible>
       </Section>
     </>
   );
