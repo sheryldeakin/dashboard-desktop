@@ -641,23 +641,25 @@ function computeStats(content) {
     .sort((a, b) => b.count - a.count);
 
   // Hours-per-completion ratio per project — focus time spent vs tasks
-  // shipped. Noisy at small N; we surface this with a min-threshold
-  // (≥3 completions) so single-completion projects don't dominate.
-  // focusByProject already has per-project ms; join by projectId.
-  const focusMsByProject = new Map();
-  for (const row of focusByProject) {
-    focusMsByProject.set(row.projectId || row.id, (row.ms || row.focusMs || 0));
-  }
+  // shipped. Threshold relaxed to ≥1 completion AND ≥1 minute of focus
+  // time. The previous lookup pulled from focusByProject (which uses
+  // `value` not `ms` and has no projectId field), so every entry was
+  // reading 0 — bug now fixed by reading from focusByProjectMap
+  // directly. Filtering on focus time > 0 hides projects where tasks
+  // were closed without any task-timer activity (e.g. Claude-only
+  // closures); those would show "0m / task" which is misleading rather
+  // than informative.
   const focusPerCompletion = completionsByProject
-    .filter((p) => p.count >= 3)
+    .filter((p) => p.count >= 1)
     .map((p) => {
-      const ms = focusMsByProject.get(p.projectId) || 0;
+      const ms = focusByProjectMap.get(p.projectId) || 0;
       return {
         ...p,
         focusMs: ms,
         msPerCompletion: p.count > 0 ? ms / p.count : 0,
       };
     })
+    .filter((p) => p.focusMs >= MS_PER_MIN) // skip projects with no real focus time
     .sort((a, b) => a.msPerCompletion - b.msPerCompletion); // most efficient first
 
   // Quick session lookup: id → {aiSummary, source} so the Tasks tab
@@ -876,9 +878,13 @@ function BreakdownBars({ rows, formatRight, emptyMsg }) {
     <div className="stats-breakdown">
       {rows.map((r) => {
         // Project-based rows have `color`; tag-based rows don't (and
-        // get the default bar color from the stylesheet).
+        // get the default bar color from the stylesheet). For project
+        // rows, soften the color to ~45% toward white so bar fills feel
+        // muted — same treatment used in ClaudeProjectRows and /home
+        // week recap. Project dot keeps full saturation so it still
+        // pops at small size.
         const barStyle = { width: `${(r.value / max) * 100}%` };
-        if (r.color) barStyle.background = r.color;
+        if (r.color) barStyle.background = softenColor(r.color, 0.45);
         return (
           <div key={r.label} className="stats-breakdown-row">
             <span className="stats-breakdown-label" title={r.label}>
