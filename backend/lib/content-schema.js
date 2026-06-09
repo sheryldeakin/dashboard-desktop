@@ -518,6 +518,34 @@ function normalizeWorkSessionRecord(entry) {
     // new sessions). Optional context for sessions without explicit
     // TaskCreate tracking. Empty string when missing/unavailable.
     aiSummary: typeof entry.aiSummary === "string" ? entry.aiSummary.slice(0, 280) : "",
+    // Token usage for the session, summed across all assistant messages
+    // in the transcript. Populated by import-claude-sessions.py for new
+    // sessions and backfill-tokens.py for historical ones. Zeros when
+    // not yet computed (forward-deployed sessions without backfill).
+    tokens: normalizeTokens(entry.tokens),
+  };
+}
+
+/* Per-session token usage, summed across all assistant messages in the
+   transcript. The four fields mirror Anthropic's API usage shape:
+     input            uncached input tokens
+     output           output tokens generated
+     cacheCreation    tokens written to the prompt cache (ephemeral)
+     cacheRead        tokens served from the prompt cache (cheap reads)
+   For a session, total billable-input = input + cacheCreation; cache
+   hit ratio = cacheRead / (input + cacheRead + cacheCreation). */
+function normalizeTokens(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 };
+  }
+  function n(v) {
+    return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+  }
+  return {
+    input: n(value.input),
+    output: n(value.output),
+    cacheCreation: n(value.cacheCreation),
+    cacheRead: n(value.cacheRead),
   };
 }
 

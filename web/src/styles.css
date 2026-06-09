@@ -5707,34 +5707,60 @@ button:focus-visible {
   font-style: normal;
 }
 
-/* Trending callouts on the Trends tab — short muted lines stacked
-   above the per-trend sections. Each callout reads as a headline.
-   Up/down deltas use sage/coral tints. */
+/* Trending callouts on the Trends tab — 4-cell grid of headline
+   stats. Each cell has uppercase label + big value + small caption,
+   matching the workday-rhythm grid pattern below but with an extra
+   caption line for context (date, comparison, etc.). */
 .stats-trend-callouts {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: clamp(16px, 1.5vw, 24px);
   margin-bottom: clamp(20px, 2vw, 28px);
 }
 
-.stats-trend-callout {
-  margin: 0;
-  font-size: 13px;
+.stats-trend-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-trend-label {
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+.stats-trend-value {
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.stats-trend-unit {
+  font-size: 0.6em;
+  color: var(--ink-muted);
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+.stats-trend-caption {
+  font-size: 12px;
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.stats-trend-callout strong {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.stats-trend-callout .is-up {
+.stats-trend-caption .is-up {
   color: #5a7e5f;
+  font-weight: 500;
 }
 
-.stats-trend-callout .is-down {
+.stats-trend-caption .is-down {
   color: #b76e35;
+  font-weight: 500;
 }
 
 /* Workday rhythm grid — 4 cells in one row showing avg start/end/etc. */
@@ -5858,6 +5884,25 @@ button:focus-visible {
   color: var(--ink-muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+/* Subhead inside a Section — for sub-sections (e.g. "Last 14 days"
+   under Token usage). Sits between the section title and the content,
+   lighter than the section title. */
+.stats-subhead {
+  margin: clamp(20px, 2vw, 28px) 0 12px;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+/* Cache-hit sparkline on the Trends tab. Inline SVG; sized to fit
+   inside a callout cell's caption slot. */
+.stats-cache-spark {
+  display: inline-block;
+  vertical-align: middle;
 }
 
 /* Theme tags on the Claude tab — top words from this week's AI

@@ -760,6 +760,120 @@ function computeStats(content) {
     })(),
   };
 
+  // ── Token usage (Claude Max efficiency / volume tracking) ──────────
+  // Sums across content.workSessions where source === "claude_code".
+  // Each session's `tokens` field has { input, output, cacheCreation,
+  // cacheRead }; we aggregate by window + per-day + per-project so the
+  // Trends tab can surface callouts + chart + per-project list + cache
+  // ratio sparkline.
+  const tokenTotalsByWindow = (() => {
+    const wkStart = Date.now() - 7 * MS_PER_DAY;
+    const sum = { all: { i: 0, o: 0, cc: 0, cr: 0, n: 0 },
+                  week: { i: 0, o: 0, cc: 0, cr: 0, n: 0 } };
+    for (const ws of content.workSessions || []) {
+      if (ws.source !== "claude_code") continue;
+      const t = ws.tokens || {};
+      const i = t.input || 0;
+      const o = t.output || 0;
+      const cc = t.cacheCreation || 0;
+      const cr = t.cacheRead || 0;
+      if (i === 0 && o === 0 && cc === 0 && cr === 0) continue;
+      sum.all.i += i; sum.all.o += o; sum.all.cc += cc; sum.all.cr += cr; sum.all.n += 1;
+      const start = Date.parse(ws.startedAt);
+      if (Number.isFinite(start) && start >= wkStart) {
+        sum.week.i += i; sum.week.o += o; sum.week.cc += cc; sum.week.cr += cr; sum.week.n += 1;
+      }
+    }
+    function withDerived(w) {
+      const inputSide = w.i + w.cc + w.cr;
+      return {
+        ...w,
+        totalAll: w.i + w.o + w.cc + w.cr,
+        cacheHitPct: inputSide > 0 ? Math.round((w.cr / inputSide) * 100) : 0,
+        avgPerSession: w.n > 0 ? Math.round((w.i + w.o + w.cc + w.cr) / w.n) : 0,
+      };
+    }
+    return { all: withDerived(sum.all), week: withDerived(sum.week) };
+  })();
+
+  // 14-day daily tokens — stacked by project. byProject value is total
+  // tokens (i + o + cc + cr) for that day for that project. Also store
+  // per-day cache-hit ratio so the sparkline can render directly.
+  const tokensDaily14 = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+    const days = [];
+    for (let k = 13; k >= 0; k--) {
+      const dayStart = todayMs - k * MS_PER_DAY;
+      days.push({
+        dayKey: ymd(new Date(dayStart)),
+        dayStart,
+        total: 0,
+        i: 0, o: 0, cc: 0, cr: 0,
+        byProject: new Map(),
+        isToday: k === 0,
+        cacheHitPct: 0,
+      });
+    }
+    const byKey = new Map(days.map((d) => [d.dayKey, d]));
+    for (const ws of content.workSessions || []) {
+      if (ws.source !== "claude_code") continue;
+      const t = ws.tokens || {};
+      const total = (t.input || 0) + (t.output || 0) + (t.cacheCreation || 0) + (t.cacheRead || 0);
+      if (total === 0) continue;
+      const start = Date.parse(ws.startedAt);
+      if (!Number.isFinite(start)) continue;
+      const key = ymd(new Date(start));
+      const slot = byKey.get(key);
+      if (!slot) continue;
+      slot.total += total;
+      slot.i += t.input || 0;
+      slot.o += t.output || 0;
+      slot.cc += t.cacheCreation || 0;
+      slot.cr += t.cacheRead || 0;
+      const pid = ws.projectId || "";
+      slot.byProject.set(pid, (slot.byProject.get(pid) || 0) + total);
+    }
+    for (const d of days) {
+      const inputSide = d.i + d.cc + d.cr;
+      d.cacheHitPct = inputSide > 0 ? Math.round((d.cr / inputSide) * 100) : 0;
+    }
+    return days;
+  })();
+
+  // Per-project totals — top by total tokens. Carries cache-hit ratio
+  // for the project so the list can show efficiency per project too.
+  const tokensByProject = (() => {
+    const map = new Map();
+    for (const ws of content.workSessions || []) {
+      if (ws.source !== "claude_code") continue;
+      const t = ws.tokens || {};
+      const i = t.input || 0, o = t.output || 0, cc = t.cacheCreation || 0, cr = t.cacheRead || 0;
+      if (i + o + cc + cr === 0) continue;
+      const pid = ws.projectId || "";
+      let slot = map.get(pid);
+      if (!slot) {
+        slot = { projectId: pid, i: 0, o: 0, cc: 0, cr: 0, sessions: 0 };
+        map.set(pid, slot);
+      }
+      slot.i += i; slot.o += o; slot.cc += cc; slot.cr += cr;
+      slot.sessions += 1;
+    }
+    return [...map.values()]
+      .map((s) => {
+        const inputSide = s.i + s.cc + s.cr;
+        return {
+          ...s,
+          name: projectName.get(s.projectId) || "Unassigned",
+          color: projectColor.get(s.projectId) || null,
+          total: s.i + s.o + s.cc + s.cr,
+          cacheHitPct: inputSide > 0 ? Math.round((s.cr / inputSide) * 100) : 0,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+  })();
+
   // ── Trends tab ──────────────────────────────────────────────────────
   // Patterns surfaced across all-time data (or rolling windows). Each
   // block walks workSessions / allCompletions once and aggregates into
@@ -791,9 +905,11 @@ function computeStats(content) {
     const dow = new Date(t).getDay();
     dowBuckets[dow].totalCompletions += 1;
   }
-  const DOW_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const DOW_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const DOW_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const dayOfWeekStats = dowBuckets.map((b, i) => ({
-    label: DOW_FULL[i],
+    label: DOW_SHORT[i],
+    labelFull: DOW_FULL[i],
     dow: i,
     activeDays: b.activeDayKeys.size,
     avgDeepMs: b.activeDayKeys.size > 0 ? Math.round(b.totalDeepMs / b.activeDayKeys.size) : 0,
@@ -1038,6 +1154,10 @@ function computeStats(content) {
       bestDayEver,
       bestWeekEver,
     },
+    // Token usage (Claude Max efficiency / volume).
+    tokenTotalsByWindow,
+    tokensDaily14,
+    tokensByProject,
   };
 }
 
@@ -2708,6 +2828,33 @@ function FocusDailyChart({ days, projectName, projectColor }) {
   );
 }
 
+/* TokenDailyChart — Claude tokens → DailyStackedBars wrapper. Bar
+   height = total tokens that day; segments per project. Used on the
+   Trends tab Token Usage section. */
+function TokenDailyChart({ days, projectName, projectColor }) {
+  return (
+    <DailyStackedBars
+      days={days}
+      projectName={projectName}
+      projectColor={projectColor}
+      valueAccessor={(d) => d.total}
+      tooltipFor={(d, segs) => (
+        <>
+          <strong>{d.dayKey}</strong> — {fmtTokens(d.total)} tokens
+          <br />cache hit: {d.cacheHitPct}%
+          {segs.map(([pid, count]) => (
+            <span key={pid || "unassigned"}>
+              <br />
+              {projectName.get(pid) || "Unassigned"}: {fmtTokens(count)}
+            </span>
+          ))}
+          {d.total === 0 && (<><br />no Claude tokens</>)}
+        </>
+      )}
+    />
+  );
+}
+
 /* CompletionsDailyChart — task completions → DailyStackedBars wrapper.
    Bar height driven by count per day (not ms); tooltip surfaces total
    completions + per-project breakdown. Same visual shape as the time-
@@ -3301,6 +3448,51 @@ function TasksTab({ stats }) {
   );
 }
 
+/* Format raw token counts in human units (1.2M, 850K, etc.). Used by
+   the Token usage section on the Trends tab. */
+function fmtTokens(n) {
+  if (!Number.isFinite(n) || n < 0) return "0";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${Math.round(n / 1_000)}K`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return `${n}`;
+}
+
+/* CacheHitSparkline — tiny line chart of daily cache-hit % over the
+   14-day window. Inline SVG, ~120px wide. Doesn't need labels (the
+   sparkline IS the label — "is this trending up?"). */
+function CacheHitSparkline({ days }) {
+  // Only consider days with actual data; flat-zero days bring the
+  // average down even though "no data" isn't really 0% cache hit.
+  const w = 140;
+  const h = 28;
+  const padding = 2;
+  const innerW = w - padding * 2;
+  const innerH = h - padding * 2;
+  const pts = days.map((d, i) => {
+    const x = padding + (innerW * i) / Math.max(1, days.length - 1);
+    const y = padding + innerH - (innerH * (d.cacheHitPct || 0)) / 100;
+    return { x, y, hit: d.cacheHitPct, dayKey: d.dayKey, hasData: d.total > 0 };
+  });
+  const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  return (
+    <svg
+      className="stats-cache-spark"
+      viewBox={`0 0 ${w} ${h}`}
+      width={w}
+      height={h}
+      aria-label="14-day cache-hit ratio sparkline"
+    >
+      <path d={path} fill="none" stroke="#5a7e5f" strokeWidth="1.5" strokeLinecap="round" />
+      {pts.map((p, i) => (
+        p.hasData ? (
+          <circle key={i} cx={p.x} cy={p.y} r="2" fill="#5a7e5f" />
+        ) : null
+      ))}
+    </svg>
+  );
+}
+
 /* Format minutes-since-midnight (0–1439) as a readable wall-clock
    time. Used by the Workday rhythm card on the Trends tab. */
 function formatMinAsTime(mins) {
@@ -3374,37 +3566,48 @@ function TrendsTab({ stats }) {
 
   return (
     <>
-      {/* Trending callouts — short muted lines that read as headlines.
-          Each is independently optional (rendered only when there's
-          data to compute it). */}
+      {/* Trending callouts — 4-cell grid of headline stats with caption
+          lines for context. Each cell renders only when there's data
+          to compute it; missing ones simply skip the slot. */}
       <div className="stats-trend-callouts">
         {tw && (
-          <p className="stats-trend-callout">
-            This week:{" "}
-            <strong>{fmtDuration(tw.thisWeekMs)}</strong> of deep work —{" "}
-            <span className={tw.pctDiff >= 0 ? "is-up" : "is-down"}>
-              {tw.pctDiff >= 0 ? "▲" : "▼"} {Math.abs(tw.pctDiff)}%
-            </span>{" "}
-            vs your 4-week average ({fmtDuration(tw.priorAvgMs)}/week).
-          </p>
+          <div className="stats-trend-cell">
+            <span className="stats-trend-label">This week</span>
+            <span className="stats-trend-value">{fmtDuration(tw.thisWeekMs)}</span>
+            <span className="stats-trend-caption">
+              <span className={tw.pctDiff >= 0 ? "is-up" : "is-down"}>
+                {tw.pctDiff >= 0 ? "▲" : "▼"} {Math.abs(tw.pctDiff)}%
+              </span>{" "}
+              vs 4-week avg ({fmtDuration(tw.priorAvgMs)}/wk)
+            </span>
+          </div>
         )}
         {bd && (
-          <p className="stats-trend-callout">
-            Best shipping day ever:{" "}
-            <strong>{bd.dayKey}</strong> with {bd.count} task{bd.count === 1 ? "" : "s"} closed.
-          </p>
+          <div className="stats-trend-cell">
+            <span className="stats-trend-label">Best day ever</span>
+            <span className="stats-trend-value">
+              {bd.count}<span className="stats-trend-unit"> tasks</span>
+            </span>
+            <span className="stats-trend-caption">{bd.dayKey}</span>
+          </div>
         )}
         {bw && (
-          <p className="stats-trend-callout">
-            Best shipping week ever: week of{" "}
-            <strong>{bw.weekStart}</strong> — {bw.count} closed.
-          </p>
+          <div className="stats-trend-cell">
+            <span className="stats-trend-label">Best week ever</span>
+            <span className="stats-trend-value">
+              {bw.count}<span className="stats-trend-unit"> tasks</span>
+            </span>
+            <span className="stats-trend-caption">week of {bw.weekStart}</span>
+          </div>
         )}
         {topDow && (
-          <p className="stats-trend-callout">
-            You ship the most on{" "}
-            <strong>{topDow.label}s</strong> ({topDow.avgCompletions.toFixed(1)} tasks/day on avg).
-          </p>
+          <div className="stats-trend-cell">
+            <span className="stats-trend-label">Top day of week</span>
+            <span className="stats-trend-value">{topDow.labelFull}s</span>
+            <span className="stats-trend-caption">
+              {topDow.avgCompletions.toFixed(1)} tasks/day on avg
+            </span>
+          </div>
         )}
       </div>
 
@@ -3475,6 +3678,101 @@ function TrendsTab({ stats }) {
           </ul>
         )}
       </Section>
+
+      {/* Token usage — Claude Max efficiency tracking. Cost-in-dollars
+          isn't useful under flat-rate Max, so we surface volume + cache
+          efficiency instead. Hidden entirely if no token data exists
+          yet (e.g. before backfill / forward-only first day). */}
+      {stats.tokenTotalsByWindow.all.totalAll > 0 && (
+        <Section title="Token usage">
+          <div className="stats-trend-callouts">
+            <div className="stats-trend-cell">
+              <span className="stats-trend-label">This week</span>
+              <span className="stats-trend-value">
+                {fmtTokens(stats.tokenTotalsByWindow.week.totalAll)}
+              </span>
+              <span className="stats-trend-caption">
+                across {stats.tokenTotalsByWindow.week.n} session{stats.tokenTotalsByWindow.week.n === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div className="stats-trend-cell">
+              <span className="stats-trend-label">Cache hit (week)</span>
+              <span className="stats-trend-value">
+                {stats.tokenTotalsByWindow.week.cacheHitPct}<span className="stats-trend-unit">%</span>
+              </span>
+              <span className="stats-trend-caption">
+                <CacheHitSparkline days={stats.tokensDaily14} />
+              </span>
+            </div>
+            <div className="stats-trend-cell">
+              <span className="stats-trend-label">Avg / session</span>
+              <span className="stats-trend-value">
+                {fmtTokens(stats.tokenTotalsByWindow.all.avgPerSession)}
+              </span>
+              <span className="stats-trend-caption">
+                across {stats.tokenTotalsByWindow.all.n} sessions all-time
+              </span>
+            </div>
+            <div className="stats-trend-cell">
+              <span className="stats-trend-label">All-time total</span>
+              <span className="stats-trend-value">
+                {fmtTokens(stats.tokenTotalsByWindow.all.totalAll)}
+              </span>
+              <span className="stats-trend-caption">
+                cache hit overall {stats.tokenTotalsByWindow.all.cacheHitPct}%
+              </span>
+            </div>
+          </div>
+
+          <h3 className="stats-subhead">Last 14 days</h3>
+          {stats.tokensDaily14.every((d) => d.total === 0) ? (
+            <EmptyState
+              variant="inline"
+              message="No token data in last 14 days"
+              hint="Run backfill-tokens.py to populate historical sessions; new imports populate forward."
+            />
+          ) : (
+            <TokenDailyChart
+              days={stats.tokensDaily14}
+              projectName={projectName}
+              projectColor={projectColor}
+            />
+          )}
+
+          <h3 className="stats-subhead">Top projects by tokens</h3>
+          <ul className="stats-hot-list">
+            {stats.tokensByProject.slice(0, 5).map((p) => {
+              const maxTokens = stats.tokensByProject[0]?.total || 1;
+              return (
+                <li key={p.projectId} className="stats-hot-row">
+                  <span className="stats-hot-project">
+                    <Dot color={p.color || "rgba(0,0,0,0.25)"} size={8} />
+                    {p.name}
+                  </span>
+                  <div className="stats-hot-bar-wrap">
+                    <div
+                      className="stats-hot-bar"
+                      style={{
+                        width: `${(p.total / maxTokens) * 100}%`,
+                        background: softenColor(p.color || "rgba(0,0,0,0.25)", 0.45),
+                      }}
+                    />
+                  </div>
+                  <span className="stats-hot-share">
+                    {fmtTokens(p.total)}
+                    <span className="stats-hot-ms"> · {p.cacheHitPct}% cache</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="stats-footnote">
+            Cache hit = cacheRead / (input + cacheCreation + cacheRead).
+            Higher = your context reuse is working (Max plan flat-rate, so
+            this is the efficiency story, not a billing one).
+          </p>
+        </Section>
+      )}
 
       {atRiskProjects.length > 0 && (
         <Section title="At-risk projects (no activity in 14+ days)">

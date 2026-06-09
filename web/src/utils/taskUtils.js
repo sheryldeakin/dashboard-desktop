@@ -576,6 +576,25 @@ function normalizeWorkSessionRecord(entry) {
     // Produced by backfill-claude-summaries.py (one-off) and the
     // hourly import script (forward). Bounded to 280 chars.
     aiSummary: typeof entry.aiSummary === "string" ? entry.aiSummary.slice(0, 280) : "",
+    // Token usage totals — see backend/lib/content-schema.js for the
+    // canonical shape. Populated by import-claude-sessions.py for new
+    // sessions and backfill-tokens.py for historical ones.
+    tokens: normalizeTokens(entry.tokens),
+  };
+}
+
+function normalizeTokens(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 };
+  }
+  function n(v) {
+    return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+  }
+  return {
+    input: n(value.input),
+    output: n(value.output),
+    cacheCreation: n(value.cacheCreation),
+    cacheRead: n(value.cacheRead),
   };
 }
 
