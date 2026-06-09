@@ -4785,8 +4785,11 @@ button:focus-visible {
 }
 
 .stats-breakdown-bar-wrap {
-  height: 16px;
-  background: rgba(182, 139, 97, 0.1);
+  /* Neutral track — was tan-tinted rgba(182, 139, 97, 0.1) which
+     reads as warm next to project-colored fills. Now matches the
+     project-card + today-row tracks for app-wide consistency. */
+  height: 14px;
+  background: rgba(0, 0, 0, 0.05);
   border-radius: 4px;
   position: relative;
   display: flex;
@@ -4794,7 +4797,9 @@ button:focus-visible {
 }
 
 .stats-breakdown-bar {
-  background: linear-gradient(90deg, #b68b61, #8a6940);
+  /* Fallback for rows that don't pass an inline color. Most callers
+     now pass softenColor(projectColor, 0.45) via inline style. */
+  background: linear-gradient(90deg, #c9a98a, #b08a66);
   border-radius: 4px;
   height: 100%;
 }

@@ -816,30 +816,46 @@ function ProjectTaskSplit({ rows }) {
   );
 }
 
+/* ClaudeProjectRows — rewrote for visual consistency with the other
+   per-project bars on /stats. Was using a 2-line value cell jammed with
+   "5h 30m · 12 ses · avg 12m / 45 msgs" which read as cluttered and ate
+   vertical space. Now: single-line value, project-dot + softened bar
+   color (matches /home week recap + Overview chart by-project), and the
+   sessions / avg-length / avg-msgs detail moves to a hover tooltip
+   over the bar. */
 function ClaudeProjectRows({ rows }) {
   if (!rows.length) return <EmptyState variant="inline" message="No Claude sessions yet" />;
   const max = Math.max(1, ...rows.map((r) => r.ms));
   return (
     <div className="stats-breakdown">
       {rows.map((r) => {
-        const barStyle = { width: `${(r.ms / max) * 100}%` };
-        if (r.color) barStyle.background = r.color;
+        const baseColor = r.color || "rgba(0,0,0,0.25)";
+        const tip = (
+          <>
+            <strong>{r.label}</strong> — {fmtDuration(r.ms)}
+            <br />{r.sessions} session{r.sessions === 1 ? "" : "s"}
+            <br />avg {r.avgMin}m / {r.avgMsgs} msgs per session
+          </>
+        );
         return (
-        <div key={r.label} className="stats-breakdown-row stats-breakdown-row-2line">
-          <span className="stats-breakdown-label">
-            {r.color && <span className="stats-project-dot" style={{ background: r.color }} />}
-            {r.label}
-          </span>
-          <div className="stats-breakdown-bar-wrap">
-            <div className="stats-breakdown-bar" style={barStyle} />
-          </div>
-          <span className="stats-breakdown-value">
-            {fmtDuration(r.ms)}
-            <span className="stats-breakdown-sub">
-              {" "}· {r.sessions} ses · avg {r.avgMin}m / {r.avgMsgs} msgs
+          <div key={r.label} className="stats-breakdown-row">
+            <span className="stats-breakdown-label">
+              {r.color && <span className="stats-project-dot" style={{ background: baseColor }} />}
+              {r.label}
             </span>
-          </span>
-        </div>
+            <Tooltip content={tip}>
+              <div className="stats-breakdown-bar-wrap">
+                <div
+                  className="stats-breakdown-bar"
+                  style={{
+                    width: `${(r.ms / max) * 100}%`,
+                    background: softenColor(baseColor, 0.45),
+                  }}
+                />
+              </div>
+            </Tooltip>
+            <span className="stats-breakdown-value">{fmtDuration(r.ms)}</span>
+          </div>
         );
       })}
     </div>
