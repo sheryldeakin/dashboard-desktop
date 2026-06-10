@@ -776,28 +776,21 @@ h1 {
   outline: 2px solid rgba(190, 150, 102, 0.35);
   outline-offset: 1px;
 }
+/* Global button — neutralized 2026-06-10. The original brown/beige
+   gradient default was a legacy from the original cream-tone design;
+   it caused unstyled buttons to look loudly out of place against
+   modern surfaces (/stats, /home, /settings). Every button that
+   wants a styled look opts in via its own class (`.tp-btn`,
+   `.task-btn`, `.focus-btn`, `.stats-sync-btn`, `.settings-save-btn`,
+   etc). This default just strips the user-agent chrome so unstyled
+   buttons inherit page typography without imposing brand colors. */
 button {
   border: 0;
-  border-radius: 10px;
-  padding: 10px 14px;
-  background: linear-gradient(180deg, #d7b68c, #c59c69);
-  color: #fff;
-  font-weight: 600;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 0;
   cursor: pointer;
-  transition:
-    transform var(--motion-fast) var(--motion-ease),
-    filter var(--motion-fast) var(--motion-ease),
-    box-shadow var(--motion-fast) var(--motion-ease);
-}
-
-button:hover {
-  filter: brightness(1.01);
-  transform: translateY(-1px);
-}
-
-button:active {
-  transform: translateY(0);
-  filter: brightness(0.98);
 }
 
 button:focus-visible {
@@ -4380,6 +4373,8 @@ button:focus-visible {
   font-style: normal;
 }
 
+/* Common base for the three settings buttons (Reset / Save / Add):
+   flat hairline aesthetic matching .stats-sync-btn etc. */
 .settings-reset-btn,
 .settings-save-btn,
 .settings-add-btn {
@@ -4391,7 +4386,8 @@ button:focus-visible {
   font-family: inherit;
   color: var(--ink);
   cursor: pointer;
-  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease,
+              background var(--motion-fast) ease;
 }
 
 .settings-reset-btn:hover,
@@ -4400,20 +4396,23 @@ button:focus-visible {
   border-color: var(--ink-muted);
 }
 
-.settings-save-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
+/* Save is the primary action — filled dark so it reads as the
+   "commit changes" button next to the secondary Reset. */
 .settings-save-btn {
   background: var(--ink);
-  color: var(--paper);
+  color: #fff;
   border-color: var(--ink);
+  font-weight: 500;
 }
 
 .settings-save-btn:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.85);
   border-color: rgba(0, 0, 0, 0.85);
+}
+
+.settings-save-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 /* Field building blocks. */
@@ -4528,12 +4527,22 @@ button:focus-visible {
   background: rgba(0, 0, 0, 0.04);
 }
 
+/* Drag handle — SVG 6-dot grip icon. Color stays muted until row hover
+   so it doesn't shout for attention; on hover it bumps to ink-muted so
+   the user knows "yes this is interactive." */
 .settings-drag-handle {
-  color: rgba(0, 0, 0, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(0, 0, 0, 0.25);
   cursor: grab;
   user-select: none;
-  font-size: 14px;
-  letter-spacing: -2px;
+  flex-shrink: 0;
+  transition: color var(--motion-fast) ease;
+}
+
+.settings-project-row:hover .settings-drag-handle {
+  color: var(--ink-muted);
 }
 
 .settings-drag-handle:active {
@@ -4553,14 +4562,6 @@ button:focus-visible {
 
 .settings-project-name {
   flex: 1;
-}
-
-.settings-project-index {
-  font-size: 11px;
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
-  min-width: 30px;
-  text-align: right;
 }
 
 .settings-remove-btn {

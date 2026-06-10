@@ -32,6 +32,21 @@ import PageHeader from "./PageHeader.jsx";
 import Section from "./Section.jsx";
 import Collapsible from "./Collapsible.jsx";
 import EmptyState from "./EmptyState.jsx";
+import Dot from "./Dot.jsx";
+
+/* Inline SVG grip handle — used as the drag affordance on project
+   rows. 6 dots in a 2×3 grid, sized to read as "drag here" without
+   competing with the row's content. */
+const GRIP_ICON = (
+  <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
+    <circle cx="2" cy="3" r="1.2" />
+    <circle cx="8" cy="3" r="1.2" />
+    <circle cx="2" cy="7" r="1.2" />
+    <circle cx="8" cy="7" r="1.2" />
+    <circle cx="2" cy="11" r="1.2" />
+    <circle cx="8" cy="11" r="1.2" />
+  </svg>
+);
 
 export default function SettingsPage() {
   const [loaded, setLoaded] = useState(false);
@@ -273,7 +288,10 @@ function ProjectsSection({ draft, setDraftField }) {
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, i)}
             >
-              <span className="settings-drag-handle" aria-hidden="true" title="Drag to reorder">⋮⋮</span>
+              <span className="settings-drag-handle" aria-hidden="true" title="Drag to reorder">
+                {GRIP_ICON}
+              </span>
+              <Dot color={p.color || "rgba(0,0,0,0.25)"} size={10} />
               <input
                 type="color"
                 className="settings-color-input"
@@ -288,7 +306,6 @@ function ProjectsSection({ draft, setDraftField }) {
                 onChange={(e) => updateProject(i, { name: e.target.value })}
                 placeholder="Project name"
               />
-              <span className="settings-project-index">#{i + 1}</span>
               <button
                 type="button"
                 className="settings-remove-btn"
