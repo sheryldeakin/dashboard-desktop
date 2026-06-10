@@ -3554,6 +3554,20 @@ function TrendsTab({ stats }) {
   const bd = trendingCallouts?.bestDayEver;
   const bw = trendingCallouts?.bestWeekEver;
 
+  // Project lookup maps for the Token Usage chart — same shape used on
+  // Focus / Claude / Tasks tabs. Required by the TokenDailyChart wrapper.
+  const projectName = useMemo(
+    () => new Map((stats.projects || []).map((p) => [p.id, p.name])),
+    [stats.projects]
+  );
+  const projectColor = useMemo(() => {
+    const map = new Map();
+    for (const p of stats.projects || []) {
+      if (p.color) map.set(p.id, p.color);
+    }
+    return map;
+  }, [stats.projects]);
+
   // Top day-of-week by avg completions — text used in the callout line.
   const topDow = useMemo(() => {
     let best = null;
