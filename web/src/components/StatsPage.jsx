@@ -1163,39 +1163,10 @@ function computeStats(content) {
 
 /* ── Reusable bits ── */
 
-function DailyDeepChart({ bars }) {
-  const max = Math.max(1, ...bars.map((b) => b.totalMs));
-  return (
-    <div className="stats-daily">
-      {bars.map((b) => {
-        const taskPct = (b.taskMs / max) * 100;
-        const clPct = (b.claudeOutsideMs / max) * 100;
-        const tip = (
-          <>
-            <strong>{b.day}</strong> — {fmtDuration(b.totalMs)} total
-            <br />Task timer: {fmtDuration(b.taskMs)}
-            <br />Claude (outside): {fmtDuration(b.claudeOutsideMs)}
-          </>
-        );
-        return (
-          <Tooltip key={b.day} content={tip}>
-            <div className={`stats-daily-col${b.isToday ? " is-today" : ""}`}>
-              <div className="stats-daily-stack">
-                {b.claudeOutsideMs > 0 && (
-                  <div className="stats-daily-bar stats-daily-bar-claude" style={{ height: `${clPct}%` }} />
-                )}
-                {b.taskMs > 0 && (
-                  <div className="stats-daily-bar stats-daily-bar-task" style={{ height: `${taskPct}%` }} />
-                )}
-              </div>
-              <div className="stats-daily-label">{b.label}</div>
-            </div>
-          </Tooltip>
-        );
-      })}
-    </div>
-  );
-}
+/* DailyDeepChart was a 14-day task-vs-claude stacked chart on the
+   original Overview tab. Replaced 2026-06-05 by DeepWorkBars (and
+   later DailyStackedBars) with mode-dropdown support. Function +
+   .stats-daily-bar-task/-claude CSS dropped 2026-06-09 as dead code. */
 
 function BreakdownBars({ rows, formatRight, emptyMsg }) {
   if (!rows.length) return <EmptyState variant="inline" message={emptyMsg} />;
@@ -2306,7 +2277,7 @@ function TodayProjectRow({ row, max }) {
   );
 }
 
-function TodayTab({ stats, content, onSync, syncStatus = { phase: "idle", message: "" } }) {
+function TodayTab({ stats, content }) {
   // Day picker: lets the user view "Today"-style data for any past
   // day. Defaults to today, but if today has no activity yet we auto-
   // fall back to the most recent day with workSessions so the page
@@ -2445,19 +2416,9 @@ function TodayTab({ stats, content, onSync, syncStatus = { phase: "idle", messag
     [content, selectedDayStart]
   );
 
-  // Last sync timestamp for the Claude importer. Written by
-  // `import-claude-sessions.py` on each successful run (the hourly
-  // scheduled task `DashboardImportClaude`). Surfaced inline next to
-  // the "Sync now" button so the user can tell at a glance whether
-  // their recent work is likely to be reflected yet.
-  const importHeartbeatIso = content?.scheduledTaskHeartbeats?.["import-claude-sessions"];
-  const importHeartbeatMs = importHeartbeatIso ? Date.parse(importHeartbeatIso) : null;
-
-  // Day picker UI — prev / [date input + label] / next, plus a
-  // refresh button + last-sync indicator on the right. The refresh
-  // button re-fetches /api/content; it does NOT trigger the local
-  // importer (that runs hourly on the Windows machine). After the
-  // hourly task lands, hit Sync to see the new sessions without F5.
+  // Day picker UI — prev / [date input + label] / next. Sync now +
+  // last-import indicator moved to the PageHeader so they're available
+  // on every tab, not just Today.
   const dayPicker = (
     <div className="stats-day-picker">
       <button
@@ -2503,39 +2464,8 @@ function TodayTab({ stats, content, onSync, syncStatus = { phase: "idle", messag
           Jump to today
         </button>
       )}
-      <div className="stats-day-picker-sync">
-        {importHeartbeatMs && (
-          <Tooltip
-            content={`Last Claude import ran ${new Date(importHeartbeatMs).toLocaleString()}`}
-          >
-            <span className="stats-day-picker-sync-meta">
-              imported <RelativeTime since={importHeartbeatMs} />
-            </span>
-          </Tooltip>
-        )}
-        {/* Status flash — only shown while a sync is in progress or
-            just-completed. "waiting" can take up to 60-75s because the
-            local watcher polls on a 60s cadence; the message keeps the
-            user oriented during that wait. */}
-        {syncStatus.phase !== "idle" && (
-          <span className={`stats-day-picker-sync-status is-${syncStatus.phase}`}>
-            {syncStatus.message}
-          </span>
-        )}
-        <button
-          type="button"
-          className="stats-day-picker-sync-btn"
-          onClick={onSync}
-          disabled={syncStatus.phase === "requesting" || syncStatus.phase === "waiting"}
-          aria-label="Trigger Claude importer and refresh"
-        >
-          {syncStatus.phase === "waiting"
-            ? "Waiting…"
-            : syncStatus.phase === "requesting"
-              ? "Requesting…"
-              : "Sync now"}
-        </button>
-      </div>
+      {/* Sync now + last-import indicator lived here previously; lifted
+          to the PageHeader so it's available on every tab. */}
     </div>
   );
 
@@ -3830,24 +3760,43 @@ const TABS = [
   { id: "trends", label: "Trends" },
 ];
 
-/* Snapshot freshness indicator used in the PageHeader actions slot.
-   Replaces the previous custom interval-tick + relative-time formatting
-   with the shared RelativeTime component. */
-function SnapshotIndicator({ loadedAtMs }) {
+/* StatsSyncControl — last-import indicator + Sync now button, lifted
+   into the PageHeader so it's available on every tab (was previously
+   stuck on the Today tab's day picker). Sync flow + status flash same
+   as before: PUT the manualSyncTriggers["claude-import"] flag, watcher
+   picks it up within ~60s, frontend polls heartbeat for completion. */
+function StatsSyncControl({ content, onSync, syncStatus }) {
+  const importHeartbeatIso = content?.scheduledTaskHeartbeats?.["import-claude-sessions"];
+  const importHeartbeatMs = importHeartbeatIso ? Date.parse(importHeartbeatIso) : null;
   return (
-    <div className="stats-snapshot">
-      <span className="stats-snapshot-label">
-        Loaded <RelativeTime since={loadedAtMs} />
-      </span>
-      <Tooltip content="Reload to fetch the latest data from the server">
-        <button
-          type="button"
-          className="stats-snapshot-refresh"
-          onClick={() => window.location.reload()}
+    <div className="stats-sync-control">
+      {importHeartbeatMs && (
+        <Tooltip
+          content={`Last Claude import ran ${new Date(importHeartbeatMs).toLocaleString()}`}
         >
-          ↻ refresh
-        </button>
-      </Tooltip>
+          <span className="stats-sync-meta">
+            imported <RelativeTime since={importHeartbeatMs} />
+          </span>
+        </Tooltip>
+      )}
+      {syncStatus.phase !== "idle" && (
+        <span className={`stats-sync-status is-${syncStatus.phase}`}>
+          {syncStatus.message}
+        </span>
+      )}
+      <button
+        type="button"
+        className="stats-sync-btn"
+        onClick={onSync}
+        disabled={syncStatus.phase === "requesting" || syncStatus.phase === "waiting"}
+        aria-label="Trigger Claude importer and refresh"
+      >
+        {syncStatus.phase === "waiting"
+          ? "Waiting…"
+          : syncStatus.phase === "requesting"
+            ? "Requesting…"
+            : "Sync now"}
+      </button>
     </div>
   );
 }
@@ -3904,7 +3853,6 @@ export default function StatsPage() {
     const urlTab = new URLSearchParams(window.location.search).get("tab");
     return TABS.some((t) => t.id === urlTab) ? urlTab : "overview";
   });
-  const [loadedAtMs, setLoadedAtMs] = useState(Date.now());
   // syncStatus shape: { phase, message } where phase is one of:
   //   "idle"        nothing in flight
   //   "requesting"  PUT-ing the trigger flag
@@ -3924,7 +3872,6 @@ export default function StatsPage() {
     loadAndHydratePreferredContent()
       .then((c) => {
         setContent(c);
-        setLoadedAtMs(Date.now());
         setLoaded(true);
         setSyncStatus({ phase: "idle", message: "" });
       })
@@ -3974,7 +3921,6 @@ export default function StatsPage() {
           // Importer ran. Use the snapshot we just fetched as the new
           // content state (saves an extra round trip).
           setContent(snap);
-          setLoadedAtMs(Date.now());
           setSyncStatus({ phase: "complete", message: "Synced" });
           setTimeout(() => setSyncStatus({ phase: "idle", message: "" }), 3000);
           return;
@@ -3997,7 +3943,6 @@ export default function StatsPage() {
     loadAndHydratePreferredContent().then((c) => {
       if (mounted) {
         setContent(c);
-        setLoadedAtMs(Date.now());
         setLoaded(true);
       }
     });
@@ -4014,7 +3959,13 @@ export default function StatsPage() {
     <main className="stats-page">
       <PageHeader
         title="Stats"
-        actions={<SnapshotIndicator loadedAtMs={loadedAtMs} />}
+        actions={
+          <StatsSyncControl
+            content={content}
+            onSync={syncContentWithImporter}
+            syncStatus={syncStatus}
+          />
+        }
         chips={[
           <span key="all">
             <strong>{fmtDuration(stats.all.deep_work_ms)}</strong> total deep work
@@ -4036,14 +3987,7 @@ export default function StatsPage() {
 
       <div className="stats-tab-body">
         {tab === "overview" && <OverviewTab stats={stats} content={content} />}
-        {tab === "today" && (
-          <TodayTab
-            stats={stats}
-            content={content}
-            onSync={syncContentWithImporter}
-            syncStatus={syncStatus}
-          />
-        )}
+        {tab === "today" && <TodayTab stats={stats} content={content} />}
         {tab === "focus" && <FocusTab stats={stats} />}
         {tab === "claude" && <ClaudeTab stats={stats} />}
         {tab === "tasks" && <TasksTab stats={stats} />}
