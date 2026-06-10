@@ -732,6 +732,7 @@ export const DEFAULT_CONTENT = {
   scheduledTaskHeartbeats: {},
   chatLinks: [],
   manualSyncTriggers: {},
+  defaultNewTaskProjectId: "",
 };
 
 export function cloneTask(task) {
@@ -783,6 +784,8 @@ export function cloneContent(content) {
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(content.scheduledTaskHeartbeats),
     chatLinks: normalizeChatLinks(content.chatLinks),
     manualSyncTriggers: normalizeManualSyncTriggers(content.manualSyncTriggers),
+    defaultNewTaskProjectId:
+      typeof content.defaultNewTaskProjectId === "string" ? content.defaultNewTaskProjectId : "",
   };
 }
 
@@ -847,6 +850,14 @@ export function normalizeContentRecord(record) {
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
     chatLinks: normalizeChatLinks(record.chatLinks),
     manualSyncTriggers: normalizeManualSyncTriggers(record.manualSyncTriggers),
+    // User preference: which project new tasks default to. Validated
+    // against the current projects list — invalid/missing → "" (falls
+    // back to projects[0] at task-creation time).
+    defaultNewTaskProjectId: (() => {
+      const v = record.defaultNewTaskProjectId;
+      if (typeof v !== "string" || !v) return "";
+      return projects.some((p) => p.id === v) ? v : "";
+    })(),
   };
 }
 

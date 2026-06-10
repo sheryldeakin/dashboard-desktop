@@ -81,7 +81,6 @@ const PRIMARY_LINKS = [
 
 const SYSTEM_LINKS = [
   { href: "/", label: "Display", icon: NAV_ICONS.display },
-  { href: "/admin", label: "Edit", icon: NAV_ICONS.edit },
   { href: "/settings", label: "Settings", icon: NAV_ICONS.settings },
 ];
 

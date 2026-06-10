@@ -2026,13 +2026,18 @@ export default function HomePage() {
     } else if (newSlot.text && newSlot.text.trim() && !newSlot.promotedTaskId) {
       // First time this slot has text — create the backing task.
       // Project preference cascade:
-      //   1. Slot's own projectId (set via the per-slot project picker)
-      //   2. Fall back to projects[0] (Inbox by default)
-      // Without the slot preference, every Top-3 promotion landed in
-      // Inbox — that's how /stats Today ended up dominated by Inbox.
-      const fallbackProjectId =
+      //   1. Slot's own projectId (per-slot picker)
+      //   2. content.defaultNewTaskProjectId (Settings default)
+      //   3. Fall back to projects[0] (Inbox by default)
+      // Without preferences, every Top-3 promotion landed in Inbox —
+      // that's how /stats Today ended up dominated by Inbox.
+      const firstProjectId =
         (content.projects && content.projects[0] && content.projects[0].id) || "";
-      const chosenProjectId = (newSlot.projectId && newSlot.projectId.trim()) || fallbackProjectId;
+      const settingsDefault = (content.defaultNewTaskProjectId || "").trim();
+      const chosenProjectId =
+        (newSlot.projectId && newSlot.projectId.trim())
+        || settingsDefault
+        || firstProjectId;
       const newTask = createDefaultTask({
         id: newId("task"),
         text: newSlot.text.trim(),

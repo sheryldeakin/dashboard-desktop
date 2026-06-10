@@ -722,22 +722,6 @@ input.cs-inline-edit.cs-meta-value {
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent-soft));
 }
-
-.admin-card {
-  width: min(1280px, 100%);
-  height: min(400px, 100%);
-  border-radius: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  background: linear-gradient(170deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.34));
-  box-shadow: 0 20px 45px rgba(68, 57, 43, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px) saturate(120%);
-  -webkit-backdrop-filter: blur(20px) saturate(120%);
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 18px;
-  padding: 24px 28px;
-}
-
 .card-header {
   display: flex;
   align-items: baseline;
@@ -750,12 +734,6 @@ h1 {
   font-weight: 600;
   letter-spacing: -0.01em;
 }
-
-.admin-form {
-  display: grid;
-  gap: 14px;
-}
-
 .field {
   display: grid;
   gap: 6px;
@@ -798,57 +776,6 @@ h1 {
   outline: 2px solid rgba(190, 150, 102, 0.35);
   outline-offset: 1px;
 }
-
-.admin-history-block {
-  display: grid;
-  gap: 6px;
-}
-
-.admin-history-title {
-  font-size: 12px;
-  color: var(--ink-muted);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.admin-history-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 7px;
-  max-height: 100px;
-  overflow: auto;
-  padding-right: 4px;
-}
-
-.admin-history-item {
-  display: grid;
-  gap: 2px;
-}
-
-.admin-history-text {
-  font-size: 13px;
-  line-height: 1.28;
-  color: var(--ink-soft);
-}
-
-.admin-history-time {
-  font-size: 11px;
-  color: var(--ink-muted);
-}
-
-.admin-history-empty {
-  font-size: 13px;
-  color: var(--ink-muted);
-}
-
-.admin-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 button {
   border: 0;
   border-radius: 10px;
@@ -883,37 +810,14 @@ button:focus-visible {
    layout (no more per-page overflow). */
 .cs-task-list,
 .cs-backlog-list,
-.admin-history-list {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(160, 121, 84, 0.52) rgba(255, 255, 255, 0.2);
-}
-
 .cs-task-list::-webkit-scrollbar,
 .cs-backlog-list::-webkit-scrollbar,
-.admin-history-list::-webkit-scrollbar {
-  width: 8px;
-}
-
 .cs-task-list::-webkit-scrollbar-track,
 .cs-backlog-list::-webkit-scrollbar-track,
-.admin-history-list::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 999px;
-}
-
 .cs-task-list::-webkit-scrollbar-thumb,
 .cs-backlog-list::-webkit-scrollbar-thumb,
-.admin-history-list::-webkit-scrollbar-thumb {
-  background: rgba(160, 121, 84, 0.55);
-  border-radius: 999px;
-}
-
 .cs-task-list::-webkit-scrollbar-thumb:hover,
 .cs-backlog-list::-webkit-scrollbar-thumb:hover,
-.admin-history-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(160, 121, 84, 0.72);
-}
-
 .save-status {
   font-size: 13px;
   color: var(--ink-muted);
@@ -1400,11 +1304,6 @@ button:focus-visible {
 
 @media (max-width: 980px) {
   .cs-wrap,
-  .admin-card {
-    height: auto;
-    min-height: 0;
-  }
-
   .cs-content {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -4440,112 +4339,215 @@ button:focus-visible {
 }
 
 /* ===== Settings Page ===== */
+/* ── /settings (modernized 2026-06-10) ────────────────────────────── */
+/* Migrated from a narrow centered glass-card layout to the unified
+   app-shell container shared by /home, /history, /stats. PageHeader
+   + Section components do the chrome; the .settings-* classes below
+   handle the inputs + drag-reorder + grid + toggles. */
+
 .settings-page {
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  padding: 40px 24px 80px;
-  position: relative;
-  z-index: 60;
+  max-width: clamp(720px, 92vw, 1800px);
+  margin: 0 auto;
+  padding: clamp(24px, 3vw, 40px) clamp(24px, 4vw, 56px) clamp(32px, 4vw, 56px);
 }
 
-.settings-shell {
-  width: 100%;
-  max-width: 620px;
+.settings-loading {
+  color: var(--ink-muted);
+  font-size: 14px;
 }
 
-.settings-header {
-  margin-bottom: 28px;
+/* PageHeader actions slot — Save + Reset + inline status flash. */
+.settings-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.settings-header h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+.settings-status {
+  font-size: 12px;
+  color: var(--ink-muted);
+  font-style: italic;
+}
+
+.settings-status.is-saved {
+  color: #5a7e5f;
+  font-style: normal;
+}
+
+.settings-status.is-error {
+  color: #b76e35;
+  font-style: normal;
+}
+
+.settings-reset-btn,
+.settings-save-btn,
+.settings-add-btn {
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
   color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
 }
 
-.settings-form {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
+.settings-reset-btn:hover,
+.settings-save-btn:hover:not(:disabled),
+.settings-add-btn:hover {
+  border-color: var(--ink-muted);
 }
 
-.settings-section {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 20px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(182, 139, 97, 0.15);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+.settings-save-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.settings-section-title {
-  margin: 0 0 4px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+.settings-save-btn {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
 }
 
+.settings-save-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.85);
+  border-color: rgba(0, 0, 0, 0.85);
+}
+
+/* Field building blocks. */
 .settings-field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .settings-label {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: clamp(11px, 0.2vw + 9.5px, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--ink-muted);
 }
 
 .settings-input {
   width: 100%;
-  border: 1px solid rgba(182, 139, 97, 0.3);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: transparent;
   color: var(--ink);
-  padding: 9px 12px;
+  padding: 8px 10px;
   font: inherit;
   font-size: 14px;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
   box-sizing: border-box;
+  transition: border-color var(--motion-fast) ease;
 }
 
 .settings-input:focus {
-  outline: none;
-  border-color: rgba(182, 110, 53, 0.45);
-  box-shadow: 0 0 0 3px rgba(182, 110, 53, 0.08);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: var(--ink-muted);
 }
 
+.settings-select {
+  width: 100%;
+  padding: 8px 28px 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: transparent;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 9px 6px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color var(--motion-fast) ease;
+}
+
+.settings-select:hover {
+  border-color: var(--ink-muted);
+}
+
+.settings-select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Multi-field grid (e.g. Dashboard config's title/dates/phase). Wraps
+   to 1-2 columns depending on width. */
+.settings-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: clamp(16px, 1.5vw, 24px);
+}
+
+.settings-help {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.settings-help-inline {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+/* Project list — drag-to-reorder, color-pick, name-edit, remove. */
 .settings-project-list {
   list-style: none;
-  margin: 0;
+  margin: 0 0 16px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .settings-project-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.settings-project-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.settings-project-row.is-drag-over {
+  border-color: var(--ink-muted);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.settings-drag-handle {
+  color: rgba(0, 0, 0, 0.3);
+  cursor: grab;
+  user-select: none;
+  font-size: 14px;
+  letter-spacing: -2px;
+}
+
+.settings-drag-handle:active {
+  cursor: grabbing;
 }
 
 .settings-color-input {
-  width: 34px;
-  height: 34px;
-  border: 1px solid rgba(182, 139, 97, 0.3);
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
   padding: 2px;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.8);
+  background: transparent;
   flex-shrink: 0;
 }
 
@@ -4553,29 +4555,39 @@ button:focus-visible {
   flex: 1;
 }
 
-.settings-remove-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid rgba(182, 139, 97, 0.2);
-  background: rgba(255, 255, 255, 0.6);
+.settings-project-index {
+  font-size: 11px;
   color: var(--ink-muted);
-  font-size: 18px;
-  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+  text-align: right;
+}
+
+.settings-remove-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1;
   cursor: pointer;
   display: inline-grid;
   place-items: center;
   padding: 0;
-  box-shadow: none;
   flex-shrink: 0;
-  transition: color 150ms ease, background 150ms ease;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
 }
 
-.settings-remove-btn:hover {
-  color: #a2512f;
-  background: rgba(220, 161, 136, 0.15);
-  transform: none;
-  filter: none;
+.settings-remove-btn:hover:not(:disabled) {
+  border-color: #b76e35;
+  color: #b76e35;
+}
+
+.settings-remove-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .settings-add-row {
@@ -4588,58 +4600,43 @@ button:focus-visible {
   flex: 1;
 }
 
-.settings-add-btn {
-  flex-shrink: 0;
-  border: 1px solid rgba(182, 139, 97, 0.35);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--ink-soft);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 9px 18px;
-  cursor: pointer;
-  box-shadow: none;
-  transition: background 150ms ease, color 150ms ease;
+/* Default new-task project field — same shape as the inputs above but
+   marked distinct with a hairline above so it reads as a separator
+   between "manage projects" and "default" preference. */
+.settings-default-project {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule-soft);
 }
 
-.settings-add-btn:hover {
-  background: rgba(255, 255, 255, 0.85);
-  color: var(--ink);
-  transform: none;
-  filter: none;
+/* Pomodoro toggle rows — checkbox + label. */
+.settings-toggle-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.settings-actions {
+.settings-toggle-row {
   display: flex;
   align-items: center;
-  gap: 14px;
 }
 
-.settings-save-btn {
-  border: none;
-  border-radius: 8px;
-  padding: 10px 28px;
-  background: linear-gradient(180deg, #d7b68c, #c59c69);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 150ms ease, filter 150ms ease;
-}
-
-.settings-save-btn:hover {
-  filter: brightness(1.03);
-  transform: translateY(-1px);
-}
-
-.settings-save-btn:active {
-  transform: translateY(0);
-  filter: brightness(0.97);
-}
-
-.settings-status {
+.settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 13px;
-  color: var(--ink-muted);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.settings-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 /* ----- /stats page ----- */

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import TopNav from "./components/TopNav.jsx";
 import SideNav from "./components/SideNav.jsx";
+import SettingsPage from "./components/SettingsPage.jsx";
 import {
   TITLE,
   START_ISO,
   DEADLINE_ISO,
-  SCHEMA_VERSION,
   DEFAULT_PROJECT,
   MAX_TASK_HISTORY_ITEMS,
   dayMs,
@@ -14,7 +14,6 @@ import {
   secondMs,
   parseIsoMs,
   getTodayKey,
-  newId,
   DEFAULT_CONTENT,
   cloneContent,
   normalizeContentRecord,
@@ -37,8 +36,6 @@ import {
   formatDeadlineLocal,
   formatDuration,
   getLiveDurations,
-  tasksToText,
-  mergeTasksFromText,
 } from "./utils/taskUtils.js";
 import TodoPage from "./components/todo/TodoPage.jsx";
 import StatsPage from "./components/StatsPage.jsx";
@@ -321,7 +318,7 @@ function DashboardPage() {
   // Drag-and-drop between Today's Queue and a backlog list used to live here.
   // The backlog block was removed from the display so the right column stays
   // a stable height (otherwise it pushed the centered countdown down as the
-  // queue grew). Manage which tasks are in Today's Queue via /todo or /admin.
+  // queue grew). Manage which tasks are in Today's Queue via /todo.
 
   return (
     <main className="page">
@@ -330,9 +327,6 @@ function DashboardPage() {
           <div className="cs-top-links">
             <a className="subtle-link" href="/todo">
               Todo
-            </a>
-            <a className="subtle-link" href="/admin">
-              Edit
             </a>
             <a className="subtle-link" href="/history">
               History
@@ -582,302 +576,6 @@ function DashboardPage() {
   );
 }
 
-function AdminPage() {
-  const [phase, setPhase] = useState(DEFAULT_CONTENT.phase);
-  const [todaysTasksText, setTodaysTasksText] = useState(tasksToText(DEFAULT_CONTENT.todaysTasks));
-  const [existingTasks, setExistingTasks] = useState(cloneContent(DEFAULT_CONTENT).todaysTasks);
-  const [projects, setProjects] = useState(cloneContent(DEFAULT_CONTENT).projects);
-  const [taskHistory, setTaskHistory] = useState(cloneContent(DEFAULT_CONTENT).taskHistory);
-  const [pomodoro, setPomodoro] = useState(cloneContent(DEFAULT_CONTENT).pomodoro);
-  const [todaysTasksDate, setTodaysTasksDate] = useState(getTodayKey());
-  const [status, setStatus] = useState("");
-  const historyDateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(undefined, {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    []
-  );
-
-  useEffect(() => {
-    let isMounted = true;
-
-    loadAndHydratePreferredContent().then((saved) => {
-      if (!isMounted) return;
-      setPhase(saved.phase);
-      setExistingTasks(saved.todaysTasks);
-      setProjects(saved.projects);
-      setTodaysTasksText(tasksToText(saved.todaysTasks));
-      setTaskHistory(saved.taskHistory);
-      setPomodoro(saved.pomodoro);
-      setTodaysTasksDate(saved.todaysTasksDate);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  function handleSave(event) {
-    event.preventDefault();
-
-    const mergedTasks = mergeTasksFromText(todaysTasksText, existingTasks);
-    const next = {
-      schemaVersion: SCHEMA_VERSION,
-      phase: phase.trim() || DEFAULT_CONTENT.phase,
-      projects,
-      todaysTasks: mergedTasks,
-      todaysTasksDate,
-      taskHistory,
-      pomodoro,
-    };
-
-    persistContent(next);
-    setPhase(next.phase);
-    setExistingTasks(next.todaysTasks);
-    setTodaysTasksText(tasksToText(next.todaysTasks));
-    setStatus("Saved.");
-  }
-
-  return (
-    <main className="page">
-      <section className="glass-card admin-card">
-        <header className="card-header">
-          <h1>Admin</h1>
-        </header>
-
-        <form className="admin-form" onSubmit={handleSave}>
-          <label className="field">
-            <span>Phase</span>
-            <input value={phase} onChange={(event) => setPhase(event.target.value)} />
-          </label>
-
-          <label className="field">
-            <span>Today's Task (one per line)</span>
-            <textarea
-              rows={5}
-              value={todaysTasksText}
-              onChange={(event) => setTodaysTasksText(event.target.value)}
-            />
-          </label>
-
-          <section className="admin-history-block">
-            <span className="admin-history-title">Task History</span>
-            <ul className="admin-history-list">
-              {taskHistory.length === 0 ? (
-                <li className="admin-history-empty">No completed tasks yet.</li>
-              ) : (
-                taskHistory.map((entry) => (
-                  <li key={entry.id} className="admin-history-item">
-                    <span className="admin-history-text">{entry.text}</span>
-                    <span className="admin-history-time">
-                      {historyDateFormatter.format(new Date(entry.completedAt))} | Total {formatDuration(entry.totalElapsedMs || 0)}
-                    </span>
-                  </li>
-                ))
-              )}
-            </ul>
-          </section>
-
-          <div className="admin-actions">
-            <button type="submit">Save</button>
-            <span className="save-status">{status}</span>
-          </div>
-        </form>
-      </section>
-    </main>
-  );
-}
-
-function SettingsPage() {
-  const [title, setTitle] = useState(TITLE);
-  const [startDate, setStartDate] = useState(START_ISO.slice(0, 16));
-  const [deadlineDate, setDeadlineDate] = useState(DEADLINE_ISO.slice(0, 16));
-  const [phase, setPhase] = useState(DEFAULT_CONTENT.phase);
-  const [projects, setProjects] = useState(cloneContent(DEFAULT_CONTENT).projects);
-  const [newProjectName, setNewProjectName] = useState("");
-  const [contentRef, setContentRef] = useState(null);
-  const [status, setStatus] = useState("");
-
-  useEffect(() => {
-    let isMounted = true;
-
-    loadAndHydratePreferredContent().then((saved) => {
-      if (!isMounted) return;
-      setContentRef(saved);
-      setTitle(saved.title || TITLE);
-      setStartDate((saved.startDate || START_ISO).slice(0, 16));
-      setDeadlineDate((saved.deadlineDate || DEADLINE_ISO).slice(0, 16));
-      setPhase(saved.phase);
-      setProjects(saved.projects.map((p) => ({ ...p })));
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  function handleProjectChange(index, field, value) {
-    setProjects((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
-  }
-
-  function handleAddProject() {
-    const name = newProjectName.trim();
-    if (!name) return;
-    const id = `project-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
-    const palette = ["#b66e35", "#5b8a5a", "#477f99", "#a0678c", "#a27d3e"];
-    const color = palette[projects.length % palette.length];
-    setProjects((prev) => [...prev, { id, name, color }]);
-    setNewProjectName("");
-  }
-
-  function handleRemoveProject(index) {
-    setProjects((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  function handleSave(event) {
-    event.preventDefault();
-
-    const base = contentRef || cloneContent(DEFAULT_CONTENT);
-    const next = normalizeContentRecord({
-      ...base,
-      title: title.trim() || TITLE,
-      startDate: startDate ? `${startDate}:00` : START_ISO,
-      deadlineDate: deadlineDate ? `${deadlineDate}:00` : DEADLINE_ISO,
-      phase: phase.trim() || DEFAULT_CONTENT.phase,
-      projects: projects.filter((p) => p.name.trim()),
-    });
-
-    persistContent(next);
-    setContentRef(next);
-    setProjects(next.projects.map((p) => ({ ...p })));
-    setStatus("Saved.");
-  }
-
-  return (
-    <main className="settings-page">
-      <div className="settings-shell">
-        <header className="settings-header">
-          <h1>Settings</h1>
-        </header>
-
-        <form className="settings-form" onSubmit={handleSave}>
-          <section className="settings-section">
-            <h2 className="settings-section-title">Dashboard Config</h2>
-
-            <label className="settings-field">
-              <span className="settings-label">Title</span>
-              <input
-                type="text"
-                className="settings-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="AAAI 2027 Submission"
-              />
-            </label>
-
-            <label className="settings-field">
-              <span className="settings-label">Start Date</span>
-              <input
-                type="datetime-local"
-                className="settings-input"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </label>
-
-            <label className="settings-field">
-              <span className="settings-label">Deadline</span>
-              <input
-                type="datetime-local"
-                className="settings-input"
-                value={deadlineDate}
-                onChange={(e) => setDeadlineDate(e.target.value)}
-              />
-            </label>
-
-            <label className="settings-field">
-              <span className="settings-label">Phase</span>
-              <input
-                type="text"
-                className="settings-input"
-                value={phase}
-                onChange={(e) => setPhase(e.target.value)}
-                placeholder="Phase 2 - Revision"
-              />
-            </label>
-          </section>
-
-          <section className="settings-section">
-            <h2 className="settings-section-title">Projects</h2>
-
-            <ul className="settings-project-list">
-              {projects.map((project, index) => {
-                const isDefault = project.id === DEFAULT_PROJECT.id;
-                return (
-                  <li key={project.id} className="settings-project-row">
-                    <input
-                      type="color"
-                      className="settings-color-input"
-                      value={project.color}
-                      onChange={(e) => handleProjectChange(index, "color", e.target.value)}
-                      title="Project color"
-                    />
-                    <input
-                      type="text"
-                      className="settings-input settings-project-name"
-                      value={project.name}
-                      onChange={(e) => handleProjectChange(index, "name", e.target.value)}
-                      placeholder="Project name"
-                    />
-                    {!isDefault && (
-                      <button
-                        type="button"
-                        className="settings-remove-btn"
-                        onClick={() => handleRemoveProject(index)}
-                        title="Remove project"
-                      >
-                        &times;
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-
-            <div className="settings-add-row">
-              <input
-                type="text"
-                className="settings-input settings-add-input"
-                placeholder="New project name…"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddProject();
-                  }
-                }}
-              />
-              <button type="button" className="settings-add-btn" onClick={handleAddProject}>
-                Add
-              </button>
-            </div>
-          </section>
-
-          <div className="settings-actions">
-            <button type="submit" className="settings-save-btn">Save</button>
-            <span className="settings-status">{status}</span>
-          </div>
-        </form>
-      </div>
-    </main>
-  );
-}
-
 export default function App() {
   if (window.location.pathname === "/todo") {
     return (
@@ -888,13 +586,13 @@ export default function App() {
     );
   }
 
+  // /admin folded into /settings on 2026-06-10. Existing bookmarks
+  // redirect transparently. Done here (not via Vercel rewrite) so the
+  // URL bar updates to /settings — clearer than silently serving /settings
+  // content under /admin's URL.
   if (window.location.pathname === "/admin") {
-    return (
-      <>
-        <TopNav />
-        <AdminPage />
-      </>
-    );
+    window.location.replace("/settings");
+    return null;
   }
 
   if (window.location.pathname === "/history") {
@@ -932,10 +630,12 @@ export default function App() {
 
   if (window.location.pathname === "/settings") {
     return (
-      <>
-        <TopNav />
-        <SettingsPage />
-      </>
+      <div className="app-shell">
+        <SideNav />
+        <div className="app-shell-main">
+          <SettingsPage />
+        </div>
+      </div>
     );
   }
 

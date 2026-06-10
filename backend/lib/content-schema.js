@@ -699,6 +699,7 @@ export function createDefaultContent() {
     scheduledTaskHeartbeats: {},
     chatLinks: [],
     manualSyncTriggers: {},
+    defaultNewTaskProjectId: "",
   };
 }
 
@@ -730,6 +731,15 @@ export function normalizeContentRecord(record) {
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
     chatLinks: normalizeChatLinks(record.chatLinks),
     manualSyncTriggers: normalizeManualSyncTriggers(record.manualSyncTriggers),
+    // User preference: which project new tasks default to (Top 3
+    // promote, /todo quick-add, etc.). Empty string falls back to
+    // projects[0] which is typically Inbox. Validated to be an
+    // existing project id; falls back to "" if the id doesn't match.
+    defaultNewTaskProjectId: (() => {
+      const v = record.defaultNewTaskProjectId;
+      if (typeof v !== "string" || !v) return "";
+      return projects.some((p) => p.id === v) ? v : "";
+    })(),
   };
 }
 
@@ -781,6 +791,9 @@ export function isContentPayload(payload) {
       payload.manualSyncTriggers === null ||
       Array.isArray(payload.manualSyncTriggers))
   ) {
+    return false;
+  }
+  if (payload.defaultNewTaskProjectId !== undefined && typeof payload.defaultNewTaskProjectId !== "string") {
     return false;
   }
   return true;

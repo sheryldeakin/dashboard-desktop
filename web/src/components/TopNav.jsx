@@ -4,7 +4,6 @@ const NAV_LINKS = [
   { href: "/todo", label: "Tasks" },
   { href: "/todo?focus=1", label: "Focus" },
   { href: "/stats", label: "Stats" },
-  { href: "/admin", label: "Edit" },
   { href: "/history", label: "History" },
   { href: "/settings", label: "Settings" },
 ];
