@@ -104,8 +104,10 @@ function useCountdown(deadlineIso = DEADLINE_ISO, startIso = START_ISO) {
 function DashboardPage() {
   // Content lives in ContentProvider now — load + persist + rollover all
   // happen there. We just read/mutate via updateContent for any changes
-  // that should hit the DB.
+  // that should hit the DB. The old `updateDashboardContent` name is
+  // kept below so the rest of the function reads unchanged.
   const { content, updateContent, loaded } = useContent();
+  const updateDashboardContent = updateContent;
   const navigate = useNavigate();
   const countdown = useCountdown(content.deadlineDate, content.startDate);
   const [status, setStatus] = useState("");
@@ -195,11 +197,6 @@ function DashboardPage() {
         queueCount: 0,
         emptyMessage: "Loading…",
       };
-
-  // Mutation helper — kept under its old name so the rest of DashboardPage
-  // doesn't have to change. updateContent from ContentProvider handles
-  // the persist + change-detection.
-  const updateDashboardContent = updateContent;
 
   function handleTaskAction(taskId, action) {
     const nowIso = new Date().toISOString();

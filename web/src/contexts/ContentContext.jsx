@@ -24,7 +24,7 @@
    compare — note this is the *whole* doc; cost is acceptable because it
    only runs on visibility change, not per render). */
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_CONTENT,
   cloneContent,
@@ -49,11 +49,13 @@ export function ContentProvider({ children }) {
   // surprises).
   const contentRef = useRef(content);
 
-  function setContent(next) {
+  // useCallback so consumers passing setContent to memo'd children don't
+  // bust memoization on every provider render.
+  const setContent = useCallback((next) => {
     const value = typeof next === "function" ? next(contentRef.current) : next;
     contentRef.current = value;
     setContentState(value);
-  }
+  }, []);
 
   // updateContent: idiomatic "mutate + persist" path. Pass a function
   // (prev) => next; we set and PUT in one go. Skips persistence if the
@@ -130,13 +132,12 @@ export function ContentProvider({ children }) {
     return c;
   }, []);
 
-  const value = {
-    content,
-    setContent,
-    updateContent,
-    reloadContent,
-    loaded,
-  };
+  // Memoize the context value so consumers only re-render when content or
+  // loaded actually change — not when an unrelated parent re-renders.
+  const value = useMemo(
+    () => ({ content, setContent, updateContent, reloadContent, loaded }),
+    [content, setContent, updateContent, reloadContent, loaded],
+  );
 
   return <ContentCtx.Provider value={value}>{children}</ContentCtx.Provider>;
 }
