@@ -51,8 +51,16 @@ app.use(compression());
 // deferred per memory note.
 app.use(express.json({ limit: "5mb" }));
 
-const client = new MongoClient(mongoUri);
+// MongoClient is a long-lived singleton. If its internal topology gets
+// wedged (e.g., the cluster does a primary failover the driver doesn't
+// recover from cleanly — which took down /api/content for 45+ min on
+// 2026-06-11), every subsequent operation hangs for 30s then throws
+// MongoServerSelectionError. The driver doesn't always self-heal, so we
+// detect persistent connection errors and rebuild the client.
+let client = new MongoClient(mongoUri);
 let collectionPromise;
+let lastRebuildMs = 0;
+const REBUILD_THROTTLE_MS = 10000;
 
 function getCollection() {
   if (!collectionPromise) {
@@ -65,6 +73,59 @@ function getCollection() {
       });
   }
   return collectionPromise;
+}
+
+// True for the error classes the driver throws when it can't talk to the
+// cluster. Used by withCollection to decide whether a rebuild is warranted.
+function isConnectionError(err) {
+  if (!err || !err.name) return false;
+  return (
+    err.name === "MongoServerSelectionError" ||
+    err.name === "MongoNetworkError" ||
+    err.name === "MongoNotConnectedError" ||
+    err.name === "MongoTopologyClosedError" ||
+    err.name === "MongoExpiredSessionError"
+  );
+}
+
+async function rebuildClient(reason) {
+  // Throttle so a sustained outage doesn't spin in a rebuild loop.
+  const since = Date.now() - lastRebuildMs;
+  if (since < REBUILD_THROTTLE_MS) {
+    throw new Error(`MongoClient rebuild throttled (last rebuild ${since}ms ago): ${reason}`);
+  }
+  lastRebuildMs = Date.now();
+  console.warn(`Rebuilding MongoClient: ${reason}`);
+  const stale = client;
+  client = new MongoClient(mongoUri);
+  collectionPromise = null;
+  // Best-effort close of the stale client; don't block the rebuild on it.
+  stale.close(true).catch((err) => {
+    console.warn("Stale MongoClient close failed (ignored):", err?.message);
+  });
+}
+
+// Runs `fn(collection)` against a fresh-enough collection. On a connection
+// error, rebuilds the client once and retries. Routes should use this
+// instead of getCollection() directly so a wedged client self-heals
+// rather than locking the service up.
+async function withCollection(fn) {
+  try {
+    const collection = await getCollection();
+    return await fn(collection);
+  } catch (error) {
+    if (!isConnectionError(error)) throw error;
+    try {
+      await rebuildClient(`${error.name}: ${error.message}`);
+    } catch (rebuildErr) {
+      // Throttled or rebuild itself failed — surface the original error
+      // so callers don't see the rebuild noise instead.
+      console.error("Client rebuild failed:", rebuildErr?.message);
+      throw error;
+    }
+    const collection = await getCollection();
+    return await fn(collection);
+  }
 }
 
 function contentHasChanged(a, b) {
@@ -116,8 +177,7 @@ app.get("/api/health", (_req, res) => {
 
 app.get("/api/content/schema", async (_req, res) => {
   try {
-    const collection = await getCollection();
-    const normalized = await readNormalizedContent(collection);
+    const normalized = await withCollection((collection) => readNormalizedContent(collection));
     res.json({
       schemaVersion: SCHEMA_VERSION,
       contentExists: normalized.exists,
@@ -131,25 +191,25 @@ app.get("/api/content/schema", async (_req, res) => {
 
 app.get("/api/content", async (_req, res) => {
   try {
-    const collection = await getCollection();
-    const normalized = await readNormalizedContent(collection);
-
-    if (normalized.exists && normalized.changed) {
-      const updatedAt = await saveContentDocument(collection, normalized.content);
-      return res.json({
+    const payload = await withCollection(async (collection) => {
+      const normalized = await readNormalizedContent(collection);
+      if (normalized.exists && normalized.changed) {
+        const updatedAt = await saveContentDocument(collection, normalized.content);
+        return {
+          content: normalized.content,
+          updatedAt,
+          schemaVersion: SCHEMA_VERSION,
+          migrated: true,
+        };
+      }
+      return {
         content: normalized.content,
-        updatedAt,
+        updatedAt: normalized.updatedAt,
         schemaVersion: SCHEMA_VERSION,
-        migrated: true,
-      });
-    }
-
-    return res.json({
-      content: normalized.content,
-      updatedAt: normalized.updatedAt,
-      schemaVersion: SCHEMA_VERSION,
-      migrated: false,
+        migrated: false,
+      };
     });
+    return res.json(payload);
   } catch (error) {
     console.error("Failed to load dashboard content:", error);
     return res.status(500).json({ error: "Failed to load dashboard content." });
@@ -279,42 +339,43 @@ app.put("/api/content", async (req, res) => {
   }
 
   try {
-    const collection = await getCollection();
-    const existing = await readNormalizedContent(collection);
+    const updatedAt = await withCollection(async (collection) => {
+      const existing = await readNormalizedContent(collection);
 
-    // workSessions / dailyTop3History / scheduledTaskHeartbeats / dailyTop3:
-    // all merged so background writers (importer, sync scripts) and stale
-    // client snapshots can't clobber each other. Everything else: client wins.
-    const mergedPayload = {
-      ...payload,
-      workSessions: mergeWorkSessions(
-        existing.content.workSessions,
-        payload.workSessions,
-        payload.workSessionDeletes,
-      ),
-      dailyTop3History: mergeDailyTop3History(
-        existing.content.dailyTop3History,
-        payload.dailyTop3History,
-      ),
-      scheduledTaskHeartbeats: mergeHeartbeats(
-        existing.content.scheduledTaskHeartbeats,
-        payload.scheduledTaskHeartbeats,
-      ),
-      dailyTop3: mergeDailyTop3(
-        existing.content.dailyTop3,
-        payload.dailyTop3,
-      ),
-      chatLinks: mergeChatLinks(
-        existing.content.chatLinks,
-        payload.chatLinks,
-      ),
-      manualSyncTriggers: mergeHeartbeats(
-        existing.content.manualSyncTriggers,
-        payload.manualSyncTriggers,
-      ),
-    };
-    const normalizedPayload = normalizeContentRecord(mergedPayload);
-    const updatedAt = await saveContentDocument(collection, normalizedPayload);
+      // workSessions / dailyTop3History / scheduledTaskHeartbeats / dailyTop3:
+      // all merged so background writers (importer, sync scripts) and stale
+      // client snapshots can't clobber each other. Everything else: client wins.
+      const mergedPayload = {
+        ...payload,
+        workSessions: mergeWorkSessions(
+          existing.content.workSessions,
+          payload.workSessions,
+          payload.workSessionDeletes,
+        ),
+        dailyTop3History: mergeDailyTop3History(
+          existing.content.dailyTop3History,
+          payload.dailyTop3History,
+        ),
+        scheduledTaskHeartbeats: mergeHeartbeats(
+          existing.content.scheduledTaskHeartbeats,
+          payload.scheduledTaskHeartbeats,
+        ),
+        dailyTop3: mergeDailyTop3(
+          existing.content.dailyTop3,
+          payload.dailyTop3,
+        ),
+        chatLinks: mergeChatLinks(
+          existing.content.chatLinks,
+          payload.chatLinks,
+        ),
+        manualSyncTriggers: mergeHeartbeats(
+          existing.content.manualSyncTriggers,
+          payload.manualSyncTriggers,
+        ),
+      };
+      const normalizedPayload = normalizeContentRecord(mergedPayload);
+      return await saveContentDocument(collection, normalizedPayload);
+    });
 
     return res.json({
       ok: true,
@@ -329,16 +390,17 @@ app.put("/api/content", async (req, res) => {
 
 app.post("/api/content/migrate", async (_req, res) => {
   try {
-    const collection = await getCollection();
-    const normalized = await readNormalizedContent(collection);
-    const updatedAt = await saveContentDocument(collection, normalized.content);
-
-    return res.json({
-      ok: true,
-      migrated: normalized.changed || !normalized.exists,
-      updatedAt,
-      schemaVersion: SCHEMA_VERSION,
+    const result = await withCollection(async (collection) => {
+      const normalized = await readNormalizedContent(collection);
+      const updatedAt = await saveContentDocument(collection, normalized.content);
+      return {
+        ok: true,
+        migrated: normalized.changed || !normalized.exists,
+        updatedAt,
+        schemaVersion: SCHEMA_VERSION,
+      };
     });
+    return res.json(result);
   } catch (error) {
     console.error("Failed to migrate dashboard content:", error);
     return res.status(500).json({ error: "Failed to migrate dashboard content." });
