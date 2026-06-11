@@ -37,6 +37,7 @@ import Tooltip from "./Tooltip.jsx";
 import DateGroup from "./DateGroup.jsx";
 import Collapsible from "./Collapsible.jsx";
 import ClaudeProjectBucket from "./ClaudeProjectBucket.jsx";
+import { softenColor } from "./WeekRecap.jsx";
 
 const MS_PER_MIN = 60 * 1000;
 const MS_PER_HR = 60 * MS_PER_MIN;
@@ -104,7 +105,7 @@ function HistoryRow({ entry, projects, projectColor }) {
     <li className="history-row">
       {/* Top row: project dot + task text + completed-when */}
       <div className="history-row-main">
-        <Dot color={projectColor} size={8} />
+        <Dot color={softenColor(projectColor, 0.45)} size={8} />
         <span className="history-row-text">{entry.text}</span>
         <Tooltip content={new Date(entry.completedAt).toLocaleString()}>
           <span className="history-row-when">
@@ -202,7 +203,7 @@ function PomodoroRow({ entry, projectColor, taskText }) {
       </span>
       <span className="history-pomo-task">
         {entry.taskId && projectColor && (
-          <Dot color={projectColor} size={6} />
+          <Dot color={softenColor(projectColor, 0.45)} size={6} />
         )}
         {taskText || "No task"}
       </span>

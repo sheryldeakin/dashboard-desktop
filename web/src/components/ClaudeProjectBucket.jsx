@@ -21,6 +21,7 @@ import Collapsible from "./Collapsible.jsx";
 import Dot from "./Dot.jsx";
 import Tooltip from "./Tooltip.jsx";
 import RelativeTime from "./RelativeTime.jsx";
+import { softenColor } from "./WeekRecap.jsx";
 
 const MS_PER_MIN = 60 * 1000;
 
@@ -45,7 +46,7 @@ export default function ClaudeProjectBucket({
 
   const summary = (
     <>
-      <Dot color={color || "rgba(0,0,0,0.25)"} size={8} />
+      <Dot color={softenColor(color || "rgba(0,0,0,0.25)", 0.45)} size={8} />
       <span className="history-claude-bucket-name">{name}</span>
       <span className="history-claude-bucket-meta">
         <span className="history-claude-bucket-stat">

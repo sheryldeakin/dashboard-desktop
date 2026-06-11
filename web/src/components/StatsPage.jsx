@@ -1293,7 +1293,7 @@ function RecentClaudeList({ rows }) {
         return (
           <li key={c.id} className="stats-recent-row">
             <span className="stats-recent-project">
-              <Dot color={c.projectColor || "rgba(0,0,0,0.25)"} size={8} />
+              <Dot color={softenColor(c.projectColor || "rgba(0,0,0,0.25)", 0.45)} size={8} />
               {c.projectName}
             </span>
             <span className="stats-recent-duration">
@@ -1943,7 +1943,7 @@ function OverviewTab({ stats, content }) {
             {recentClaudeSessions.map((s) => (
               <li key={s.id} className="stats-recent-row">
                 <span className="stats-recent-project">
-                  <Dot color={s.projectColor || "rgba(0,0,0,0.25)"} size={8} />
+                  <Dot color={softenColor(s.projectColor || "rgba(0,0,0,0.25)", 0.45)} size={8} />
                   {s.projectName}
                 </span>
                 <span className="stats-recent-duration">
@@ -2590,7 +2590,7 @@ function TodayTab({ stats, content }) {
             {todayStoryFeed.map((s) => (
               <li key={s.id} className="stats-recent-row">
                 <span className="stats-recent-project">
-                  <Dot color={s.projectColor || "rgba(0,0,0,0.25)"} size={8} />
+                  <Dot color={softenColor(s.projectColor || "rgba(0,0,0,0.25)", 0.45)} size={8} />
                   {s.projectName}
                 </span>
                 <span className="stats-recent-duration">
@@ -3267,7 +3267,7 @@ function TasksTab({ stats }) {
             {stats.recentCompletions.map((c, i) => (
               <li key={i} className="stats-recent-row">
                 <span className="stats-recent-project">
-                  <Dot color={c.color || "rgba(0,0,0,0.25)"} size={8} />
+                  <Dot color={softenColor(c.color || "rgba(0,0,0,0.25)", 0.45)} size={8} />
                   {c.projectName}
                 </span>
                 <span className="stats-recent-subject-cell">{c.subject}</span>
@@ -3601,7 +3601,7 @@ function TrendsTab({ stats }) {
             {hotProjects7d.map((p) => (
               <li key={p.projectId} className="stats-hot-row">
                 <span className="stats-hot-project">
-                  <Dot color={p.color || "rgba(0,0,0,0.25)"} size={8} />
+                  <Dot color={softenColor(p.color || "rgba(0,0,0,0.25)", 0.45)} size={8} />
                   {p.name}
                 </span>
                 <div className="stats-hot-bar-wrap">
@@ -3690,7 +3690,7 @@ function TrendsTab({ stats }) {
               return (
                 <li key={p.projectId} className="stats-hot-row">
                   <span className="stats-hot-project">
-                    <Dot color={p.color || "rgba(0,0,0,0.25)"} size={8} />
+                    <Dot color={softenColor(p.color || "rgba(0,0,0,0.25)", 0.45)} size={8} />
                     {p.name}
                   </span>
                   <div className="stats-hot-bar-wrap">
@@ -3726,7 +3726,7 @@ function TrendsTab({ stats }) {
               return (
                 <li key={p.projectId} className="stats-atrisk-row">
                   <span className="stats-atrisk-project">
-                    <Dot color={p.color || "rgba(0,0,0,0.25)"} size={8} />
+                    <Dot color={softenColor(p.color || "rgba(0,0,0,0.25)", 0.45)} size={8} />
                     {p.name}
                   </span>
                   <span className="stats-atrisk-meta">

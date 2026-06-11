@@ -4373,12 +4373,12 @@ button:focus-visible {
   font-style: normal;
 }
 
-/* Common base for the three settings buttons (Reset / Save / Add):
-   flat hairline aesthetic matching .stats-sync-btn etc. */
-.settings-reset-btn,
-.settings-save-btn,
-.settings-add-btn {
-  padding: 6px 14px;
+/* Unified settings button — same flat hairline as .stats-sync-btn so
+   all action buttons across the app share one visual. The `.is-primary`
+   modifier nudges weight + ink color (no fill) to mark Save as the
+   commit action without breaking the hairline language. */
+.settings-btn {
+  padding: 6px 12px;
   border-radius: 4px;
   border: 1px solid var(--rule);
   background: transparent;
@@ -4386,33 +4386,20 @@ button:focus-visible {
   font-family: inherit;
   color: var(--ink);
   cursor: pointer;
-  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease,
-              background var(--motion-fast) ease;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
 }
 
-.settings-reset-btn:hover,
-.settings-save-btn:hover:not(:disabled),
-.settings-add-btn:hover {
+.settings-btn:hover:not(:disabled) {
   border-color: var(--ink-muted);
 }
 
-/* Save is the primary action — filled dark so it reads as the
-   "commit changes" button next to the secondary Reset. */
-.settings-save-btn {
-  background: var(--ink);
-  color: #fff;
-  border-color: var(--ink);
-  font-weight: 500;
-}
-
-.settings-save-btn:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.85);
-  border-color: rgba(0, 0, 0, 0.85);
-}
-
-.settings-save-btn:disabled {
-  opacity: 0.35;
+.settings-btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+.settings-btn.is-primary {
+  font-weight: 500;
 }
 
 /* Field building blocks. */
@@ -4549,15 +4536,42 @@ button:focus-visible {
   cursor: grabbing;
 }
 
+/* Color swatch — the Dot inside is the visible affordance; the native
+   <input type="color"> overlays it so clicking the dot opens the
+   system color picker. A faint hairline ring on hover signals "yes
+   this is interactive" without competing with the project dot. */
+.settings-color-swatch {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px transparent;
+  transition: box-shadow var(--motion-fast) ease;
+}
+
+.settings-color-swatch:hover {
+  box-shadow: 0 0 0 1px var(--rule);
+}
+
 .settings-color-input {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  padding: 2px;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  padding: 0;
   cursor: pointer;
   background: transparent;
-  flex-shrink: 0;
+}
+
+.settings-color-input:focus-visible + *,
+.settings-color-swatch:focus-within {
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .settings-project-name {

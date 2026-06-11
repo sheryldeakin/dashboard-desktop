@@ -32,7 +32,9 @@ import PageHeader from "./PageHeader.jsx";
 import Section from "./Section.jsx";
 import Collapsible from "./Collapsible.jsx";
 import EmptyState from "./EmptyState.jsx";
+import Chip from "./Chip.jsx";
 import Dot from "./Dot.jsx";
+import { softenColor } from "./WeekRecap.jsx";
 
 /* Inline SVG grip handle — used as the drag affordance on project
    rows. 6 dots in a 2×3 grid, sized to read as "drag here" without
@@ -109,10 +111,22 @@ export default function SettingsPage() {
     );
   }
 
+  const projectCount = (draft.projects || []).length;
+  const focusMin = draft.pomodoro?.settings?.focusMinutes ?? 25;
+  const headerChips = [
+    <Chip key="projects">
+      <strong>{projectCount}</strong> {projectCount === 1 ? "project" : "projects"}
+    </Chip>,
+    <Chip key="focus">
+      <strong>{focusMin}</strong>-min focus default
+    </Chip>,
+  ];
+
   return (
     <main className="settings-page">
       <PageHeader
         title="Settings"
+        chips={headerChips}
         actions={
           <div className="settings-actions">
             {status.phase !== "idle" && (
@@ -121,7 +135,7 @@ export default function SettingsPage() {
             {isDirty && (
               <button
                 type="button"
-                className="settings-reset-btn"
+                className="settings-btn"
                 onClick={handleReset}
               >
                 Reset
@@ -129,7 +143,7 @@ export default function SettingsPage() {
             )}
             <button
               type="button"
-              className="settings-save-btn"
+              className="settings-btn is-primary"
               onClick={handleSave}
               disabled={!isDirty || status.phase === "saving"}
             >
@@ -291,14 +305,25 @@ function ProjectsSection({ draft, setDraftField }) {
               <span className="settings-drag-handle" aria-hidden="true" title="Drag to reorder">
                 {GRIP_ICON}
               </span>
-              <Dot color={p.color || "rgba(0,0,0,0.25)"} size={10} />
-              <input
-                type="color"
-                className="settings-color-input"
-                value={p.color || "#b66e35"}
-                onChange={(e) => updateProject(i, { color: e.target.value })}
-                title="Project color"
-              />
+              {/* Dot doubles as the click target for the native color
+                  picker — the <input type="color"> is visually hidden but
+                  positioned over the dot so the system swatch opens on
+                  click. Soften the rendered fill so it matches the bar
+                  segments on /home and /stats (raw stored color is kept
+                  in state, softened only at render time). */}
+              <label className="settings-color-swatch" title={`Color: ${p.color || ""}`}>
+                <Dot
+                  color={softenColor(p.color || "rgba(0,0,0,0.25)", 0.45)}
+                  size={14}
+                />
+                <input
+                  type="color"
+                  className="settings-color-input"
+                  value={p.color || "#b66e35"}
+                  onChange={(e) => updateProject(i, { color: e.target.value })}
+                  aria-label={`Color for ${p.name}`}
+                />
+              </label>
               <input
                 type="text"
                 className="settings-input settings-project-name"
@@ -335,7 +360,7 @@ function ProjectsSection({ draft, setDraftField }) {
             }
           }}
         />
-        <button type="button" className="settings-add-btn" onClick={addProject}>
+        <button type="button" className="settings-btn" onClick={addProject}>
           Add project
         </button>
       </div>
