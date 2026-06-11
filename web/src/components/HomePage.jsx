@@ -2205,13 +2205,40 @@ export default function HomePage() {
     if (emptyIdx === -1) return;
     const nowIso = new Date().toISOString();
     const todayKeyStr = todayKey();
-    // 1) fill today's empty slot
+
+    // 1) Fill today's empty slot. CRITICAL: carry promotedTaskId from
+    //    the history slot too — otherwise the reconcile useEffect's
+    //    BACKFILL branch (line ~2138) sees a slot with text but no link
+    //    and creates a brand-new task. That's how duplicate "Plan
+    //    birthday" / "Draft email" / etc. tasks accumulated one per
+    //    carry. Carry the per-slot projectId for the same reason.
     const slots = content.dailyTop3.slots.map((s, i) =>
       i === emptyIdx
-        ? { ...s, text: fromSlot.text, updatedAt: nowIso }
+        ? {
+            ...s,
+            text: fromSlot.text,
+            promotedTaskId: fromSlot.promotedTaskId || s.promotedTaskId || null,
+            projectId: fromSlot.projectId || s.projectId || "",
+            updatedAt: nowIso,
+          }
         : s
     );
-    // 2) mark history slot as carried to today
+
+    // 1.5) Re-surface the linked task in today's queue. The task itself
+    //      may have drifted to inTodayQueue: false (manual move, /todo
+    //      edit, etc.). Carry is an explicit "I want this in today" so
+    //      flip the flag.
+    let nextTasks = content.todaysTasks || [];
+    if (fromSlot.promotedTaskId) {
+      nextTasks = nextTasks.map((t) =>
+        t.id === fromSlot.promotedTaskId
+          ? { ...t, inTodayQueue: true, updatedAt: nowIso }
+          : t
+      );
+    }
+
+    // 2) Mark history slot as carried to today (UI uses this to hide
+    //    the carry button on already-carried slots).
     const history = content.dailyTop3History.map((h) =>
       h.date === dayDate
         ? {
@@ -2227,6 +2254,7 @@ export default function HomePage() {
     patchContent({
       dailyTop3: { ...content.dailyTop3, date: todayKeyStr, slots, updatedAt: nowIso },
       dailyTop3History: history,
+      todaysTasks: nextTasks,
     });
   }
 
