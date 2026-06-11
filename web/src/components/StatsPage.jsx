@@ -3848,13 +3848,28 @@ export default function StatsPage() {
   // Sync Now flow to apply a freshly-fetched snapshot without re-running
   // the full load path.
   const { content, setContent, loaded } = useContent();
-  // ?tab= deep-links from /home (and elsewhere) open the right tab.
-  // Valid tab ids come from TABS — invalid falls back to overview.
-  const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState(() => {
-    const urlTab = searchParams.get("tab");
-    return TABS.some((t) => t.id === urlTab) ? urlTab : "overview";
-  });
+  // Tab lives in the URL so refresh + deep-links + back-button all work.
+  // Reading from searchParams every render keeps state in sync with the
+  // bar — no useState needed. Invalid/missing tab falls back to overview
+  // (this also covers the no-param case from external links to /stats).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const tab = TABS.some((t) => t.id === urlTab) ? urlTab : "overview";
+
+  function setTab(nextTab) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        // Overview is the default — omit the param to keep URLs clean.
+        if (nextTab === "overview") next.delete("tab");
+        else next.set("tab", nextTab);
+        return next;
+      },
+      // replace: true so rapid tab-clicking doesn't bury the actual
+      // previous page in the back-button stack.
+      { replace: true },
+    );
+  }
   // syncStatus shape: { phase, message } where phase is one of:
   //   "idle"        nothing in flight
   //   "requesting"  PUT-ing the trigger flag

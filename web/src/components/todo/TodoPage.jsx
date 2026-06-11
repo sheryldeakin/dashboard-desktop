@@ -103,6 +103,62 @@ export default function TodoPage() {
     setQuickAddText("");
   }
 
+  // URL-sync wrappers for the sidebar selectors. The underlying handlers
+  // (from useTasks) own the state — we just mirror the choice into
+  // ?section= / ?project= so refresh restores it. replace:true keeps
+  // sidebar clicks out of the back-button stack.
+  function setSectionInUrl(sectionId) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("project");
+        // "today" is the default; omit param to keep the URL clean.
+        if (sectionId === "today") next.delete("section");
+        else next.set("section", sectionId);
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  function setProjectInUrl(projectId) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("section");
+        if (!projectId || projectId === "all") next.delete("project");
+        else next.set("project", projectId);
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  function handleSelectSidebarSectionWithUrl(sectionId) {
+    handleSelectSidebarSection(sectionId);
+    setSectionInUrl(sectionId);
+  }
+
+  function handleSelectProjectFilterWithUrl(projectId) {
+    handleSelectProjectFilter(projectId);
+    setProjectInUrl(projectId);
+  }
+
+  // On mount: restore section/project from URL if present. Project takes
+  // precedence over section (matches the mutually-exclusive semantics of
+  // the handlers — selecting one clears the other). Guarded by a ref so
+  // we don't re-apply if searchParams change later from other paths.
+  const sectionRestoredRef = useRef(false);
+  useEffect(() => {
+    if (sectionRestoredRef.current) return;
+    const urlProject = searchParams.get("project");
+    const urlSection = searchParams.get("section");
+    if (urlProject) handleSelectProjectFilter(urlProject);
+    else if (urlSection) handleSelectSidebarSection(urlSection);
+    sectionRestoredRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleSelectTask(taskId) {
     if (isWideScreen) {
       // Toggle selection: clicking same task deselects (returns to insights)
@@ -245,12 +301,12 @@ export default function TodoPage() {
           onToggleCollapse={() => setSidebarCollapsed((p) => !p)}
           activeSectionId={activeSectionId}
           sectionCounts={sectionCounts}
-          onSelectSection={handleSelectSidebarSection}
+          onSelectSection={handleSelectSidebarSectionWithUrl}
           projects={projects}
           defaultProjectId={defaultProjectId}
           filterProjectId={filterProjectId}
           filterTag={filterTag}
-          onSelectProject={handleSelectProjectFilter}
+          onSelectProject={handleSelectProjectFilterWithUrl}
           onSelectFileTag={handleSelectFileTag}
           tasks={tasks}
           newProjectName={newProjectName}
@@ -288,7 +344,7 @@ export default function TodoPage() {
                 <label className="tp-field">
                   <span className="tp-field-label">Project</span>
                   <select className="tp-select" value={filterProjectId}
-                    onChange={(e) => { setFilterProjectId(e.target.value); if (e.target.value !== "all") taskState.handleSelectSidebarSection("all"); }}>
+                    onChange={(e) => handleSelectProjectFilterWithUrl(e.target.value)}>
                     <option value="all">All Projects</option>
                     {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
