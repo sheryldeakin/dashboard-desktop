@@ -1875,6 +1875,59 @@ button:focus-visible {
   min-width: 0;
 }
 
+/* Lazy-route loading fallback. Quiet text in the same content area —
+   most chunks resolve before this even paints. */
+.route-loading {
+  padding: clamp(40px, 5vw, 64px);
+  color: var(--ink-muted);
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* 404 page — sits inside the app shell so the sidebar is still
+   available for getting unstuck. */
+.not-found {
+  max-width: clamp(720px, 92vw, 1800px);
+  margin: 0 auto;
+  padding: clamp(40px, 5vw, 72px) clamp(24px, 4vw, 56px);
+}
+
+.not-found-title {
+  font-size: clamp(22px, 2.5vw, 32px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+}
+
+.not-found-text {
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.not-found-text code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.not-found-link {
+  display: inline-block;
+  font-size: 14px;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 2px;
+  transition: border-color var(--motion-fast) ease;
+}
+
+.not-found-link:hover {
+  border-bottom-color: var(--ink);
+}
+
 /* Sidebar — sticky so the nav stays in view as you scroll the main area.
    Background is a slightly warmer paper tone than the page bg, so the
    shell reads as two surfaces without needing a heavy divider.

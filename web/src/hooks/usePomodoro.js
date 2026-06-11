@@ -64,22 +64,31 @@ export function usePomodoro(pomodoro, setPomodoro, tasks, setTasks, setStatus) {
     pomodoroRun.status,
   ]);
 
-  // Tick timer
+  // Tick timer — wall-clock-derived. Old version decremented
+  // remainingSeconds by 1 per tick, which lost real time when the tab
+  // was throttled in the background (Chrome throttles setInterval to
+  // ~1Hz or worse in unfocused windows; on a small second monitor that
+  // means the timer drifts slow). Now we re-derive remainingSeconds
+  // from segmentSeconds - (now - startedAt), so even if the tick fires
+  // late or skips, the displayed value is always correct.
   useEffect(() => {
     if (pomodoroRun.status !== "running") return;
+    if (!pomodoroRun.startedAt) return;
 
     const id = window.setInterval(() => {
       setPomodoroRun((previous) => {
-        if (previous.status !== "running") return previous;
-        return {
-          ...previous,
-          remainingSeconds: Math.max(0, previous.remainingSeconds - 1),
-        };
+        if (previous.status !== "running" || !previous.startedAt) return previous;
+        const startMs = parseIsoMs(previous.startedAt);
+        if (startMs === null) return previous;
+        const elapsedSec = (Date.now() - startMs) / 1000;
+        const nextRemaining = Math.max(0, Math.round(previous.segmentSeconds - elapsedSec));
+        if (nextRemaining === previous.remainingSeconds) return previous;
+        return { ...previous, remainingSeconds: nextRemaining };
       });
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [pomodoroRun.status]);
+  }, [pomodoroRun.status, pomodoroRun.startedAt]);
 
   // Handle completion
   useEffect(() => {
@@ -209,15 +218,37 @@ export function usePomodoro(pomodoro, setPomodoro, tasks, setTasks, setStatus) {
       ...previous,
       taskId: effectiveTaskId,
       status: "running",
-      startedAt: previous.startedAt || nowIso,
+      // Always reset the clock anchor on (re)start. Rebase segmentSeconds
+      // to the captured remainingSeconds so resuming from pause starts
+      // the wall-clock count from where we left off, not where the full
+      // segment began. On a fresh start from idle, remainingSeconds ===
+      // segmentSeconds already, so this is a no-op.
+      startedAt: nowIso,
+      segmentSeconds: previous.remainingSeconds,
     }));
   }
 
   function pausePomodoro() {
-    setPomodoroRun((previous) => ({
-      ...previous,
-      status: "paused",
-    }));
+    setPomodoroRun((previous) => {
+      if (previous.status !== "running") {
+        return { ...previous, status: "paused" };
+      }
+      // Capture the current wall-clock-derived remaining time so the
+      // paused state reflects exactly where the timer is, not whichever
+      // second the tick interval last fired on. Then null out startedAt
+      // so the tick effect stops re-deriving (until resume sets a fresh
+      // anchor).
+      const startMs = parseIsoMs(previous.startedAt);
+      const captured = startMs !== null
+        ? Math.max(0, Math.round(previous.segmentSeconds - (Date.now() - startMs) / 1000))
+        : previous.remainingSeconds;
+      return {
+        ...previous,
+        status: "paused",
+        remainingSeconds: captured,
+        startedAt: null,
+      };
+    });
   }
 
   function resetPomodoro() {

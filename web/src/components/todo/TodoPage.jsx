@@ -144,6 +144,22 @@ export default function TodoPage() {
     setProjectInUrl(projectId);
   }
 
+  // Distinct dropdown handler: picking "All Projects" should clear the
+  // filter without disrupting the active sidebar section. (Original code
+  // here had a setFilterProjectId + handleSelectSidebarSection("all")
+  // pair that clobbered itself — the section call reset filterProjectId
+  // back to "all" before the user-selected project could land.) Specific
+  // projects still go through handleSelectProjectFilterWithUrl which
+  // does the cross-section filter UX correctly.
+  function handleDropdownProjectFilter(projectId) {
+    if (projectId === "all") {
+      setFilterProjectId("all");
+      setProjectInUrl("all");
+      return;
+    }
+    handleSelectProjectFilterWithUrl(projectId);
+  }
+
   // On mount: restore section/project from URL if present. Project takes
   // precedence over section (matches the mutually-exclusive semantics of
   // the handlers — selecting one clears the other). Guarded by a ref so
@@ -239,13 +255,16 @@ export default function TodoPage() {
     }
   }, [pomodoroRun.mode, pomodoroRun.status, pomodoroRun.taskId, tasks, handleTaskAction]);
 
-  // Auto-assign task to pomodoro from ?taskId= query (set by dashboard
-  // Focus button). Once we've consumed it, drop the param from the URL so
-  // a reload doesn't re-trigger. ?focus=1 is preserved so we stay in
-  // focus mode after the taskId handoff completes.
+  // Auto-assign task to pomodoro from ?focus=1&taskId=X (set by dashboard
+  // Focus button). The focus=1 gate is important: without it, a bare
+  // ?taskId=X means "open detail panel" (handled by the next effect),
+  // not "assign for pomodoro." Once we've consumed it, drop the param so
+  // a reload doesn't re-trigger; ?focus=1 stays so we remain in focus
+  // mode after the handoff.
   const taskIdAssignedRef = useRef(false);
   useEffect(() => {
     if (taskIdAssignedRef.current || tasks.length === 0) return;
+    if (searchParams.get("focus") !== "1") return;
     const taskIdParam = searchParams.get("taskId");
     if (taskIdParam && tasks.some((t) => t.id === taskIdParam && !t.done)) {
       assignPomodoroTask(taskIdParam);
@@ -257,6 +276,45 @@ export default function TodoPage() {
       setSearchParams(next, { replace: true });
     }
   }, [tasks, assignPomodoroTask, searchParams, setSearchParams]);
+
+  // Detail-panel deep-link: ?taskId=X without ?focus=1 means "open this
+  // task's detail panel." On mount, restore from URL. After that, sync
+  // selectedTaskId → URL so the active task is reflected in the address
+  // bar (and survives refresh).
+  const taskIdRestoredRef = useRef(false);
+  useEffect(() => {
+    if (taskIdRestoredRef.current) return;
+    taskIdRestoredRef.current = true;
+    if (searchParams.get("focus") === "1") return; // focus handoff path
+    const urlTaskId = searchParams.get("taskId");
+    if (urlTaskId) {
+      setSelectedTaskId(urlTaskId);
+      // On narrow viewports we'd also want the drawer open; check the
+      // current breakpoint state once it's resolved by the matchMedia
+      // effect above. If isWideScreen is false the next render's
+      // handleSelectTask-like flow opens the drawer; if not, leave it
+      // to the user's first interaction.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync selectedTaskId → ?taskId in the URL. Runs only after the initial
+  // restore above, so we don't blow away the URL param on first render.
+  useEffect(() => {
+    if (!taskIdRestoredRef.current) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        // Don't fight the focus-handoff effect — if ?focus=1 is active,
+        // ?taskId is owned by that path.
+        if (next.get("focus") === "1") return prev;
+        if (selectedTaskId) next.set("taskId", selectedTaskId);
+        else next.delete("taskId");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [selectedTaskId, setSearchParams]);
 
   const drawerProps = {
     task: selectedTask,
@@ -344,7 +402,7 @@ export default function TodoPage() {
                 <label className="tp-field">
                   <span className="tp-field-label">Project</span>
                   <select className="tp-select" value={filterProjectId}
-                    onChange={(e) => handleSelectProjectFilterWithUrl(e.target.value)}>
+                    onChange={(e) => handleDropdownProjectFilter(e.target.value)}>
                     <option value="all">All Projects</option>
                     {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
