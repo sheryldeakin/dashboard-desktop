@@ -1,3 +1,4 @@
+import compression from "compression";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
@@ -38,7 +39,17 @@ app.use(
     methods: ["GET", "PUT", "POST", "OPTIONS"],
   })
 );
-app.use(express.json({ limit: "1mb" }));
+
+// gzip responses. With 600+ workSessions (each carrying token data) plus
+// thousands of taskHistory / pomodoroHistory entries, /api/content can hit
+// 1MB+ uncompressed. compression drops it ~5–10× and is required because
+// Railway doesn't auto-gzip at the edge — it's app-side or nothing.
+app.use(compression());
+
+// 1mb was hit a few times in dev as the document grew. Bumped to 5mb so
+// PUTs don't silently fail; the real fix (history collection split) is
+// deferred per memory note.
+app.use(express.json({ limit: "5mb" }));
 
 const client = new MongoClient(mongoUri);
 let collectionPromise;

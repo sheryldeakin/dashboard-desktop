@@ -36,6 +36,22 @@ import Chip from "./Chip.jsx";
 import Dot from "./Dot.jsx";
 import { softenColor } from "./WeekRecap.jsx";
 
+/* The only fields any section on this page can edit. Used by isDirty so
+   the comparison doesn't have to stringify workSessions/taskHistory/etc.
+   Keep this in sync with the form controls below — if a new field is
+   added to a section, list it here. */
+function pickEditableFields(c) {
+  return {
+    title: c.title,
+    phase: c.phase,
+    startDate: c.startDate,
+    deadlineDate: c.deadlineDate,
+    projects: c.projects,
+    defaultNewTaskProjectId: c.defaultNewTaskProjectId,
+    pomodoroSettings: c.pomodoro?.settings,
+  };
+}
+
 /* Inline SVG grip handle — used as the drag affordance on project
    rows. 6 dots in a 2×3 grid, sized to read as "drag here" without
    competing with the row's content. */
@@ -77,8 +93,15 @@ export default function SettingsPage() {
     setDraft((d) => ({ ...d, ...patch }));
   }
 
+  // Dirty check stringifies ONLY the editable surface, not the full content
+  // document. Stringifying the whole content (workSessions, taskHistory,
+  // pomodoroHistory — easily 500KB+) on every keystroke was burning frames
+  // while typing in any field. /settings only edits a handful of fields, so
+  // we just compare those.
   const isDirty = useMemo(() => {
-    return JSON.stringify(snapshot) !== JSON.stringify(draft);
+    const editableSnap = pickEditableFields(snapshot);
+    const editableDraft = pickEditableFields(draft);
+    return JSON.stringify(editableSnap) !== JSON.stringify(editableDraft);
   }, [snapshot, draft]);
 
   function handleSave() {
