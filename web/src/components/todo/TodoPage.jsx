@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   PRIORITY_LEVELS,
   TODO_SIDEBAR_SECTIONS,
@@ -46,6 +47,7 @@ import TimerBar from "./TimerBar.jsx";
 import FocusMode from "./FocusMode.jsx";
 
 export default function TodoPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [status, setStatus] = useState("");
   const taskState = useTasks(setStatus);
   const {
@@ -114,10 +116,11 @@ export default function TodoPage() {
   const handleCloseDrawer = useCallback(() => setDrawerOpen(false), []);
   const handleExitFocus = useCallback(() => {
     setFocusMode(false);
-    if (window.location.search.includes("focus=1")) {
-      window.history.replaceState({}, "", "/todo");
-    }
-  }, []);
+    // Clear ?focus=1 (and any other params) from the URL so the address
+    // bar reflects the actual page state. Using replace: true so we don't
+    // pollute the history stack with an extra "exited focus" entry.
+    setSearchParams({}, { replace: true });
+  }, [setSearchParams]);
 
   function handleRemoveTaskFull(taskId) {
     handleRemoveTask(taskId);
@@ -153,11 +156,11 @@ export default function TodoPage() {
     return () => mq.removeEventListener("change", handle);
   }, []);
 
-  // Auto-open focus mode from ?focus=1 query (TopNav Focus link)
+  // Auto-open focus mode from ?focus=1 query (TopNav Focus link, dashboard
+  // Focus button, sidebar Focus link all use this same handoff).
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("focus") === "1") setFocusMode(true);
-  }, []);
+    if (searchParams.get("focus") === "1") setFocusMode(true);
+  }, [searchParams]);
 
   // Sync the task's work timer with the pomodoro state.
   // Merged-timer model: work timer runs only when pomodoro is in focus mode AND
@@ -180,22 +183,24 @@ export default function TodoPage() {
     }
   }, [pomodoroRun.mode, pomodoroRun.status, pomodoroRun.taskId, tasks, handleTaskAction]);
 
-  // Auto-assign task to pomodoro from ?taskId= query (set by dashboard Focus button)
+  // Auto-assign task to pomodoro from ?taskId= query (set by dashboard
+  // Focus button). Once we've consumed it, drop the param from the URL so
+  // a reload doesn't re-trigger. ?focus=1 is preserved so we stay in
+  // focus mode after the taskId handoff completes.
   const taskIdAssignedRef = useRef(false);
   useEffect(() => {
     if (taskIdAssignedRef.current || tasks.length === 0) return;
-    const params = new URLSearchParams(window.location.search);
-    const taskIdParam = params.get("taskId");
+    const taskIdParam = searchParams.get("taskId");
     if (taskIdParam && tasks.some((t) => t.id === taskIdParam && !t.done)) {
       assignPomodoroTask(taskIdParam);
     }
     taskIdAssignedRef.current = true;
     if (taskIdParam) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("taskId");
-      window.history.replaceState({}, "", url.pathname + url.search);
+      const next = new URLSearchParams(searchParams);
+      next.delete("taskId");
+      setSearchParams(next, { replace: true });
     }
-  }, [tasks, assignPomodoroTask]);
+  }, [tasks, assignPomodoroTask, searchParams, setSearchParams]);
 
   const drawerProps = {
     task: selectedTask,

@@ -12,6 +12,7 @@
        past the desktop breakpoint. */
 
 import { useEffect, useState } from "react";
+import { Link as RouterLink, useLocation } from "react-router-dom";
 
 /* Stroke-based icon set matching the /home rail icon family
    (1.8px strokes, 16×16 viewBox, currentColor). Each link in the
@@ -90,16 +91,16 @@ function isActiveLink(href, path, isFocusActive) {
   return path === href;
 }
 
-function Link({ href, label, icon, active, onNavigate }) {
+function NavLink({ href, label, icon, active, onNavigate }) {
   return (
-    <a
-      href={href}
+    <RouterLink
+      to={href}
       className={active ? "side-nav-link is-active" : "side-nav-link"}
       onClick={onNavigate}
     >
       {icon && <span className="side-nav-link-icon" aria-hidden="true">{icon}</span>}
       <span className="side-nav-link-label">{label}</span>
-    </a>
+    </RouterLink>
   );
 }
 
@@ -146,9 +147,10 @@ function CloseIcon() {
 }
 
 export default function SideNav() {
-  const path = window.location.pathname;
+  const location = useLocation();
+  const path = location.pathname;
   const isFocusActive =
-    path === "/todo" && window.location.search.includes("focus=1");
+    path === "/todo" && location.search.includes("focus=1");
 
   const [isOpen, setIsOpen] = useState(false);
 
@@ -238,7 +240,7 @@ export default function SideNav() {
 
         <nav className="side-nav-links side-nav-links-primary">
           {PRIMARY_LINKS.map(({ href, label, icon }) => (
-            <Link
+            <NavLink
               key={href}
               href={href}
               label={label}
@@ -251,7 +253,7 @@ export default function SideNav() {
 
         <nav className="side-nav-links side-nav-links-system">
           {SYSTEM_LINKS.map(({ href, label, icon }) => (
-            <Link
+            <NavLink
               key={href}
               href={href}
               label={label}

@@ -26,8 +26,16 @@
    the same project shows up in the same color on both pages. */
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import EmptyState from "./EmptyState.jsx";
 import { parseIsoMs } from "../utils/taskUtils.js";
+
+/* Heuristic: hrefs starting with "/" point at internal routes and get
+   the SPA <Link>; absolute URLs and anything else stay as plain <a> so
+   external chat / Claude links keep working with new-tab semantics. */
+function isInternalRoute(href) {
+  return typeof href === "string" && href.startsWith("/");
+}
 
 const MS_PER_MIN = 60 * 1000;
 const MS_PER_DAY = 24 * 60 * MS_PER_MIN;
@@ -365,14 +373,25 @@ export default function WeekRecap({
           )}
         </div>
         {href ? (
-          <a
-            href={href}
-            className="home-week-recap home-week-recap--rail"
-            aria-label={`Open ${title.toLowerCase()} breakdown in stats`}
-          >
-            {bars}
-            {emptyState}
-          </a>
+          isInternalRoute(href) ? (
+            <Link
+              to={href}
+              className="home-week-recap home-week-recap--rail"
+              aria-label={`Open ${title.toLowerCase()} breakdown in stats`}
+            >
+              {bars}
+              {emptyState}
+            </Link>
+          ) : (
+            <a
+              href={href}
+              className="home-week-recap home-week-recap--rail"
+              aria-label={`Open ${title.toLowerCase()} breakdown in stats`}
+            >
+              {bars}
+              {emptyState}
+            </a>
+          )
         ) : (
           <div className="home-week-recap home-week-recap--rail">
             {bars}
@@ -402,13 +421,23 @@ export default function WeekRecap({
         {metaContent}
       </h2>
       {href ? (
-        <a
-          href={href}
-          className="home-week-recap"
-          aria-label={`Open ${title.toLowerCase()} breakdown in stats`}
-        >
-          {inner}
-        </a>
+        isInternalRoute(href) ? (
+          <Link
+            to={href}
+            className="home-week-recap"
+            aria-label={`Open ${title.toLowerCase()} breakdown in stats`}
+          >
+            {inner}
+          </Link>
+        ) : (
+          <a
+            href={href}
+            className="home-week-recap"
+            aria-label={`Open ${title.toLowerCase()} breakdown in stats`}
+          >
+            {inner}
+          </a>
+        )
       ) : (
         <div className="home-week-recap">{inner}</div>
       )}

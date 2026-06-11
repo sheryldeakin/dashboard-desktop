@@ -1,4 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  createBrowserRouter,
+  Link,
+  Navigate,
+  Outlet,
+  RouterProvider,
+  useNavigate,
+} from "react-router-dom";
 import TopNav from "./components/TopNav.jsx";
 import SideNav from "./components/SideNav.jsx";
 import SettingsPage from "./components/SettingsPage.jsx";
@@ -14,15 +22,12 @@ import {
   secondMs,
   parseIsoMs,
   getTodayKey,
-  DEFAULT_CONTENT,
-  cloneContent,
   normalizeContentRecord,
   getProjectName,
   formatPriority,
   formatRecurrence,
   isTaskOverdue,
   taskMatchesSidebarSection,
-  persistContent,
   startTask,
   pauseTask,
   resumeTask,
@@ -30,9 +35,6 @@ import {
   completeTask,
   createHistoryEntry,
   removeLatestHistoryEntry,
-  applyDailyRollover,
-  loadContent,
-  loadAndHydratePreferredContent,
   formatDeadlineLocal,
   formatDuration,
   getLiveDurations,
@@ -41,6 +43,7 @@ import TodoPage from "./components/todo/TodoPage.jsx";
 import StatsPage from "./components/StatsPage.jsx";
 import HomePage from "./components/HomePage.jsx";
 import HistoryPage from "./components/HistoryPage.jsx";
+import { useContent } from "./contexts/ContentContext.jsx";
 
 
 function useCountdown(deadlineIso = DEADLINE_ISO, startIso = START_ISO) {
@@ -99,16 +102,11 @@ function useCountdown(deadlineIso = DEADLINE_ISO, startIso = START_ISO) {
 }
 
 function DashboardPage() {
-  // Lazy initializer reads localStorage synchronously so the first paint
-  // already shows the user's cached content, avoiding a flash of the
-  // hardcoded DEFAULT_CONTENT seed before the async remote fetch resolves.
-  // When there's no cache (incognito, cleared storage, schema-version
-  // wipe, new device), we still need *something* in state so countdown
-  // computations don't crash — we fall back to DEFAULT_CONTENT but flip
-  // `loaded=false` so the JSX renders empty placeholders instead of the
-  // seed values, then the API fetch in useEffect populates real data.
-  const [content, setContent] = useState(() => loadContent() ?? cloneContent(DEFAULT_CONTENT));
-  const [loaded, setLoaded] = useState(() => loadContent() !== null);
+  // Content lives in ContentProvider now — load + persist + rollover all
+  // happen there. We just read/mutate via updateContent for any changes
+  // that should hit the DB.
+  const { content, updateContent, loaded } = useContent();
+  const navigate = useNavigate();
   const countdown = useCountdown(content.deadlineDate, content.startDate);
   const [status, setStatus] = useState("");
 
@@ -198,55 +196,10 @@ function DashboardPage() {
         emptyMessage: "Loading…",
       };
 
-  useEffect(() => {
-    let isMounted = true;
-
-    loadAndHydratePreferredContent().then((next) => {
-      if (!isMounted) return;
-      // Only re-render when the fetched content actually differs from the
-      // already-rendered state. Without this, React paints a redundant
-      // re-render after every reload — even when the API returns byte-
-      // identical data to what we hydrated from localStorage — which
-      // shows up as a tiny visible flicker on the display.
-      setContent((prev) => {
-        try {
-          if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
-        } catch {
-          // fall through and accept next
-        }
-        return next;
-      });
-      setLoaded(true);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setContent((previous) => {
-        const { content: rolled, changed } = applyDailyRollover(previous);
-        if (changed) {
-          persistContent(rolled);
-          return rolled;
-        }
-        return previous;
-      });
-    }, 60000);
-
-    return () => window.clearInterval(id);
-  }, []);
-
-  function updateDashboardContent(updater) {
-    setContent((previous) => {
-      const next = updater(previous);
-      if (next === previous) return previous;
-      persistContent(next);
-      return next;
-    });
-  }
+  // Mutation helper — kept under its old name so the rest of DashboardPage
+  // doesn't have to change. updateContent from ContentProvider handles
+  // the persist + change-detection.
+  const updateDashboardContent = updateContent;
 
   function handleTaskAction(taskId, action) {
     const nowIso = new Date().toISOString();
@@ -325,15 +278,15 @@ function DashboardPage() {
       <section className="cs-wrap">
         <div className="cs-card">
           <div className="cs-top-links">
-            <a className="subtle-link" href="/todo">
+            <Link className="subtle-link" to="/todo">
               Todo
-            </a>
-            <a className="subtle-link" href="/history">
+            </Link>
+            <Link className="subtle-link" to="/history">
               History
-            </a>
-            <a className="subtle-link" href="/settings">
+            </Link>
+            <Link className="subtle-link" to="/settings">
               Settings
-            </a>
+            </Link>
           </div>
           <div className="cs-now-row">
             <span className="cs-now-time">{countdown.nowText}</span>
@@ -473,7 +426,7 @@ function DashboardPage() {
                               onClick={() => {
                                 // Auto-assign but don't auto-start (per UX decision):
                                 // user clicks Start in focus mode to begin both timers.
-                                window.location.href = `/todo?focus=1&taskId=${encodeURIComponent(task.id)}`;
+                                navigate(`/todo?focus=1&taskId=${encodeURIComponent(task.id)}`);
                               }}
                               aria-label="Focus"
                               title="Focus mode"
@@ -576,72 +529,60 @@ function DashboardPage() {
   );
 }
 
-export default function App() {
-  if (window.location.pathname === "/todo") {
-    return (
-      <>
-        <TopNav />
-        <TodoPage />
-      </>
-    );
-  }
-
-  // /admin folded into /settings on 2026-06-10. Existing bookmarks
-  // redirect transparently. Done here (not via Vercel rewrite) so the
-  // URL bar updates to /settings — clearer than silently serving /settings
-  // content under /admin's URL.
-  if (window.location.pathname === "/admin") {
-    window.location.replace("/settings");
-    return null;
-  }
-
-  if (window.location.pathname === "/history") {
-    return (
-      <div className="app-shell">
-        <SideNav />
-        <div className="app-shell-main">
-          <HistoryPage />
-        </div>
+/* AppShellLayout — wraps the sidebar pages (/home, /history, /stats,
+   /settings). Renders SideNav + an Outlet for the matched child route. */
+function AppShellLayout() {
+  return (
+    <div className="app-shell">
+      <SideNav />
+      <div className="app-shell-main">
+        <Outlet />
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  if (window.location.pathname === "/stats") {
-    return (
-      <div className="app-shell">
-        <SideNav />
-        <div className="app-shell-main">
-          <StatsPage />
-        </div>
-      </div>
-    );
-  }
-
-  if (window.location.pathname === "/home") {
-    return (
-      <div className="app-shell">
-        <SideNav />
-        <div className="app-shell-main">
-          <HomePage />
-        </div>
-      </div>
-    );
-  }
-
-  if (window.location.pathname === "/settings") {
-    return (
-      <div className="app-shell">
-        <SideNav />
-        <div className="app-shell-main">
-          <SettingsPage />
-        </div>
-      </div>
-    );
-  }
-
+/* TodoLayout — /todo gets the top nav, not the side nav (focus-mode
+   takes over the full viewport, sidebar would clash). */
+function TodoLayout() {
   return (
     <>
-      <DashboardPage />
+      <TopNav />
+      <Outlet />
     </>
   );
+}
+
+const router = createBrowserRouter([
+  // Legacy dashboard — the original small-monitor display. Lives at "/"
+  // with no sidebar, just its own self-contained layout.
+  { path: "/", element: <DashboardPage /> },
+
+  // /admin folded into /settings on 2026-06-10. Bookmarks still resolve
+  // transparently via the Navigate replace — the URL bar updates to
+  // /settings so the user sees where they actually landed.
+  { path: "/admin", element: <Navigate to="/settings" replace /> },
+
+  // Sidebar-shelled pages.
+  {
+    element: <AppShellLayout />,
+    children: [
+      { path: "/home", element: <HomePage /> },
+      { path: "/history", element: <HistoryPage /> },
+      { path: "/stats", element: <StatsPage /> },
+      { path: "/settings", element: <SettingsPage /> },
+    ],
+  },
+
+  // Top-nav-shelled pages.
+  {
+    element: <TodoLayout />,
+    children: [
+      { path: "/todo", element: <TodoPage /> },
+    ],
+  },
+]);
+
+export default function App() {
+  return <RouterProvider router={router} />;
 }

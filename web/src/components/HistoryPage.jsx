@@ -16,16 +16,14 @@
    Native <details>/<summary> for the per-task sessions expander — no JS
    state needed, browser-default keyboard support comes for free. */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
-  cloneContent,
-  DEFAULT_CONTENT,
   getProjectName,
   formatPriority,
   formatRecurrence,
   formatDuration,
-  loadAndHydratePreferredContent,
 } from "../utils/taskUtils.js";
+import { useContent } from "../contexts/ContentContext.jsx";
 
 import PageHeader from "./PageHeader.jsx";
 import Section from "./Section.jsx";
@@ -220,26 +218,13 @@ function PomodoroRow({ entry, projectColor, taskText }) {
 }
 
 export default function HistoryPage() {
-  const [taskHistory, setTaskHistory] = useState([]);
-  const [pomodoroHistory, setPomodoroHistory] = useState([]);
-  const [workSessions, setWorkSessions] = useState([]);
-  const [projects, setProjects] = useState(cloneContent(DEFAULT_CONTENT).projects);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    loadAndHydratePreferredContent().then((content) => {
-      if (!isMounted) return;
-      setTaskHistory(content.taskHistory || []);
-      setPomodoroHistory(content.pomodoro?.history || []);
-      setWorkSessions(content.workSessions || []);
-      setProjects(content.projects || []);
-      setLoaded(true);
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  // Content comes from ContentProvider — no per-page fetch. We pull the
+  // four slices the page reads from the central document.
+  const { content, loaded } = useContent();
+  const taskHistory = content.taskHistory || [];
+  const pomodoroHistory = content.pomodoro?.history || [];
+  const workSessions = content.workSessions || [];
+  const projects = content.projects || [];
 
   // Project id → color, with a fallback for the legacy default color.
   // Same fallback palette /home uses so colors agree across pages.

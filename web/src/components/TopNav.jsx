@@ -1,3 +1,5 @@
+import { Link, useLocation } from "react-router-dom";
+
 const NAV_LINKS = [
   { href: "/home", label: "Home" },
   { href: "/", label: "Display" },
@@ -9,8 +11,9 @@ const NAV_LINKS = [
 ];
 
 export default function TopNav() {
-  const path = window.location.pathname;
-  const isFocusActive = path === "/todo" && window.location.search.includes("focus=1");
+  const location = useLocation();
+  const path = location.pathname;
+  const isFocusActive = path === "/todo" && location.search.includes("focus=1");
 
   const isActive = (href) => {
     if (href === "/todo?focus=1") return isFocusActive;
@@ -21,13 +24,13 @@ export default function TopNav() {
   return (
     <nav className="top-nav" aria-label="Main navigation">
       {NAV_LINKS.map(({ href, label }) => (
-        <a
+        <Link
           key={href}
-          href={href}
+          to={href}
           className={isActive(href) ? "top-nav-link active" : "top-nav-link"}
         >
           {label}
-        </a>
+        </Link>
       ))}
     </nav>
   );

@@ -4,7 +4,14 @@
      md → rail hero stat (28px number) — used by CountdownCard, PeakHourCard
      lg → snapshot strip (~30px number) — used by TodaySnapshot cells
    delta shape: { sign: "up"|"down"|"neutral", label: string } | null
-   If `href` is passed the whole component renders as an <a>. */
+   If `href` is passed the whole component renders as a link — internal
+   routes use <Link>, everything else stays as <a>. */
+
+import { Link } from "react-router-dom";
+
+function isInternalRoute(href) {
+  return typeof href === "string" && href.startsWith("/");
+}
 
 export default function Stat({
   value,
@@ -31,12 +38,16 @@ export default function Stat({
   );
 
   if (href) {
+    const cls = `ui-stat ui-stat--${size} ${className}`.trim();
+    if (isInternalRoute(href)) {
+      return (
+        <Link className={cls} to={href} title={title}>
+          {content}
+        </Link>
+      );
+    }
     return (
-      <a
-        className={`ui-stat ui-stat--${size} ${className}`.trim()}
-        href={href}
-        title={title}
-      >
+      <a className={cls} href={href} title={title}>
         {content}
       </a>
     );

@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
-  loadAndHydratePreferredContent,
-  cloneContent,
-  DEFAULT_CONTENT,
   requestManualSync,
   fetchRemoteContentSnapshot,
 } from "../utils/taskUtils.js";
+import { useContent } from "../contexts/ContentContext.jsx";
 import StatGrid from "./StatGrid.jsx";
 import PageHeader from "./PageHeader.jsx";
 import Tabs from "./Tabs.jsx";
@@ -3844,13 +3843,16 @@ function StatsSkeleton() {
 }
 
 export default function StatsPage() {
-  const [content, setContent] = useState(() => cloneContent(DEFAULT_CONTENT));
-  const [loaded, setLoaded] = useState(false);
-  // Read ?tab= from URL on mount so deep-links from /home (and elsewhere)
-  // open the right tab. Valid tab ids come from TABS — invalid falls back
-  // to overview.
+  // Content comes from ContentProvider — one fetch per session, shared
+  // across all pages. setContent here is the local override used by the
+  // Sync Now flow to apply a freshly-fetched snapshot without re-running
+  // the full load path.
+  const { content, setContent, loaded } = useContent();
+  // ?tab= deep-links from /home (and elsewhere) open the right tab.
+  // Valid tab ids come from TABS — invalid falls back to overview.
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState(() => {
-    const urlTab = new URLSearchParams(window.location.search).get("tab");
+    const urlTab = searchParams.get("tab");
     return TABS.some((t) => t.id === urlTab) ? urlTab : "overview";
   });
   // syncStatus shape: { phase, message } where phase is one of:
@@ -3864,23 +3866,10 @@ export default function StatsPage() {
   // "idle" automatically a few seconds after "complete".
   const [syncStatus, setSyncStatus] = useState({ phase: "idle", message: "" });
 
-  // Reload from the API and re-render. Used by the initial mount only
-  // now — the Sync button on Today takes a richer path (trigger + poll)
-  // via syncContentWithImporter below.
-  function reloadContent() {
-    setSyncStatus({ phase: "requesting", message: "Refreshing…" });
-    loadAndHydratePreferredContent()
-      .then((c) => {
-        setContent(c);
-        setLoaded(true);
-        setSyncStatus({ phase: "idle", message: "" });
-      })
-      .catch((err) => {
-        console.error("Reload failed:", err);
-        setSyncStatus({ phase: "error", message: "Refresh failed" });
-        setTimeout(() => setSyncStatus({ phase: "idle", message: "" }), 4000);
-      });
-  }
+  // reloadContent is unused now (the Sync button on Today goes through
+  // syncContentWithImporter below, which does its own snapshot + content
+  // swap). ContentProvider handles initial load and visibility-change
+  // revalidation, so there's nothing else to wire up here.
 
   /* syncContentWithImporter()
      Full "Sync now" flow:
@@ -3937,17 +3926,6 @@ export default function StatsPage() {
       setTimeout(() => setSyncStatus({ phase: "idle", message: "" }), 5000);
     }
   }
-
-  useEffect(() => {
-    let mounted = true;
-    loadAndHydratePreferredContent().then((c) => {
-      if (mounted) {
-        setContent(c);
-        setLoaded(true);
-      }
-    });
-    return () => { mounted = false; };
-  }, []);
 
   const stats = useMemo(() => computeStats(content), [content]);
 

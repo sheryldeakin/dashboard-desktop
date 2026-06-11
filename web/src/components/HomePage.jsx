@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  loadAndHydratePreferredContent,
-  cloneContent,
-  DEFAULT_CONTENT,
   persistContent,
   normalizeContentRecord,
   newId,
@@ -12,6 +10,7 @@ import {
   removeLatestHistoryEntry,
   MAX_TASK_HISTORY_ITEMS,
 } from "../utils/taskUtils.js";
+import { useContent } from "../contexts/ContentContext.jsx";
 import EmptyState from "./EmptyState.jsx";
 import Tooltip from "./Tooltip.jsx";
 import Stat from "./Stat.jsx";
@@ -1600,14 +1599,14 @@ function Top3Editor({ dailyTop3, tasks, projects = [], onSlotChange }) {
                 />
               )}
               {linkedTask && !s.done && (
-                <a
-                  href={`/todo?focus=1&taskId=${encodeURIComponent(linkedTask.id)}`}
+                <Link
+                  to={`/todo?focus=1&taskId=${encodeURIComponent(linkedTask.id)}`}
                   className="home-top3-focus"
                   title="Open in focus mode"
                   aria-label={`Focus on "${s.text}"`}
                 >
                   Focus →
-                </a>
+                </Link>
               )}
             </li>
           );
@@ -1872,23 +1871,25 @@ function HomeSkeleton() {
 
 /* ── Page ── */
 export default function HomePage() {
-  const [content, setContent] = useState(() => cloneContent(DEFAULT_CONTENT));
-  const [loaded, setLoaded] = useState(false);
+  // Content + load handled by ContentProvider. We just consume it here
+  // and use setContent for our own debounced-save patch flow.
+  const { content, setContent, loaded } = useContent();
   const [loadedAtMs, setLoadedAtMs] = useState(Date.now());
   const pristineRef = useRef(null);
   const saveTimerRef = useRef(null);
 
+  // Mirror the loaded content into pristineRef once it's available so the
+  // patchContent merge below has a complete base to merge over.
   useEffect(() => {
-    let mounted = true;
-    loadAndHydratePreferredContent().then((c) => {
-      if (!mounted) return;
-      pristineRef.current = c;
-      setContent(c);
+    if (loaded && !pristineRef.current) {
+      pristineRef.current = content;
       setLoadedAtMs(Date.now());
-      setLoaded(true);
-    });
+    }
+  }, [loaded, content]);
+
+  // Cancel any pending debounced save on unmount.
+  useEffect(() => {
     return () => {
-      mounted = false;
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, []);

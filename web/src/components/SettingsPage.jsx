@@ -25,9 +25,8 @@ import {
   DEFAULT_CONTENT,
   cloneContent,
   normalizeContentRecord,
-  loadAndHydratePreferredContent,
-  persistContent,
 } from "../utils/taskUtils.js";
+import { useContent } from "../contexts/ContentContext.jsx";
 import PageHeader from "./PageHeader.jsx";
 import Section from "./Section.jsx";
 import Collapsible from "./Collapsible.jsx";
@@ -67,25 +66,26 @@ const GRIP_ICON = (
 );
 
 export default function SettingsPage() {
-  const [loaded, setLoaded] = useState(false);
-  // The snapshot we loaded from the API. Saved-state base; reset
-  // reverts to this. Updated on successful save.
-  const [snapshot, setSnapshot] = useState(() => cloneContent(DEFAULT_CONTENT));
-  // Working edits — start as a deep clone of the snapshot, mutated
-  // freely by the form controls until Save flushes them.
-  const [draft, setDraft] = useState(() => cloneContent(DEFAULT_CONTENT));
+  // Content from ContentProvider — single source of truth shared across
+  // pages. updateContent persists + propagates the save app-wide.
+  const { content, updateContent, loaded } = useContent();
+  // Snapshot baseline for reset. Captured from context when content first
+  // becomes ready, then refreshed on each successful save.
+  const [snapshot, setSnapshot] = useState(() => cloneContent(content));
+  // Working edits — independent draft until Save flushes them.
+  const [draft, setDraft] = useState(() => cloneContent(content));
   const [status, setStatus] = useState({ phase: "idle", message: "" });
+  const initializedRef = useRef(false);
 
+  // Hydrate snapshot + draft once ContentProvider's initial load resolves.
+  // Runs exactly once per mount; subsequent context updates from other
+  // pages don't blow away the user's pending edits.
   useEffect(() => {
-    let mounted = true;
-    loadAndHydratePreferredContent().then((c) => {
-      if (!mounted) return;
-      setSnapshot(c);
-      setDraft(cloneContent(c));
-      setLoaded(true);
-    });
-    return () => { mounted = false; };
-  }, []);
+    if (!loaded || initializedRef.current) return;
+    setSnapshot(cloneContent(content));
+    setDraft(cloneContent(content));
+    initializedRef.current = true;
+  }, [loaded, content]);
 
   // Generic field setter — patches the draft. All form controls go
   // through this so save/reset/dirty-check is unified.
@@ -108,7 +108,10 @@ export default function SettingsPage() {
     setStatus({ phase: "saving", message: "Saving…" });
     try {
       const normalized = normalizeContentRecord(draft);
-      persistContent(normalized);
+      // updateContent propagates the save through ContentProvider so /home,
+      // /todo, /stats etc all see the new projects/dates/pomodoro settings
+      // without a page reload.
+      updateContent(() => normalized);
       setSnapshot(normalized);
       setDraft(cloneContent(normalized));
       setStatus({ phase: "saved", message: "Saved" });
