@@ -278,21 +278,41 @@ export default function TodoPage() {
   }, [tasks, assignPomodoroTask, searchParams, setSearchParams]);
 
   // Detail-panel deep-link: ?taskId=X without ?focus=1 means "open this
-  // task's detail panel." Restore from URL after tasks have actually
-  // loaded (waiting on tasks.length > 0). If we restored on mount with
-  // an empty task list, useTasks's validity-check effect (line ~130)
-  // would immediately overwrite selectedTaskId back to tasks[0] when
-  // tasks resolve — clobbering the deep-link. Gating on tasks ensures
-  // the restore is the LAST setState in that wave.
+  // task's detail panel." Restore from URL once we have the REAL task
+  // for it — not just any non-empty task list.
+  //
+  // Gotcha: useTasks momentarily holds DEFAULT_CONTENT (task-default-1)
+  // when localStorage is empty and the API fetch is in flight. If we
+  // claim "restored" off that intermediate state — when the URL task
+  // doesn't exist yet — we'd lock the ref guard before the real tasks
+  // arrive, and the deep-link gets clobbered. Instead: only set the
+  // ref AFTER successfully matching the URL task in the loaded set, OR
+  // after confirming there's nothing to restore (?taskId missing or
+  // owned by focus=1).
   const taskIdRestoredRef = useRef(false);
   useEffect(() => {
     if (taskIdRestoredRef.current) return;
-    if (tasks.length === 0) return; // wait for tasks to load
-    taskIdRestoredRef.current = true;
-    if (searchParams.get("focus") === "1") return; // focus handoff path
+    if (tasks.length === 0) return; // wait for any tasks
+
+    // Focus handoff owns ?taskId on its own path; nothing to do here.
+    if (searchParams.get("focus") === "1") {
+      taskIdRestoredRef.current = true;
+      return;
+    }
+
     const urlTaskId = searchParams.get("taskId");
-    if (urlTaskId && tasks.some((t) => t.id === urlTaskId)) {
+    if (!urlTaskId) {
+      taskIdRestoredRef.current = true;
+      return;
+    }
+
+    // Only claim restored once the deep-linked task actually exists in
+    // the current task set. If it doesn't (we're still on default seed
+    // content), bail without setting the ref — the effect re-fires when
+    // tasks updates and we get another shot.
+    if (tasks.some((t) => t.id === urlTaskId)) {
       setSelectedTaskId(urlTaskId);
+      taskIdRestoredRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
