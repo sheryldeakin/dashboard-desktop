@@ -1395,6 +1395,7 @@ export async function loadAndHydratePreferredContent() {
       saveRemoteContent(local).catch((error) => {
         console.error("Failed to seed database:", error);
       });
+      dispatchApiStatus(true);
       return local;
     }
 
@@ -1412,6 +1413,7 @@ export async function loadAndHydratePreferredContent() {
           console.error("Failed to save rollover to database:", error);
         });
       }
+      dispatchApiStatus(true);
       return rolledRemote;
     }
 
@@ -1441,6 +1443,7 @@ export async function loadAndHydratePreferredContent() {
       saveRemoteContent(merged).catch((error) => {
         console.error("Failed to push merged content to database:", error);
       });
+      dispatchApiStatus(true);
       return merged;
     }
 
@@ -1453,10 +1456,34 @@ export async function loadAndHydratePreferredContent() {
       });
     }
 
+    dispatchApiStatus(true);
     return rolledRemote;
   } catch (error) {
     console.error("Database unreachable, using local cache:", error);
+    dispatchApiStatus(false, error);
     return local;
+  }
+}
+
+/* dispatchApiStatus — broadcasts a window event whenever loadAndHydrate
+   touches the API. Listeners (ContentProvider) flip the apiOnline state
+   based on this. We can't just have the caller catch a rejection because
+   loadAndHydratePreferredContent intentionally swallows fetch errors to
+   return the local cache as a fallback. Event signaling lets us preserve
+   that resilient return value AND tell the UI when the network is dead.
+
+   Safe to call at module load — no-op if window/event support missing
+   (SSR or older runtimes). */
+function dispatchApiStatus(online, error) {
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent("dashboard:api-status", {
+        detail: { online, error: error?.message },
+      }),
+    );
+  } catch {
+    // older browsers that lack CustomEvent — silently skip
   }
 }
 

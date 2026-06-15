@@ -78,6 +78,11 @@ export function ContentProvider({ children }) {
   }, []);
 
   // Initial load: same flow each page used to do on its own.
+  // Note: loadAndHydratePreferredContent swallows fetch errors and
+  // returns the local cache, so the .catch() here only fires for
+  // truly catastrophic failures (parser blowups etc). The real
+  // online/offline signal comes from the "dashboard:api-status"
+  // event below, which the function emits on every load attempt.
   useEffect(() => {
     let mounted = true;
     loadAndHydratePreferredContent()
@@ -86,17 +91,27 @@ export function ContentProvider({ children }) {
         contentRef.current = c;
         setContentState(c);
         setLoaded(true);
-        setApiOnline(true);
       })
       .catch((err) => {
         if (!mounted) return;
         console.warn("Initial content load failed:", err?.message);
-        setApiOnline(false);
-        // Still mark loaded so the UI doesn't sit on a skeleton
-        // forever; we fall back to whatever's in localStorage cache.
         setLoaded(true);
       });
     return () => { mounted = false; };
+  }, []);
+
+  // Listen to API status events emitted by loadAndHydratePreferredContent.
+  // This is the canonical source of truth for apiOnline — the function's
+  // own try/catch swallows fetch errors before they reach our .then/.catch
+  // (so the local cache can still be used as a fallback), so we can only
+  // observe failure via the event channel.
+  useEffect(() => {
+    function onStatus(event) {
+      const online = !!event?.detail?.online;
+      setApiOnline((prev) => (prev === online ? prev : online));
+    }
+    window.addEventListener("dashboard:api-status", onStatus);
+    return () => window.removeEventListener("dashboard:api-status", onStatus);
   }, []);
 
   // Daily rollover heartbeat — moved from the legacy DashboardPage so
@@ -118,30 +133,23 @@ export function ContentProvider({ children }) {
   }, []);
 
   // Visibility-change refresh: when the tab becomes active again, pull
-  // the latest. Lightweight stale-while-revalidate. Also flips
-  // apiOnline depending on whether the refresh succeeded — so the
-  // offline badge clears once connectivity returns + a tab focus
-  // triggers the next fetch.
+  // the latest. Lightweight stale-while-revalidate. apiOnline status is
+  // tracked via the "dashboard:api-status" event handler above, which
+  // fires regardless of which load path triggered the fetch.
   useEffect(() => {
     function onVisibilityChange() {
       if (document.visibilityState !== "visible") return;
-      loadAndHydratePreferredContent()
-        .then((c) => {
-          setApiOnline(true);
-          // Only re-render if something actually differs — avoids a full
-          // re-render every time the user alt-tabs.
-          try {
-            if (JSON.stringify(contentRef.current) === JSON.stringify(c)) return;
-          } catch {
-            // fall through and accept the new content
-          }
-          contentRef.current = c;
-          setContentState(c);
-        })
-        .catch((err) => {
-          console.warn("Visibility-change refresh failed:", err?.message);
-          setApiOnline(false);
-        });
+      loadAndHydratePreferredContent().then((c) => {
+        // Only re-render if something actually differs — avoids a full
+        // re-render every time the user alt-tabs.
+        try {
+          if (JSON.stringify(contentRef.current) === JSON.stringify(c)) return;
+        } catch {
+          // fall through and accept the new content
+        }
+        contentRef.current = c;
+        setContentState(c);
+      });
     }
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -149,17 +157,13 @@ export function ContentProvider({ children }) {
 
   // Manual refresh — used by the /stats Sync Now flow which needs to
   // know exactly when fresh content has landed. Returns the fetched doc.
+  // The api-status event fires inside loadAndHydratePreferredContent on
+  // both success and failure, so apiOnline tracks correctly either way.
   const reloadContent = useCallback(async () => {
-    try {
-      const c = await loadAndHydratePreferredContent();
-      contentRef.current = c;
-      setContentState(c);
-      setApiOnline(true);
-      return c;
-    } catch (err) {
-      setApiOnline(false);
-      throw err;
-    }
+    const c = await loadAndHydratePreferredContent();
+    contentRef.current = c;
+    setContentState(c);
+    return c;
   }, []);
 
   // Memoize the context value so consumers only re-render when content or
