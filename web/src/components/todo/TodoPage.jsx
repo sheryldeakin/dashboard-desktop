@@ -310,9 +310,25 @@ export default function TodoPage() {
     // the current task set. If it doesn't (we're still on default seed
     // content), bail without setting the ref — the effect re-fires when
     // tasks updates and we get another shot.
-    if (tasks.some((t) => t.id === urlTaskId)) {
+    const task = tasks.find((t) => t.id === urlTaskId);
+    if (task) {
       setSelectedTaskId(urlTaskId);
       taskIdRestoredRef.current = true;
+
+      // Cross-section deep-link: if the task isn't going to appear in
+      // the default Today section's visibleTasks (it's done, or not in
+      // today's queue), the visibility-check effect in useTasks would
+      // immediately swap selectedTaskId to the first visible task.
+      // Pre-empt that by auto-switching to a section the task IS in:
+      // "done" for completed tasks, "all" otherwise. Skip if the URL
+      // already has an explicit ?section= choice.
+      if (!searchParams.get("section")) {
+        if (task.done) {
+          handleSelectSidebarSectionWithUrl("done");
+        } else if (!task.inTodayQueue) {
+          handleSelectSidebarSectionWithUrl("all");
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);

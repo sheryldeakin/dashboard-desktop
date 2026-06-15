@@ -1008,38 +1008,49 @@ function getApiUrl(path) {
 async function fetchRemoteContent() {
   if (!API_BASE_URL) return null;
 
-  const response = await fetch(getApiUrl("/api/content"));
-  if (!response.ok) {
-    throw new Error(`Failed to fetch content (${response.status})`);
+  try {
+    const response = await fetch(getApiUrl("/api/content"));
+    if (!response.ok) {
+      throw new Error(`Failed to fetch content (${response.status})`);
+    }
+    const payload = await response.json();
+    dispatchApiStatus(true);
+    if (!payload || typeof payload !== "object") return null;
+    return payload.content ?? null;
+  } catch (error) {
+    dispatchApiStatus(false, error);
+    throw error;
   }
-
-  const payload = await response.json();
-  if (!payload || typeof payload !== "object") return null;
-  return payload.content ?? null;
 }
 
 async function saveRemoteContent(nextContent) {
   if (!API_BASE_URL) return;
 
   const pushSerial = saveSerial;
-  const response = await fetch(getApiUrl("/api/content"), {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(nextContent),
-  });
+  try {
+    const response = await fetch(getApiUrl("/api/content"), {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(nextContent),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to save content (${response.status})`);
-  }
+    if (!response.ok) {
+      throw new Error(`Failed to save content (${response.status})`);
+    }
 
-  // Record successful sync. Only clear the dirty flag if no further saveContent
-  // landed during the push — otherwise we'd drop a legitimate dirty mark for an
-  // in-flight edit that hasn't been pushed yet.
-  try { window.localStorage.setItem(LAST_SYNCED_KEY, new Date().toISOString()); } catch {}
-  if (pushSerial === saveSerial) {
-    try { window.localStorage.removeItem(DIRTY_KEY); } catch {}
+    // Record successful sync. Only clear the dirty flag if no further saveContent
+    // landed during the push — otherwise we'd drop a legitimate dirty mark for an
+    // in-flight edit that hasn't been pushed yet.
+    try { window.localStorage.setItem(LAST_SYNCED_KEY, new Date().toISOString()); } catch {}
+    if (pushSerial === saveSerial) {
+      try { window.localStorage.removeItem(DIRTY_KEY); } catch {}
+    }
+    dispatchApiStatus(true);
+  } catch (error) {
+    dispatchApiStatus(false, error);
+    throw error;
   }
 }
 
@@ -1062,15 +1073,21 @@ export async function requestManualSync(triggerKey, currentContent) {
       [triggerKey]: triggerIso,
     },
   });
-  const response = await fetch(getApiUrl("/api/content"), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to request sync (${response.status})`);
+  try {
+    const response = await fetch(getApiUrl("/api/content"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to request sync (${response.status})`);
+    }
+    dispatchApiStatus(true);
+    return triggerIso;
+  } catch (error) {
+    dispatchApiStatus(false, error);
+    throw error;
   }
-  return triggerIso;
 }
 
 /* fetchRemoteContentSnapshot()
