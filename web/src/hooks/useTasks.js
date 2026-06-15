@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   SCHEMA_VERSION,
   DEFAULT_PROJECT,
@@ -13,8 +13,6 @@ import {
   parseTagInput,
   normalizeTaskRecord,
   normalizeContentRecord,
-  DEFAULT_CONTENT,
-  cloneContent,
   getProjectName,
   formatPriority,
   formatRecurrence,
@@ -26,21 +24,128 @@ import {
   completeTask,
   createHistoryEntry,
   removeLatestHistoryEntry,
-  loadAndHydratePreferredContent,
   getTaskSearchIndex,
   compareTasksBySort,
 } from "../utils/taskUtils.js";
+import { useContent } from "../contexts/ContentContext.jsx";
+
+/* useTasks — task page state + handlers.
+
+   Content (tasks, projects, pomodoro, taskHistory, phase,
+   todaysTasksDate) is no longer owned here. It comes from
+   ContentProvider via useContent(). The hook keeps a thin layer of
+   wrapped setters that update the shared content state through
+   setContent for immediate UI + debounced persistContent for backend
+   saves, so the external API the TodoPage consumes (setTasks,
+   setProjects, ...) stays the same while the per-page fetch goes away.
+
+   UI-only state (filters, drag, selectedTaskId, etc) stays local. */
+
+const SAVE_DEBOUNCE_MS = 500;
 
 export function useTasks(setStatus) {
-  const fallback = cloneContent(DEFAULT_CONTENT);
-  const [phase, setPhase] = useState(fallback.phase);
-  const [projects, setProjects] = useState(fallback.projects);
-  const [tasks, setTasks] = useState(fallback.todaysTasks);
-  const [taskHistory, setTaskHistory] = useState(fallback.taskHistory);
-  const [pomodoro, setPomodoro] = useState(fallback.pomodoro);
-  const [todaysTasksDate, setTodaysTasksDate] = useState(getTodayKey());
-  const [selectedTaskId, setSelectedTaskId] = useState("");
+  const { content, setContent, updateContent } = useContent();
 
+  // Content slices, derived from the shared document. Reading these on
+  // every render is cheap and ensures cross-page updates (e.g., /settings
+  // adding a project) are reflected immediately on /todo.
+  const phase = content.phase;
+  const projects = content.projects;
+  const tasks = content.todaysTasks;
+  const taskHistory = content.taskHistory;
+  const pomodoro = content.pomodoro;
+  const todaysTasksDate = content.todaysTasksDate;
+
+  // Debounced save plumbing. Track the LATEST content via a ref kept in
+  // sync with the provider's content state. When the debounce timer
+  // fires, we read the latest content rather than a captured snapshot,
+  // so if another tab/page updated content between scheduleSave and
+  // the timer firing (e.g., visibility-change refresh pulled remote
+  // edits), the PUT carries the merged result instead of overwriting
+  // with stale data.
+  const latestContentRef = useRef(content);
+  const saveTimerRef = useRef(null);
+
+  useEffect(() => {
+    latestContentRef.current = content;
+  }, [content]);
+
+  const scheduleSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      persistContent(latestContentRef.current);
+    }, SAVE_DEBOUNCE_MS);
+  }, []);
+
+  // Flush any pending save on unmount so leaving /todo doesn't strand
+  // an edit in the debounce timer.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        // Latest content already reflects any pending edit (setContent
+        // was synchronous), so persistContent here flushes the right
+        // thing.
+        persistContent(latestContentRef.current);
+      }
+    };
+  }, []);
+
+  /* Build setters that mirror useState's API (accept value or
+     prev=>next function) but update the shared content document. Each
+     setter:
+       1. Computes the next content via setContent's updater (so we see
+          the latest provider state, not a closure-captured snapshot).
+       2. Schedules a debounced persist with that new content.
+
+     The handlers below (handleAddTask, handleTaskDone, etc.) all call
+     these setters — no internal-code changes needed beyond the
+     replacement of the local useState pairs. */
+  function makeSliceSetter(key) {
+    return (next) => {
+      setContent((prev) => {
+        const current = prev[key];
+        const newValue = typeof next === "function" ? next(current) : next;
+        if (newValue === current) return prev;
+        const updated = { ...prev, [key]: newValue };
+        // Eager localStorage write so the edit survives navigation /
+        // refresh even if the debounced PUT hasn't fired yet.
+        saveContent(updated);
+        scheduleSave();
+        return updated;
+      });
+    };
+  }
+
+  /* Multi-slice updater for handlers that need to mutate two or more
+     slices atomically (e.g., completing a task also writes a history
+     entry). The naive pattern would call setTasks inside a setTasks
+     updater, but with all slices funneled through one provider state,
+     a nested setContent call inside an outer setContent body loses the
+     inner write — the outer's "contentRef = value" assignment overwrites
+     the inner's. applyContent gives a single updater(prev) that returns
+     the full new content; we commit it once. */
+  const applyContent = useCallback((updater) => {
+    setContent((prev) => {
+      const updated = updater(prev);
+      if (updated === prev) return prev;
+      saveContent(updated);
+      scheduleSave();
+      return updated;
+    });
+  }, [setContent, scheduleSave]);
+
+  const setPhase = useCallback(makeSliceSetter("phase"), [setContent, scheduleSave]);
+  const setProjects = useCallback(makeSliceSetter("projects"), [setContent, scheduleSave]);
+  const setTasks = useCallback(makeSliceSetter("todaysTasks"), [setContent, scheduleSave]);
+  const setTaskHistory = useCallback(makeSliceSetter("taskHistory"), [setContent, scheduleSave]);
+  const setPomodoro = useCallback(makeSliceSetter("pomodoro"), [setContent, scheduleSave]);
+  const setTodaysTasksDate = useCallback(makeSliceSetter("todaysTasksDate"), [setContent, scheduleSave]);
+
+  // UI-only state — stays local since it's per-page chrome, not data.
+  const [selectedTaskId, setSelectedTaskId] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSectionId, setActiveSectionId] = useState("today");
   const [filterProjectId, setFilterProjectId] = useState("all");
@@ -54,66 +159,6 @@ export function useTasks(setStatus) {
   const [dragOverProjectId, setDragOverProjectId] = useState("");
 
   const defaultProjectId = projects[0]?.id || DEFAULT_PROJECT.id;
-
-  const isHydrated = useRef(false);
-  const saveTimerRef = useRef(null);
-  // pristineRef holds the full last-known server content so save paths can
-  // spread it as a base and only override the fields useTasks owns. Without
-  // this, constructing a save body from useTasks's state alone silently drops
-  // any top-level field useTasks doesn't track (workSessions today, future
-  // additions tomorrow) — which is how 436 workSessions got wiped over time.
-  const pristineRef = useRef(null);
-
-  // Load content on mount
-  useEffect(() => {
-    let isMounted = true;
-
-    loadAndHydratePreferredContent().then((saved) => {
-      if (!isMounted) return;
-      pristineRef.current = saved;
-      setPhase(saved.phase);
-      setProjects(saved.projects);
-      setTasks(saved.todaysTasks);
-      setTaskHistory(saved.taskHistory);
-      setPomodoro(saved.pomodoro);
-      setTodaysTasksDate(saved.todaysTasksDate);
-      setSelectedTaskId(saved.todaysTasks[0]?.id || "");
-      // Mark hydration complete after React batches these state updates
-      setTimeout(() => { isHydrated.current = true; }, 0);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // Auto-save: localStorage immediately, database debounced
-  useEffect(() => {
-    if (!isHydrated.current) return;
-    const content = normalizeContentRecord({
-      ...(pristineRef.current || {}),
-      schemaVersion: SCHEMA_VERSION,
-      phase,
-      projects,
-      todaysTasks: tasks,
-      todaysTasksDate,
-      taskHistory,
-      pomodoro,
-    });
-    // Keep ref in sync with what we're about to write so subsequent saves
-    // build on this state rather than the stale initial-load snapshot.
-    pristineRef.current = content;
-    // localStorage is synchronous — survives page refresh/navigation
-    saveContent(content);
-    // Debounce API call to avoid flooding during rapid edits
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      persistContent(content);
-    }, 500);
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    };
-  }, [tasks, taskHistory, phase, projects, pomodoro, todaysTasksDate]);
 
   // Re-render at midnight so overdue status updates
   const [dayKey, setDayKey] = useState(getTodayKey);
@@ -174,24 +219,24 @@ export function useTasks(setStatus) {
     }
   }, [visibleTasks, selectedTaskId]);
 
+  /* Immediate persist path — used by the explicit "Save" button and the
+     project add/remove flows where we want a synchronous round-trip
+     rather than the debounced autosave. Cancels any pending debounce
+     so we don't double-PUT, then routes through updateContent which
+     does both setState (provider) and persist (localStorage + remote)
+     in one call. */
   function normalizeAndPersist(next) {
-    // Spread the last-known full content first so unowned fields (workSessions
-    // etc.) survive the save round-trip.
-    const normalized = normalizeContentRecord({
-      ...(pristineRef.current || {}),
-      ...next,
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    let result = null;
+    updateContent((prev) => {
+      const normalized = normalizeContentRecord({ ...prev, ...next });
+      result = normalized;
+      return normalized;
     });
-    pristineRef.current = normalized;
-    persistContent(normalized);
-    // Cancel pending auto-save — we just persisted
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    setPhase(normalized.phase);
-    setProjects(normalized.projects);
-    setTasks(normalized.todaysTasks);
-    setTaskHistory(normalized.taskHistory);
-    setPomodoro(normalized.pomodoro);
-    setTodaysTasksDate(normalized.todaysTasksDate);
-    return normalized;
+    return result;
   }
 
   function handleSave(event) {
@@ -302,10 +347,13 @@ export function useTasks(setStatus) {
     const nowMs = parseIsoMs(nowIso) ?? Date.now();
     const todayKey = getTodayKey(new Date(nowIso));
 
-    setTasks((previous) => {
+    // Atomic: tasks + taskHistory both mutate together. Using applyContent
+    // (rather than nested setTasks/setTaskHistory calls) so both writes
+    // land in a single provider commit.
+    applyContent((prev) => {
       let completedTask = null;
       let recurringTask = null;
-      const nextTasks = previous.map((task) => {
+      const nextTasks = prev.todaysTasks.map((task) => {
         if (task.id !== taskId) return task;
 
         if (checked) {
@@ -332,20 +380,24 @@ export function useTasks(setStatus) {
         };
       });
 
+      let nextHistory = prev.taskHistory;
       if (checked && completedTask) {
-        setTaskHistory((previousHistory) =>
-          [createHistoryEntry(completedTask, nowIso, todayKey), ...previousHistory].slice(0, MAX_TASK_HISTORY_ITEMS)
-        );
+        nextHistory = [createHistoryEntry(completedTask, nowIso, todayKey), ...prev.taskHistory]
+          .slice(0, MAX_TASK_HISTORY_ITEMS);
       } else if (!checked) {
-        setTaskHistory((previousHistory) => removeLatestHistoryEntry(previousHistory, taskId));
+        nextHistory = removeLatestHistoryEntry(prev.taskHistory, taskId);
       }
 
-      if (!recurringTask) return nextTasks;
-      const recurringKey = `${recurringTask.recurrenceSeedId || recurringTask.id}::${recurringTask.dueDate || ""}`;
-      const exists = nextTasks.some(
-        (task) => `${task.recurrenceSeedId || task.id}::${task.dueDate || ""}` === recurringKey && !task.done
-      );
-      return exists ? nextTasks : [...nextTasks, recurringTask];
+      let finalTasks = nextTasks;
+      if (recurringTask) {
+        const recurringKey = `${recurringTask.recurrenceSeedId || recurringTask.id}::${recurringTask.dueDate || ""}`;
+        const exists = nextTasks.some(
+          (task) => `${task.recurrenceSeedId || task.id}::${task.dueDate || ""}` === recurringKey && !task.done
+        );
+        if (!exists) finalTasks = [...nextTasks, recurringTask];
+      }
+
+      return { ...prev, todaysTasks: finalTasks, taskHistory: nextHistory };
     });
 
     setStatus("");
@@ -384,17 +436,20 @@ export function useTasks(setStatus) {
     const nowIso = new Date().toISOString();
     const nowMs = parseIsoMs(nowIso) ?? Date.now();
     const day = getTodayKey(new Date(nowIso));
-    const completedEntries = [];
 
-    setTasks((previous) =>
-      previous.map((task) => {
+    // Tasks + history both mutate — single applyContent so the writes
+    // commit atomically.
+    applyContent((prev) => {
+      const completedEntries = [];
+      const nextTasks = prev.todaysTasks.map((task) => {
         if (!ids.has(task.id)) return task;
         const completed = completeTask(task, nowIso, nowMs);
         completedEntries.push(createHistoryEntry(completed, nowIso, day));
         return completed;
-      })
-    );
-    setTaskHistory((previous) => [...completedEntries, ...previous].slice(0, MAX_TASK_HISTORY_ITEMS));
+      });
+      const nextHistory = [...completedEntries, ...prev.taskHistory].slice(0, MAX_TASK_HISTORY_ITEMS);
+      return { ...prev, todaysTasks: nextTasks, taskHistory: nextHistory };
+    });
     setStatus("");
   }
 
