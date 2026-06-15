@@ -6,3 +6,16 @@ dist/
 .env.local
 .env.*.local
 .claude/
+
+# Playwright MCP artifacts — generated whenever Claude drives the browser
+# for verification. Snapshot YAMLs, console logs, screenshots, traces. Not
+# meaningful to commit; kept around only for the in-session debugging the
+# tool itself uses.
+.playwright-mcp/
+playwright-report/
+test-results/
+# Screenshots Claude saves at the repo root via browser_take_screenshot.
+# verify-*.png matches the naming convention I've been using; broaden if
+# we adopt other prefixes.
+verify-*.png
+verify-*.jpeg
