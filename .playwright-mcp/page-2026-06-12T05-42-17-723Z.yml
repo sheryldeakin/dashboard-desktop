@@ -1,0 +1,1267 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - navigation "Main navigation" [ref=e3]:
+      - link "Home" [ref=e4] [cursor=pointer]:
+        - /url: /home
+      - link "Display" [ref=e5] [cursor=pointer]:
+        - /url: /
+      - link "Tasks" [ref=e6] [cursor=pointer]:
+        - /url: /todo
+      - link "Focus" [ref=e7] [cursor=pointer]:
+        - /url: /todo?focus=1
+      - link "Stats" [ref=e8] [cursor=pointer]:
+        - /url: /stats
+      - link "History" [ref=e9] [cursor=pointer]:
+        - /url: /history
+      - link "Settings" [ref=e10] [cursor=pointer]:
+        - /url: /settings
+    - main [ref=e12]:
+      - generic [ref=e13]:
+        - complementary [ref=e14]:
+          - button "Collapse sidebar" [ref=e15] [cursor=pointer]: ‹
+          - navigation [ref=e16]:
+            - generic [ref=e17]: Sections
+            - list [ref=e18]:
+              - listitem [ref=e19]:
+                - button "★ Top 3 3" [ref=e20] [cursor=pointer]:
+                  - generic [ref=e21]: ★
+                  - generic [ref=e22]: Top 3
+                  - generic [ref=e23]: "3"
+              - listitem [ref=e24]:
+                - button "☀ Today 3" [ref=e25] [cursor=pointer]:
+                  - generic [ref=e26]: ☀
+                  - generic [ref=e27]: Today
+                  - generic [ref=e28]: "3"
+              - listitem [ref=e29]:
+                - button "✉ Inbox 0" [ref=e30] [cursor=pointer]:
+                  - generic [ref=e31]: ✉
+                  - generic [ref=e32]: Inbox
+                  - generic [ref=e33]: "0"
+              - listitem [ref=e34]:
+                - button "📅 Planned 36" [ref=e35] [cursor=pointer]:
+                  - generic [ref=e36]: 📅
+                  - generic [ref=e37]: Planned
+                  - generic [ref=e38]: "36"
+              - listitem [ref=e39]:
+                - button "↻ Recurring 0" [ref=e40] [cursor=pointer]:
+                  - generic [ref=e41]: ↻
+                  - generic [ref=e42]: Recurring
+                  - generic [ref=e43]: "0"
+              - listitem [ref=e44]:
+                - button "⚠ Overdue 2" [ref=e45] [cursor=pointer]:
+                  - generic [ref=e46]: ⚠
+                  - generic [ref=e47]: Overdue
+                  - generic [ref=e48]: "2"
+              - listitem [ref=e49]:
+                - button "✓ Done 7" [ref=e50] [cursor=pointer]:
+                  - generic [ref=e51]: ✓
+                  - generic [ref=e52]: Done
+                  - generic [ref=e53]: "7"
+              - listitem [ref=e54]:
+                - button "≡ All 79" [ref=e55] [cursor=pointer]:
+                  - generic [ref=e56]: ≡
+                  - generic [ref=e57]: All
+                  - generic [ref=e58]: "79"
+          - generic [ref=e59]:
+            - generic [ref=e60]: Projects
+            - list [ref=e61]:
+              - listitem [ref=e62]:
+                - generic [ref=e63]:
+                  - button "Expand Inbox" [ref=e64] [cursor=pointer]: ▸
+                  - button "Inbox 3" [ref=e65] [cursor=pointer]:
+                    - generic [ref=e67]: Inbox
+                    - generic [ref=e68]: "3"
+              - listitem [ref=e69]:
+                - generic [ref=e70]:
+                  - button "AAAI Submission 0" [ref=e72] [cursor=pointer]:
+                    - generic [ref=e74]: AAAI Submission
+                    - generic [ref=e75]: "0"
+                  - button "Remove AAAI Submission" [ref=e76] [cursor=pointer]: ×
+              - listitem [ref=e77]:
+                - generic [ref=e78]:
+                  - button "Expand Personal" [ref=e491] [cursor=pointer]: ▸
+                  - button "Personal 9" [ref=e80] [cursor=pointer]:
+                    - generic [ref=e82]: Personal
+                    - generic [ref=e83]: "9"
+                  - button "Remove Personal" [ref=e84] [cursor=pointer]: ×
+              - listitem [ref=e85]:
+                - generic [ref=e86]:
+                  - button "Expand PhD" [ref=e87] [cursor=pointer]: ▸
+                  - button "PhD 12" [ref=e88] [cursor=pointer]:
+                    - generic [ref=e90]: PhD
+                    - generic [ref=e91]: "12"
+                  - button "Remove PhD" [ref=e92] [cursor=pointer]: ×
+              - listitem [ref=e93]:
+                - generic [ref=e94]:
+                  - button "Expand Research" [ref=e95] [cursor=pointer]: ▸
+                  - button "Research 36" [ref=e96] [cursor=pointer]:
+                    - generic [ref=e98]: Research
+                    - generic [ref=e99]: "36"
+                  - button "Remove Research" [ref=e100] [cursor=pointer]: ×
+              - listitem [ref=e101]:
+                - generic [ref=e102]:
+                  - button "Expand Ventures" [ref=e103] [cursor=pointer]: ▸
+                  - button "Ventures 12" [ref=e104] [cursor=pointer]:
+                    - generic [ref=e106]: Ventures
+                    - generic [ref=e107]: "12"
+                  - button "Remove Ventures" [ref=e108] [cursor=pointer]: ×
+              - listitem [ref=e109]:
+                - generic [ref=e110]:
+                  - button "Second Brain 0" [ref=e112] [cursor=pointer]:
+                    - generic [ref=e114]: Second Brain
+                    - generic [ref=e115]: "0"
+                  - button "Remove Second Brain" [ref=e116] [cursor=pointer]: ×
+              - listitem [ref=e117]:
+                - generic [ref=e118]:
+                  - button "Sprouting Prints 0" [ref=e120] [cursor=pointer]:
+                    - generic [ref=e122]: Sprouting Prints
+                    - generic [ref=e123]: "0"
+                  - button "Remove Sprouting Prints" [ref=e124] [cursor=pointer]: ×
+              - listitem [ref=e125]:
+                - generic [ref=e126]:
+                  - button "Dashboard App 0" [ref=e128] [cursor=pointer]:
+                    - generic [ref=e130]: Dashboard App
+                    - generic [ref=e131]: "0"
+                  - button "Remove Dashboard App" [ref=e132] [cursor=pointer]: ×
+              - listitem [ref=e133]:
+                - generic [ref=e134]:
+                  - button "3D Printing 0" [ref=e136] [cursor=pointer]:
+                    - generic [ref=e138]: 3D Printing
+                    - generic [ref=e139]: "0"
+                  - button "Remove 3D Printing" [ref=e140] [cursor=pointer]: ×
+            - textbox "New project…" [ref=e142]
+        - generic [ref=e143]:
+          - generic [ref=e144]:
+            - heading "Tasks" [level=1] [ref=e146]
+            - generic [ref=e147]:
+              - generic [ref=e148]:
+                - generic [ref=e149]: "72"
+                - generic [ref=e150]: Active
+              - generic [ref=e151]:
+                - generic [ref=e152]: "7"
+                - generic [ref=e153]: Done
+              - generic [ref=e154]:
+                - generic [ref=e155]: "2"
+                - generic [ref=e156]: Overdue
+              - generic [ref=e157]:
+                - generic [ref=e158]: 2/—
+                - generic [ref=e159]: Pomodoros
+          - generic [ref=e160]:
+            - button "Hide Filters" [active] [ref=e308] [cursor=pointer]
+            - generic [ref=e309]:
+              - generic [ref=e310]:
+                - generic [ref=e311]: Search
+                - searchbox "Search" [ref=e312]
+              - generic [ref=e313]:
+                - generic [ref=e314]: Project
+                - combobox "Project" [ref=e315]:
+                  - option "All Projects" [selected]
+                  - option "Inbox"
+                  - option "AAAI Submission"
+                  - option "Personal"
+                  - option "PhD"
+                  - option "Research"
+                  - option "Ventures"
+                  - option "Second Brain"
+                  - option "Sprouting Prints"
+                  - option "Dashboard App"
+                  - option "3D Printing"
+              - generic [ref=e316]:
+                - generic [ref=e317]: Status
+                - combobox "Status" [ref=e318]:
+                  - option "All" [selected]
+                  - option "Active"
+                  - option "Done"
+                  - option "Overdue"
+              - generic [ref=e319]:
+                - generic [ref=e320]: Priority
+                - combobox "Priority" [ref=e321]:
+                  - option "All" [selected]
+                  - option "Low"
+                  - option "Medium"
+                  - option "High"
+                  - option "Urgent"
+              - generic [ref=e322]:
+                - generic [ref=e323]: Sort
+                - combobox "Sort" [ref=e324]:
+                  - option "Manual" [selected]
+                  - option "Priority"
+                  - option "Due Date"
+                  - option "Updated"
+                  - option "A-Z"
+              - generic [ref=e325]:
+                - button "Mark Done" [ref=e326] [cursor=pointer]
+                - button "Clear Done" [ref=e327] [cursor=pointer]
+                - button "Reset" [ref=e328] [cursor=pointer]
+          - generic [ref=e162]:
+            - generic [ref=e163]:
+              - generic [ref=e164]: +
+              - textbox "Add a task…" [ref=e165]
+            - generic [ref=e166]:
+              - generic [ref=e167]: Top 3
+              - generic [ref=e168]: 79/79
+            - list [ref=e169]:
+              - listitem [ref=e492]:
+                - button "Drag to reorder" [ref=e493]
+                - checkbox [checked] [ref=e495] [cursor=pointer]
+                - button "Continue Obsidian + Claude setup (audit templates, capture practice) 21h 26m 39s" [ref=e496] [cursor=pointer]:
+                  - generic [ref=e497]:
+                    - generic [ref=e498]: Continue Obsidian + Claude setup (audit templates, capture practice)
+                    - generic [ref=e500]: 21h 26m 39s
+              - listitem [ref=e501]:
+                - button "Drag to reorder" [ref=e502]
+                - checkbox [checked] [ref=e504] [cursor=pointer]
+                - button "Try to convert tritower more into utilizing this second brain more" [ref=e505] [cursor=pointer]:
+                  - generic [ref=e507]: Try to convert tritower more into utilizing this second brain more
+              - listitem [ref=e508]:
+                - button "Drag to reorder" [ref=e509]
+                - checkbox [checked] [ref=e511] [cursor=pointer]
+                - button "Research about AAAI 2027 timelines and have the write up for it and plan for tritower" [ref=e512] [cursor=pointer]:
+                  - generic [ref=e514]: Research about AAAI 2027 timelines and have the write up for it and plan for tritower
+              - listitem [ref=e515]:
+                - button "Drag to reorder" [ref=e516]
+                - checkbox [ref=e518] [cursor=pointer]
+                - button "Draft an email to Raj + update to Dr. Savage top-3 from-2026-06-03" [ref=e519] [cursor=pointer]:
+                  - generic [ref=e521]: Draft an email to Raj + update to Dr. Savage
+                  - generic [ref=e522]:
+                    - generic [ref=e523]: top-3
+                    - generic [ref=e524]: from-2026-06-03
+                - button "Start" [ref=e526] [cursor=pointer]:
+                  - img [ref=e527]
+              - listitem [ref=e529]:
+                - button "Drag to reorder" [ref=e530]
+                - checkbox [checked] [ref=e532] [cursor=pointer]
+                - button "Coat a 3D printing sculpture I made for Gabe's mom in matte top coat top-3 from-2026-06-03" [ref=e533] [cursor=pointer]:
+                  - generic [ref=e535]: Coat a 3D printing sculpture I made for Gabe's mom in matte top coat
+                  - generic [ref=e536]:
+                    - generic [ref=e537]: top-3
+                    - generic [ref=e538]: from-2026-06-03
+              - listitem [ref=e539]:
+                - button "Drag to reorder" [ref=e540]
+                - checkbox [checked] [ref=e542] [cursor=pointer]
+                - button "Work on the todo app and time tracking a little more top-3 from-2026-06-03" [ref=e543] [cursor=pointer]:
+                  - generic [ref=e545]: Work on the todo app and time tracking a little more
+                  - generic [ref=e546]:
+                    - generic [ref=e547]: top-3
+                    - generic [ref=e548]: from-2026-06-03
+              - listitem [ref=e549]:
+                - button "Drag to reorder" [ref=e550]
+                - checkbox [checked] [ref=e552] [cursor=pointer]
+                - button "Check cluster runs top-3 from-2026-06-04" [ref=e553] [cursor=pointer]:
+                  - generic [ref=e555]: Check cluster runs
+                  - generic [ref=e556]:
+                    - generic [ref=e557]: top-3
+                    - generic [ref=e558]: from-2026-06-04
+              - listitem [ref=e559]:
+                - button "Drag to reorder" [ref=e560]
+                - checkbox [ref=e562] [cursor=pointer]
+                - button "Plan birthday top-3 from-2026-06-04" [ref=e563] [cursor=pointer]:
+                  - generic [ref=e565]: Plan birthday
+                  - generic [ref=e566]:
+                    - generic [ref=e567]: top-3
+                    - generic [ref=e568]: from-2026-06-04
+                - button "Start" [ref=e570] [cursor=pointer]:
+                  - img [ref=e571]
+              - listitem [ref=e573]:
+                - button "Drag to reorder" [ref=e574]
+                - checkbox [ref=e576] [cursor=pointer]
+                - button "make email helper top-3 from-2026-06-09" [ref=e577] [cursor=pointer]:
+                  - generic [ref=e579]: make email helper
+                  - generic [ref=e580]:
+                    - generic [ref=e581]: top-3
+                    - generic [ref=e582]: from-2026-06-09
+                - button "Start" [ref=e584] [cursor=pointer]:
+                  - img [ref=e585]
+              - listitem [ref=e587]:
+                - button "Drag to reorder" [ref=e588]
+                - checkbox [ref=e590] [cursor=pointer]
+                - 'button "Style: no `etc.` / `and so forth` 2026-07-26 Research aaai-2027 research" [ref=e591] [cursor=pointer]':
+                  - generic [ref=e593]: "Style: no `etc.` / `and so forth`"
+                  - generic [ref=e594]:
+                    - generic [ref=e595]: 2026-07-26
+                    - generic [ref=e596]: Research
+                    - generic [ref=e598]: aaai-2027
+                    - generic [ref=e599]: research
+                - button "Start" [ref=e601] [cursor=pointer]:
+                  - img [ref=e602]
+              - listitem [ref=e604]:
+                - button "Drag to reorder" [ref=e605]
+                - checkbox [ref=e607] [cursor=pointer]
+                - button "[[2026-06-04-dj-stin-sprout|DJ Stin]] — scene/genre TBD — waiting on logo Ventures content-strategy sprouting-prints" [ref=e608] [cursor=pointer]:
+                  - generic [ref=e610]: "[[2026-06-04-dj-stin-sprout|DJ Stin]] — scene/genre TBD — waiting on logo"
+                  - generic [ref=e611]:
+                    - generic [ref=e612]: Ventures
+                    - generic [ref=e614]: content-strategy
+                    - generic [ref=e615]: sprouting-prints
+                - button "Start" [ref=e617] [cursor=pointer]:
+                  - img [ref=e618]
+              - listitem [ref=e620]:
+                - button "Drag to reorder" [ref=e621]
+                - checkbox [ref=e623] [cursor=pointer]
+                - 'button "Discussion Move 5: future work direction 2026-07-22 Research aaai-2027 research" [ref=e624] [cursor=pointer]':
+                  - generic [ref=e626]: "Discussion Move 5: future work direction"
+                  - generic [ref=e627]:
+                    - generic [ref=e628]: 2026-07-22
+                    - generic [ref=e629]: Research
+                    - generic [ref=e631]: aaai-2027
+                    - generic [ref=e632]: research
+                - button "Start" [ref=e634] [cursor=pointer]:
+                  - img [ref=e635]
+              - listitem [ref=e637]:
+                - button "Drag to reorder" [ref=e638]
+                - checkbox [ref=e640] [cursor=pointer]
+                - 'button "Style: passed [[ai-writing-forbidden-patterns]] audit (A-T patterns) 2026-07-26 Research aaai-2027 research" [ref=e641] [cursor=pointer]':
+                  - generic [ref=e643]: "Style: passed [[ai-writing-forbidden-patterns]] audit (A-T patterns)"
+                  - generic [ref=e644]:
+                    - generic [ref=e645]: 2026-07-26
+                    - generic [ref=e646]: Research
+                    - generic [ref=e648]: aaai-2027
+                    - generic [ref=e649]: research
+                - button "Start" [ref=e651] [cursor=pointer]:
+                  - img [ref=e652]
+              - listitem [ref=e654]:
+                - button "Drag to reorder" [ref=e655]
+                - checkbox [ref=e657] [cursor=pointer]
+                - button "Abstract within ~250 words (CS norm ~232) 2026-07-25 Research aaai-2027 research" [ref=e658] [cursor=pointer]:
+                  - generic [ref=e660]: Abstract within ~250 words (CS norm ~232)
+                  - generic [ref=e661]:
+                    - generic [ref=e662]: 2026-07-25
+                    - generic [ref=e663]: Research
+                    - generic [ref=e665]: aaai-2027
+                    - generic [ref=e666]: research
+                - button "Start" [ref=e668] [cursor=pointer]:
+                  - img [ref=e669]
+              - listitem [ref=e671]:
+                - button "Drag to reorder" [ref=e672]
+                - checkbox [ref=e674] [cursor=pointer]
+                - 'button "Intro Move 3e: paper structure indicated 2026-07-12 Research aaai-2027 research" [ref=e675] [cursor=pointer]':
+                  - generic [ref=e677]: "Intro Move 3e: paper structure indicated"
+                  - generic [ref=e678]:
+                    - generic [ref=e679]: 2026-07-12
+                    - generic [ref=e680]: Research
+                    - generic [ref=e682]: aaai-2027
+                    - generic [ref=e683]: research
+                - button "Start" [ref=e685] [cursor=pointer]:
+                  - img [ref=e686]
+              - listitem [ref=e688]:
+                - button "Drag to reorder" [ref=e689]
+                - checkbox [ref=e691] [cursor=pointer]
+                - 'button "Abstract Move 1: background/situation 2026-07-25 Research aaai-2027 research" [ref=e692] [cursor=pointer]':
+                  - generic [ref=e694]: "Abstract Move 1: background/situation"
+                  - generic [ref=e695]:
+                    - generic [ref=e696]: 2026-07-25
+                    - generic [ref=e697]: Research
+                    - generic [ref=e699]: aaai-2027
+                    - generic [ref=e700]: research
+                - button "Start" [ref=e702] [cursor=pointer]:
+                  - img [ref=e703]
+              - listitem [ref=e705]:
+                - button "Drag to reorder" [ref=e706]
+                - checkbox [ref=e708] [cursor=pointer]
+                - 'button "Discussion Move 4: limitations stated 2026-07-22 Research aaai-2027 research" [ref=e709] [cursor=pointer]':
+                  - generic [ref=e711]: "Discussion Move 4: limitations stated"
+                  - generic [ref=e712]:
+                    - generic [ref=e713]: 2026-07-22
+                    - generic [ref=e714]: Research
+                    - generic [ref=e716]: aaai-2027
+                    - generic [ref=e717]: research
+                - button "Start" [ref=e719] [cursor=pointer]:
+                  - img [ref=e720]
+              - listitem [ref=e722]:
+                - button "Drag to reorder" [ref=e723]
+                - checkbox [checked] [ref=e725] [cursor=pointer]
+                - 'button "Paste initial ChatGPT brainstorm + logo into `ideas/2026-05-26-initial-brainstorm.md` Ventures sprouting-prints ventures" [ref=e726] [cursor=pointer]':
+                  - generic [ref=e728]: "Paste initial ChatGPT brainstorm + logo into `ideas/2026-05-26-initial-brainstorm.md`"
+                  - generic [ref=e729]:
+                    - generic [ref=e730]: Ventures
+                    - generic [ref=e732]: sprouting-prints
+                    - generic [ref=e733]: ventures
+              - listitem [ref=e344]:
+                - button "Drag to reorder" [ref=e345]
+                - checkbox [ref=e347] [cursor=pointer]
+                - button "Send Dr. Savage update email (what's planned + what's being worked on next week) 2026-05-25 Personal calls-emails personal" [ref=e348] [cursor=pointer]:
+                  - generic [ref=e350]: Send Dr. Savage update email (what's planned + what's being worked on next week)
+                  - generic [ref=e351]:
+                    - generic [ref=e352]: 2026-05-25
+                    - generic [ref=e353]: Personal
+                    - generic [ref=e355]: calls-emails
+                    - generic [ref=e356]: personal
+                - button "Start" [ref=e358] [cursor=pointer]:
+                  - img [ref=e359]
+              - listitem [ref=e734]:
+                - button "Drag to reorder" [ref=e735]
+                - checkbox [ref=e737] [cursor=pointer]
+                - button "[[2026-06-04-cowson-sprout|Cowson]] — DnB + dubstep / Boston bass — printed, ready to deliver + content shoot ✅ design done (first content unlock) Ventures content-strategy sprouting-prints" [ref=e738] [cursor=pointer]:
+                  - generic [ref=e740]: "[[2026-06-04-cowson-sprout|Cowson]] — DnB + dubstep / Boston bass — printed, ready to deliver + content shoot ✅ design done (first content unlock)"
+                  - generic [ref=e741]:
+                    - generic [ref=e742]: Ventures
+                    - generic [ref=e744]: content-strategy
+                    - generic [ref=e745]: sprouting-prints
+                - button "Start" [ref=e747] [cursor=pointer]:
+                  - img [ref=e748]
+              - listitem [ref=e361]:
+                - button "Drag to reorder" [ref=e362]
+                - checkbox [ref=e364] [cursor=pointer]
+                - button "Email Stephen Intille — master's project with him OR general meeting (he's recruiting PhDs for Fall 2027) Personal calls-emails personal" [ref=e365] [cursor=pointer]:
+                  - generic [ref=e367]: Email Stephen Intille — master's project with him OR general meeting (he's recruiting PhDs for Fall 2027)
+                  - generic [ref=e368]:
+                    - generic [ref=e369]: Personal
+                    - generic [ref=e371]: calls-emails
+                    - generic [ref=e372]: personal
+                - button "Start" [ref=e374] [cursor=pointer]:
+                  - img [ref=e375]
+              - listitem [ref=e750]:
+                - button "Drag to reorder" [ref=e751]
+                - checkbox [ref=e753] [cursor=pointer]
+                - 'button "Anonymity: self-citations masked appropriately 2026-07-27 Research aaai-2027 research" [ref=e754] [cursor=pointer]':
+                  - generic [ref=e756]: "Anonymity: self-citations masked appropriately"
+                  - generic [ref=e757]:
+                    - generic [ref=e758]: 2026-07-27
+                    - generic [ref=e759]: Research
+                    - generic [ref=e761]: aaai-2027
+                    - generic [ref=e762]: research
+                - button "Start" [ref=e764] [cursor=pointer]:
+                  - img [ref=e765]
+              - listitem [ref=e767]:
+                - button "Drag to reorder" [ref=e768]
+                - checkbox [ref=e770] [cursor=pointer]
+                - button "All axes have units; complex metrics motivated 2026-07-20 Research aaai-2027 research" [ref=e771] [cursor=pointer]:
+                  - generic [ref=e773]: All axes have units; complex metrics motivated
+                  - generic [ref=e774]:
+                    - generic [ref=e775]: 2026-07-20
+                    - generic [ref=e776]: Research
+                    - generic [ref=e778]: aaai-2027
+                    - generic [ref=e779]: research
+                - button "Start" [ref=e781] [cursor=pointer]:
+                  - img [ref=e782]
+              - listitem [ref=e784]:
+                - button "Drag to reorder" [ref=e785]
+                - checkbox [ref=e787] [cursor=pointer]
+                - button "Set up IG + TikTok profiles with the locked launch copy (bios + first pinned post in [[2026-05-26-initial-brainstorm]] → \"Launch copy\") Ventures sprouting-prints ventures" [ref=e788] [cursor=pointer]:
+                  - generic [ref=e790]: Set up IG + TikTok profiles with the locked launch copy (bios + first pinned post in [[2026-05-26-initial-brainstorm]] → "Launch copy")
+                  - generic [ref=e791]:
+                    - generic [ref=e792]: Ventures
+                    - generic [ref=e794]: sprouting-prints
+                    - generic [ref=e795]: ventures
+                - button "Start" [ref=e797] [cursor=pointer]:
+                  - img [ref=e798]
+              - listitem [ref=e800]:
+                - button "Drag to reorder" [ref=e801]
+                - checkbox [ref=e803] [cursor=pointer]
+                - button "Results general → specific ordering within each result 2026-07-18 Research aaai-2027 research" [ref=e804] [cursor=pointer]:
+                  - generic [ref=e806]: Results general → specific ordering within each result
+                  - generic [ref=e807]:
+                    - generic [ref=e808]: 2026-07-18
+                    - generic [ref=e809]: Research
+                    - generic [ref=e811]: aaai-2027
+                    - generic [ref=e812]: research
+                - button "Start" [ref=e814] [cursor=pointer]:
+                  - img [ref=e815]
+              - listitem [ref=e817]:
+                - button "Drag to reorder" [ref=e818]
+                - checkbox [ref=e820] [cursor=pointer]
+                - button "Pull in the old advisor list and compare/merge PhD advisor-inventory phd" [ref=e821] [cursor=pointer]:
+                  - generic [ref=e823]: Pull in the old advisor list and compare/merge
+                  - generic [ref=e824]:
+                    - generic [ref=e825]: PhD
+                    - generic [ref=e827]: advisor-inventory
+                    - generic [ref=e828]: phd
+                - button "Start" [ref=e830] [cursor=pointer]:
+                  - img [ref=e831]
+              - listitem [ref=e377]:
+                - button "Drag to reorder" [ref=e378]
+                - checkbox [ref=e380] [cursor=pointer]
+                - button "Identify target professors + check their fall teaching schedules Personal calls-emails personal" [ref=e381] [cursor=pointer]:
+                  - generic [ref=e383]: Identify target professors + check their fall teaching schedules
+                  - generic [ref=e384]:
+                    - generic [ref=e385]: Personal
+                    - generic [ref=e387]: calls-emails
+                    - generic [ref=e388]: personal
+                - button "Start" [ref=e390] [cursor=pointer]:
+                  - img [ref=e391]
+              - listitem [ref=e833]:
+                - button "Drag to reorder" [ref=e834]
+                - checkbox [ref=e836] [cursor=pointer]
+                - 'button "Anonymity: no `\\author{}` or acknowledgments revealing identity 2026-07-27 Research aaai-2027 research" [ref=e837] [cursor=pointer]':
+                  - generic [ref=e839]: "Anonymity: no `\\author{}` or acknowledgments revealing identity"
+                  - generic [ref=e840]:
+                    - generic [ref=e841]: 2026-07-27
+                    - generic [ref=e842]: Research
+                    - generic [ref=e844]: aaai-2027
+                    - generic [ref=e845]: research
+                - button "Start" [ref=e847] [cursor=pointer]:
+                  - img [ref=e848]
+              - listitem [ref=e850]:
+                - button "Drag to reorder" [ref=e851]
+                - checkbox [ref=e853] [cursor=pointer]
+                - button "Redraw logo as vector (SVG) + export an icon-only square for profile pics — steps in [[logo-vectorization]] Ventures sprouting-prints ventures" [ref=e854] [cursor=pointer]:
+                  - generic [ref=e856]: Redraw logo as vector (SVG) + export an icon-only square for profile pics — steps in [[logo-vectorization]]
+                  - generic [ref=e857]:
+                    - generic [ref=e858]: Ventures
+                    - generic [ref=e860]: sprouting-prints
+                    - generic [ref=e861]: ventures
+                - button "Start" [ref=e863] [cursor=pointer]:
+                  - img [ref=e864]
+              - listitem [ref=e393]:
+                - button "Drag to reorder" [ref=e394]
+                - checkbox [ref=e396] [cursor=pointer]
+                - button "Email target professors about taking class + possible master's project (after identifying targets) Personal calls-emails personal" [ref=e397] [cursor=pointer]:
+                  - generic [ref=e399]: Email target professors about taking class + possible master's project (after identifying targets)
+                  - generic [ref=e400]:
+                    - generic [ref=e401]: Personal
+                    - generic [ref=e403]: calls-emails
+                    - generic [ref=e404]: personal
+                - button "Start" [ref=e406] [cursor=pointer]:
+                  - img [ref=e407]
+              - listitem [ref=e866]:
+                - button "Drag to reorder" [ref=e867]
+                - checkbox [ref=e869] [cursor=pointer]
+                - 'button "Style: hedging strength appropriate per claim (not overclaiming) 2026-07-26 Research aaai-2027 research" [ref=e870] [cursor=pointer]':
+                  - generic [ref=e872]: "Style: hedging strength appropriate per claim (not overclaiming)"
+                  - generic [ref=e873]:
+                    - generic [ref=e874]: 2026-07-26
+                    - generic [ref=e875]: Research
+                    - generic [ref=e877]: aaai-2027
+                    - generic [ref=e878]: research
+                - button "Start" [ref=e880] [cursor=pointer]:
+                  - img [ref=e881]
+              - listitem [ref=e883]:
+                - button "Drag to reorder" [ref=e884]
+                - checkbox [ref=e886] [cursor=pointer]
+                - 'button "Style: no contractions 2026-07-26 Research aaai-2027 research" [ref=e887] [cursor=pointer]':
+                  - generic [ref=e889]: "Style: no contractions"
+                  - generic [ref=e890]:
+                    - generic [ref=e891]: 2026-07-26
+                    - generic [ref=e892]: Research
+                    - generic [ref=e894]: aaai-2027
+                    - generic [ref=e895]: research
+                - button "Start" [ref=e897] [cursor=pointer]:
+                  - img [ref=e898]
+              - listitem [ref=e409]:
+                - button "Drag to reorder" [ref=e410]
+                - checkbox [ref=e412] [cursor=pointer]
+                - button "Remove OneDrive — download cloud-only files first (25,703 placeholders / ~5 GB), then unlink + uninstall; see [[onedrive-removal]] Personal errands personal" [ref=e413] [cursor=pointer]:
+                  - generic [ref=e415]: Remove OneDrive — download cloud-only files first (25,703 placeholders / ~5 GB), then unlink + uninstall; see [[onedrive-removal]]
+                  - generic [ref=e416]:
+                    - generic [ref=e417]: Personal
+                    - generic [ref=e419]: errands
+                    - generic [ref=e420]: personal
+                - button "Start" [ref=e422] [cursor=pointer]:
+                  - img [ref=e423]
+              - listitem [ref=e900]:
+                - button "Drag to reorder" [ref=e901]
+                - checkbox [ref=e903] [cursor=pointer]
+                - 'button "Intro Move 3b: research questions or hypotheses listed 2026-07-12 Research aaai-2027 research" [ref=e904] [cursor=pointer]':
+                  - generic [ref=e906]: "Intro Move 3b: research questions or hypotheses listed"
+                  - generic [ref=e907]:
+                    - generic [ref=e908]: 2026-07-12
+                    - generic [ref=e909]: Research
+                    - generic [ref=e911]: aaai-2027
+                    - generic [ref=e912]: research
+                - button "Start" [ref=e914] [cursor=pointer]:
+                  - img [ref=e915]
+              - listitem [ref=e425]:
+                - button "Drag to reorder" [ref=e426]
+                - checkbox [ref=e428] [cursor=pointer]
+                - button "Schedule dentist appointment Personal calls-emails personal" [ref=e429] [cursor=pointer]:
+                  - generic [ref=e431]: Schedule dentist appointment
+                  - generic [ref=e432]:
+                    - generic [ref=e433]: Personal
+                    - generic [ref=e435]: calls-emails
+                    - generic [ref=e436]: personal
+                - button "Start" [ref=e438] [cursor=pointer]:
+                  - img [ref=e439]
+              - listitem [ref=e441]:
+                - button "Drag to reorder" [ref=e442]
+                - checkbox [ref=e444] [cursor=pointer]
+                - 'button "Schedule appointment with Cailyn re: class options + master''s project (also ask: when does fall registration open?) Personal calls-emails personal" [ref=e445] [cursor=pointer]':
+                  - generic [ref=e447]: "Schedule appointment with Cailyn re: class options + master's project (also ask: when does fall registration open?)"
+                  - generic [ref=e448]:
+                    - generic [ref=e449]: Personal
+                    - generic [ref=e451]: calls-emails
+                    - generic [ref=e452]: personal
+                - button "Start" [ref=e454] [cursor=pointer]:
+                  - img [ref=e455]
+              - listitem [ref=e917]:
+                - button "Drag to reorder" [ref=e918]
+                - checkbox [ref=e920] [cursor=pointer]
+                - 'button "Intro Move 3a: purpose stated 2026-07-12 Research aaai-2027 research" [ref=e921] [cursor=pointer]':
+                  - generic [ref=e923]: "Intro Move 3a: purpose stated"
+                  - generic [ref=e924]:
+                    - generic [ref=e925]: 2026-07-12
+                    - generic [ref=e926]: Research
+                    - generic [ref=e928]: aaai-2027
+                    - generic [ref=e929]: research
+                - button "Start" [ref=e931] [cursor=pointer]:
+                  - img [ref=e932]
+              - listitem [ref=e934]:
+                - button "Drag to reorder" [ref=e935]
+                - checkbox [ref=e937] [cursor=pointer]
+                - button "Draft outreach (TriTower-results framing) for the 🟢 list PhD advisor-inventory phd" [ref=e938] [cursor=pointer]:
+                  - generic [ref=e940]: Draft outreach (TriTower-results framing) for the 🟢 list
+                  - generic [ref=e941]:
+                    - generic [ref=e942]: PhD
+                    - generic [ref=e944]: advisor-inventory
+                    - generic [ref=e945]: phd
+                - button "Start" [ref=e947] [cursor=pointer]:
+                  - img [ref=e948]
+              - listitem [ref=e950]:
+                - button "Drag to reorder" [ref=e951]
+                - checkbox [ref=e953] [cursor=pointer]
+                - button "All figures readable in grayscale 2026-07-20 Research aaai-2027 research" [ref=e954] [cursor=pointer]:
+                  - generic [ref=e956]: All figures readable in grayscale
+                  - generic [ref=e957]:
+                    - generic [ref=e958]: 2026-07-20
+                    - generic [ref=e959]: Research
+                    - generic [ref=e961]: aaai-2027
+                    - generic [ref=e962]: research
+                - button "Start" [ref=e964] [cursor=pointer]:
+                  - img [ref=e965]
+              - listitem [ref=e967]:
+                - button "Drag to reorder" [ref=e968]
+                - checkbox [ref=e970] [cursor=pointer]
+                - 'button "Intro Move 3c: principal findings announced 2026-07-12 Research aaai-2027 research" [ref=e971] [cursor=pointer]':
+                  - generic [ref=e973]: "Intro Move 3c: principal findings announced"
+                  - generic [ref=e974]:
+                    - generic [ref=e975]: 2026-07-12
+                    - generic [ref=e976]: Research
+                    - generic [ref=e978]: aaai-2027
+                    - generic [ref=e979]: research
+                - button "Start" [ref=e981] [cursor=pointer]:
+                  - img [ref=e982]
+              - listitem [ref=e457]:
+                - button "Drag to reorder" [ref=e458]
+                - checkbox [ref=e460] [cursor=pointer]
+                - 'button "Email Raj re: not doing thesis this summer + request advice meeting 2026-05-26 Personal calls-emails personal" [ref=e461] [cursor=pointer]':
+                  - generic [ref=e463]: "Email Raj re: not doing thesis this summer + request advice meeting"
+                  - generic [ref=e464]:
+                    - generic [ref=e465]: 2026-05-26
+                    - generic [ref=e466]: Personal
+                    - generic [ref=e468]: calls-emails
+                    - generic [ref=e469]: personal
+                - button "Start" [ref=e471] [cursor=pointer]:
+                  - img [ref=e472]
+              - listitem [ref=e984]:
+                - button "Drag to reorder" [ref=e985]
+                - checkbox [ref=e987] [cursor=pointer]
+                - 'button "Discussion Move 3: results interpreted, compared to prior work 2026-07-22 Research aaai-2027 research" [ref=e988] [cursor=pointer]':
+                  - generic [ref=e990]: "Discussion Move 3: results interpreted, compared to prior work"
+                  - generic [ref=e991]:
+                    - generic [ref=e992]: 2026-07-22
+                    - generic [ref=e993]: Research
+                    - generic [ref=e995]: aaai-2027
+                    - generic [ref=e996]: research
+                - button "Start" [ref=e998] [cursor=pointer]:
+                  - img [ref=e999]
+              - listitem [ref=e1001]:
+                - button "Drag to reorder" [ref=e1002]
+                - checkbox [ref=e1004] [cursor=pointer]
+                - button "Methods hyperparameter tuning protocol described (cross-ref decisions log on [[tritower-paper]]) 2026-07-15 Research aaai-2027 research" [ref=e1005] [cursor=pointer]:
+                  - generic [ref=e1007]: Methods hyperparameter tuning protocol described (cross-ref decisions log on [[tritower-paper]])
+                  - generic [ref=e1008]:
+                    - generic [ref=e1009]: 2026-07-15
+                    - generic [ref=e1010]: Research
+                    - generic [ref=e1012]: aaai-2027
+                    - generic [ref=e1013]: research
+                - button "Start" [ref=e1015] [cursor=pointer]:
+                  - img [ref=e1016]
+              - listitem [ref=e1018]:
+                - button "Drag to reorder" [ref=e1019]
+                - checkbox [ref=e1021] [cursor=pointer]
+                - button "Email (lead with TriTower results; note the MIND connection) PhD advisors phd" [ref=e1022] [cursor=pointer]:
+                  - generic [ref=e1024]: Email (lead with TriTower results; note the MIND connection)
+                  - generic [ref=e1025]:
+                    - generic [ref=e1026]: PhD
+                    - generic [ref=e1028]: advisors
+                    - generic [ref=e1029]: phd
+                - button "Start" [ref=e1031] [cursor=pointer]:
+                  - img [ref=e1032]
+              - listitem [ref=e1034]:
+                - button "Drag to reorder" [ref=e1035]
+                - checkbox [ref=e1037] [cursor=pointer]
+                - 'button "Figure 2: W/A/L/T/E/R present 2026-07-20 Research aaai-2027 research" [ref=e1038] [cursor=pointer]':
+                  - generic [ref=e1040]: "Figure 2: W/A/L/T/E/R present"
+                  - generic [ref=e1041]:
+                    - generic [ref=e1042]: 2026-07-20
+                    - generic [ref=e1043]: Research
+                    - generic [ref=e1045]: aaai-2027
+                    - generic [ref=e1046]: research
+                - button "Start" [ref=e1048] [cursor=pointer]:
+                  - img [ref=e1049]
+              - listitem [ref=e1051]:
+                - button "Drag to reorder" [ref=e1052]
+                - checkbox [ref=e1054] [cursor=pointer]
+                - button "Switch IG + TikTok to Business/Creator profiles (unlocks email contact button) Ventures sprouting-prints ventures" [ref=e1055] [cursor=pointer]:
+                  - generic [ref=e1057]: Switch IG + TikTok to Business/Creator profiles (unlocks email contact button)
+                  - generic [ref=e1058]:
+                    - generic [ref=e1059]: Ventures
+                    - generic [ref=e1061]: sprouting-prints
+                    - generic [ref=e1062]: ventures
+                - button "Start" [ref=e1064] [cursor=pointer]:
+                  - img [ref=e1065]
+              - listitem [ref=e1067]:
+                - button "Drag to reorder" [ref=e1068]
+                - checkbox [ref=e1070] [cursor=pointer]
+                - button "Methods at right level of detail for AAAI audience (likely condensed) 2026-07-15 Research aaai-2027 research" [ref=e1071] [cursor=pointer]:
+                  - generic [ref=e1073]: Methods at right level of detail for AAAI audience (likely condensed)
+                  - generic [ref=e1074]:
+                    - generic [ref=e1075]: 2026-07-15
+                    - generic [ref=e1076]: Research
+                    - generic [ref=e1078]: aaai-2027
+                    - generic [ref=e1079]: research
+                - button "Start" [ref=e1081] [cursor=pointer]:
+                  - img [ref=e1082]
+              - listitem [ref=e1084]:
+                - button "Drag to reorder" [ref=e1085]
+                - checkbox [ref=e1087] [cursor=pointer]
+                - button "Confirm what's current vs outdated in the grant-pitch arc (system, Paper 1 focus, venue) PhD phd" [ref=e1088] [cursor=pointer]:
+                  - generic [ref=e1090]: Confirm what's current vs outdated in the grant-pitch arc (system, Paper 1 focus, venue)
+                  - generic [ref=e1091]:
+                    - generic [ref=e1092]: PhD
+                    - generic [ref=e1094]: phd
+                - button "Start" [ref=e1096] [cursor=pointer]:
+                  - img [ref=e1097]
+              - listitem [ref=e1099]:
+                - button "Drag to reorder" [ref=e1100]
+                - checkbox [ref=e1102] [cursor=pointer]
+                - 'button "Style: no second-person \"you\" 2026-07-26 Research aaai-2027 research" [ref=e1103] [cursor=pointer]':
+                  - generic [ref=e1105]: "Style: no second-person \"you\""
+                  - generic [ref=e1106]:
+                    - generic [ref=e1107]: 2026-07-26
+                    - generic [ref=e1108]: Research
+                    - generic [ref=e1110]: aaai-2027
+                    - generic [ref=e1111]: research
+                - button "Start" [ref=e1113] [cursor=pointer]:
+                  - img [ref=e1114]
+              - listitem [ref=e1116]:
+                - button "Drag to reorder" [ref=e1117]
+                - checkbox [ref=e1119] [cursor=pointer]
+                - 'button "Abstract Move 2: present research/purpose 2026-07-25 Research aaai-2027 research" [ref=e1120] [cursor=pointer]':
+                  - generic [ref=e1122]: "Abstract Move 2: present research/purpose"
+                  - generic [ref=e1123]:
+                    - generic [ref=e1124]: 2026-07-25
+                    - generic [ref=e1125]: Research
+                    - generic [ref=e1127]: aaai-2027
+                    - generic [ref=e1128]: research
+                - button "Start" [ref=e1130] [cursor=pointer]:
+                  - img [ref=e1131]
+              - listitem [ref=e1133]:
+                - button "Drag to reorder" [ref=e1134]
+                - checkbox [ref=e1136] [cursor=pointer]
+                - 'button "Abstract Move 4: key results 2026-07-25 Research aaai-2027 research" [ref=e1137] [cursor=pointer]':
+                  - generic [ref=e1139]: "Abstract Move 4: key results"
+                  - generic [ref=e1140]:
+                    - generic [ref=e1141]: 2026-07-25
+                    - generic [ref=e1142]: Research
+                    - generic [ref=e1144]: aaai-2027
+                    - generic [ref=e1145]: research
+                - button "Start" [ref=e1147] [cursor=pointer]:
+                  - img [ref=e1148]
+              - listitem [ref=e1150]:
+                - button "Drag to reorder" [ref=e1151]
+                - checkbox [ref=e1153] [cursor=pointer]
+                - button "Results cite agreement or disagreement with prior work 2026-07-18 Research aaai-2027 research" [ref=e1154] [cursor=pointer]:
+                  - generic [ref=e1156]: Results cite agreement or disagreement with prior work
+                  - generic [ref=e1157]:
+                    - generic [ref=e1158]: 2026-07-18
+                    - generic [ref=e1159]: Research
+                    - generic [ref=e1161]: aaai-2027
+                    - generic [ref=e1162]: research
+                - button "Start" [ref=e1164] [cursor=pointer]:
+                  - img [ref=e1165]
+              - listitem [ref=e1167]:
+                - button "Drag to reorder" [ref=e1168]
+                - checkbox [ref=e1170] [cursor=pointer]
+                - 'button "Shortlist ~5 from the 🟢 + top 🟡 (likely: Xu, Mishra, Intille, Savage, + Doshi-Velez/Gajos or Nock) PhD advisor-inventory phd" [ref=e1171] [cursor=pointer]':
+                  - generic [ref=e1173]: "Shortlist ~5 from the 🟢 + top 🟡 (likely: Xu, Mishra, Intille, Savage, + Doshi-Velez/Gajos or Nock)"
+                  - generic [ref=e1174]:
+                    - generic [ref=e1175]: PhD
+                    - generic [ref=e1177]: advisor-inventory
+                    - generic [ref=e1178]: phd
+                - button "Start" [ref=e1180] [cursor=pointer]:
+                  - img [ref=e1181]
+              - listitem [ref=e1183]:
+                - button "Drag to reorder" [ref=e1184]
+                - checkbox [ref=e1186] [cursor=pointer]
+                - button "[[2026-06-04-kg-sprout|KG]] — scene/genre TBD — waiting on logo Ventures content-strategy sprouting-prints" [ref=e1187] [cursor=pointer]:
+                  - generic [ref=e1189]: "[[2026-06-04-kg-sprout|KG]] — scene/genre TBD — waiting on logo"
+                  - generic [ref=e1190]:
+                    - generic [ref=e1191]: Ventures
+                    - generic [ref=e1193]: content-strategy
+                    - generic [ref=e1194]: sprouting-prints
+                - button "Start" [ref=e1196] [cursor=pointer]:
+                  - img [ref=e1197]
+              - listitem [ref=e1199]:
+                - button "Drag to reorder" [ref=e1200]
+                - checkbox [ref=e1202] [cursor=pointer]
+                - button "Email (lead with TriTower results; frame MindStorm as the dashboard MIND points toward) PhD advisors phd" [ref=e1203] [cursor=pointer]:
+                  - generic [ref=e1205]: Email (lead with TriTower results; frame MindStorm as the dashboard MIND points toward)
+                  - generic [ref=e1206]:
+                    - generic [ref=e1207]: PhD
+                    - generic [ref=e1209]: advisors
+                    - generic [ref=e1210]: phd
+                - button "Start" [ref=e1212] [cursor=pointer]:
+                  - img [ref=e1213]
+              - listitem [ref=e1215]:
+                - button "Drag to reorder" [ref=e1216]
+                - checkbox [ref=e1218] [cursor=pointer]
+                - 'button "Pick DM-phase payment method (lean: Stripe payment links) Ventures sprouting-prints ventures" [ref=e1219] [cursor=pointer]':
+                  - generic [ref=e1221]: "Pick DM-phase payment method (lean: Stripe payment links)"
+                  - generic [ref=e1222]:
+                    - generic [ref=e1223]: Ventures
+                    - generic [ref=e1225]: sprouting-prints
+                    - generic [ref=e1226]: ventures
+                - button "Start" [ref=e1228] [cursor=pointer]:
+                  - img [ref=e1229]
+              - listitem [ref=e1231]:
+                - button "Drag to reorder" [ref=e1232]
+                - checkbox [ref=e1234] [cursor=pointer]
+                - button "Talk to Saiph directly about the PhD + MindStorm venture angle PhD advisors phd" [ref=e1235] [cursor=pointer]:
+                  - generic [ref=e1237]: Talk to Saiph directly about the PhD + MindStorm venture angle
+                  - generic [ref=e1238]:
+                    - generic [ref=e1239]: PhD
+                    - generic [ref=e1241]: advisors
+                    - generic [ref=e1242]: phd
+                - button "Start" [ref=e1244] [cursor=pointer]:
+                  - img [ref=e1245]
+              - listitem [ref=e1247]:
+                - button "Drag to reorder" [ref=e1248]
+                - checkbox [ref=e1250] [cursor=pointer]
+                - button "Results methodology justified where relevant 2026-07-18 Research aaai-2027 research" [ref=e1251] [cursor=pointer]:
+                  - generic [ref=e1253]: Results methodology justified where relevant
+                  - generic [ref=e1254]:
+                    - generic [ref=e1255]: 2026-07-18
+                    - generic [ref=e1256]: Research
+                    - generic [ref=e1258]: aaai-2027
+                    - generic [ref=e1259]: research
+                - button "Start" [ref=e1261] [cursor=pointer]:
+                  - img [ref=e1262]
+              - listitem [ref=e1264]:
+                - button "Drag to reorder" [ref=e1265]
+                - checkbox [ref=e1267] [cursor=pointer]
+                - button "[[2026-06-04-mikey-g-sprout|Mikey G]] — scene/genre TBD — waiting on logo Ventures content-strategy sprouting-prints" [ref=e1268] [cursor=pointer]:
+                  - generic [ref=e1270]: "[[2026-06-04-mikey-g-sprout|Mikey G]] — scene/genre TBD — waiting on logo"
+                  - generic [ref=e1271]:
+                    - generic [ref=e1272]: Ventures
+                    - generic [ref=e1274]: content-strategy
+                    - generic [ref=e1275]: sprouting-prints
+                - button "Start" [ref=e1277] [cursor=pointer]:
+                  - img [ref=e1278]
+              - listitem [ref=e1280]:
+                - button "Drag to reorder" [ref=e1281]
+                - checkbox [ref=e1283] [cursor=pointer]
+                - button "Email the ❓/🟡 to confirm recruiting (Savage first — she's your advisor) PhD advisor-inventory phd" [ref=e1284] [cursor=pointer]:
+                  - generic [ref=e1286]: Email the ❓/🟡 to confirm recruiting (Savage first — she's your advisor)
+                  - generic [ref=e1287]:
+                    - generic [ref=e1288]: PhD
+                    - generic [ref=e1290]: advisor-inventory
+                    - generic [ref=e1291]: phd
+                - button "Start" [ref=e1293] [cursor=pointer]:
+                  - img [ref=e1294]
+              - listitem [ref=e1296]:
+                - button "Drag to reorder" [ref=e1297]
+                - checkbox [ref=e1299] [cursor=pointer]
+                - 'button "Figure 1: W/A/L/T/E/R present in caption + surrounding commentary 2026-07-20 Research aaai-2027 research" [ref=e1300] [cursor=pointer]':
+                  - generic [ref=e1302]: "Figure 1: W/A/L/T/E/R present in caption + surrounding commentary"
+                  - generic [ref=e1303]:
+                    - generic [ref=e1304]: 2026-07-20
+                    - generic [ref=e1305]: Research
+                    - generic [ref=e1307]: aaai-2027
+                    - generic [ref=e1308]: research
+                - button "Start" [ref=e1310] [cursor=pointer]:
+                  - img [ref=e1311]
+              - listitem [ref=e1313]:
+                - button "Drag to reorder" [ref=e1314]
+                - checkbox [ref=e1316] [cursor=pointer]
+                - button "Methods linking phrases between procedures 2026-07-15 Research aaai-2027 research" [ref=e1317] [cursor=pointer]:
+                  - generic [ref=e1319]: Methods linking phrases between procedures
+                  - generic [ref=e1320]:
+                    - generic [ref=e1321]: 2026-07-15
+                    - generic [ref=e1322]: Research
+                    - generic [ref=e1324]: aaai-2027
+                    - generic [ref=e1325]: research
+                - button "Start" [ref=e1327] [cursor=pointer]:
+                  - img [ref=e1328]
+              - listitem [ref=e1330]:
+                - button "Drag to reorder" [ref=e1331]
+                - checkbox [ref=e1333] [cursor=pointer]
+                - button "Email finale-lab to confirm cycle + fit *before* applying (lead with TriTower interpretability results) PhD advisors finale-doshi-velez" [ref=e1334] [cursor=pointer]:
+                  - generic [ref=e1336]: Email finale-lab to confirm cycle + fit *before* applying (lead with TriTower interpretability results)
+                  - generic [ref=e1337]:
+                    - generic [ref=e1338]: PhD
+                    - generic [ref=e1340]: advisors
+                    - generic [ref=e1341]: finale-doshi-velez
+                - button "Start" [ref=e1343] [cursor=pointer]:
+                  - img [ref=e1344]
+              - listitem [ref=e1346]:
+                - button "Drag to reorder" [ref=e1347]
+                - checkbox [ref=e1349] [cursor=pointer]
+                - button "[[2026-06-04-dave-the-wave-sprout|Dave The Wave]] — scene/genre TBD — waiting on logo Ventures content-strategy sprouting-prints" [ref=e1350] [cursor=pointer]:
+                  - generic [ref=e1352]: "[[2026-06-04-dave-the-wave-sprout|Dave The Wave]] — scene/genre TBD — waiting on logo"
+                  - generic [ref=e1353]:
+                    - generic [ref=e1354]: Ventures
+                    - generic [ref=e1356]: content-strategy
+                    - generic [ref=e1357]: sprouting-prints
+                - button "Start" [ref=e1359] [cursor=pointer]:
+                  - img [ref=e1360]
+              - listitem [ref=e1362]:
+                - button "Drag to reorder" [ref=e1363]
+                - checkbox [ref=e1365] [cursor=pointer]
+                - 'button "Style: vocabulary shift pass (no informal verbs) 2026-07-26 Research aaai-2027 research" [ref=e1366] [cursor=pointer]':
+                  - generic [ref=e1368]: "Style: vocabulary shift pass (no informal verbs)"
+                  - generic [ref=e1369]:
+                    - generic [ref=e1370]: 2026-07-26
+                    - generic [ref=e1371]: Research
+                    - generic [ref=e1373]: aaai-2027
+                    - generic [ref=e1374]: research
+                - button "Start" [ref=e1376] [cursor=pointer]:
+                  - img [ref=e1377]
+              - listitem [ref=e1379]:
+                - button "Drag to reorder" [ref=e1380]
+                - checkbox [ref=e1382] [cursor=pointer]
+                - button "Decide which SKU launches first Ventures sprouting-prints ventures" [ref=e1383] [cursor=pointer]:
+                  - generic [ref=e1385]: Decide which SKU launches first
+                  - generic [ref=e1386]:
+                    - generic [ref=e1387]: Ventures
+                    - generic [ref=e1389]: sprouting-prints
+                    - generic [ref=e1390]: ventures
+                - button "Start" [ref=e1392] [cursor=pointer]:
+                  - img [ref=e1393]
+              - listitem [ref=e1395]:
+                - button "Drag to reorder" [ref=e1396]
+                - checkbox [ref=e1398] [cursor=pointer]
+                - 'button "Discussion Move 2: key results summarized 2026-07-22 Research aaai-2027 research" [ref=e1399] [cursor=pointer]':
+                  - generic [ref=e1401]: "Discussion Move 2: key results summarized"
+                  - generic [ref=e1402]:
+                    - generic [ref=e1403]: 2026-07-22
+                    - generic [ref=e1404]: Research
+                    - generic [ref=e1406]: aaai-2027
+                    - generic [ref=e1407]: research
+                - button "Start" [ref=e1409] [cursor=pointer]:
+                  - img [ref=e1410]
+              - listitem [ref=e1412]:
+                - button "Drag to reorder" [ref=e1413]
+                - checkbox [ref=e1415] [cursor=pointer]
+                - 'button "Style: both active and passive used purposefully 2026-07-26 Research aaai-2027 research" [ref=e1416] [cursor=pointer]':
+                  - generic [ref=e1418]: "Style: both active and passive used purposefully"
+                  - generic [ref=e1419]:
+                    - generic [ref=e1420]: 2026-07-26
+                    - generic [ref=e1421]: Research
+                    - generic [ref=e1423]: aaai-2027
+                    - generic [ref=e1424]: research
+                - button "Start" [ref=e1426] [cursor=pointer]:
+                  - img [ref=e1427]
+              - listitem [ref=e1429]:
+                - button "Drag to reorder" [ref=e1430]
+                - checkbox [ref=e1432] [cursor=pointer]
+                - 'button "Intro Move 2: gap or niche explicitly identified 2026-07-12 Research aaai-2027 research" [ref=e1433] [cursor=pointer]':
+                  - generic [ref=e1435]: "Intro Move 2: gap or niche explicitly identified"
+                  - generic [ref=e1436]:
+                    - generic [ref=e1437]: 2026-07-12
+                    - generic [ref=e1438]: Research
+                    - generic [ref=e1440]: aaai-2027
+                    - generic [ref=e1441]: research
+                - button "Start" [ref=e1443] [cursor=pointer]:
+                  - img [ref=e1444]
+              - listitem [ref=e1446]:
+                - button "Drag to reorder" [ref=e1447]
+                - checkbox [ref=e1449] [cursor=pointer]
+                - 'button "Email re: PhD recruiting + fit (lead with TriTower results) PhD advisors phd" [ref=e1450] [cursor=pointer]':
+                  - generic [ref=e1452]: "Email re: PhD recruiting + fit (lead with TriTower results)"
+                  - generic [ref=e1453]:
+                    - generic [ref=e1454]: PhD
+                    - generic [ref=e1456]: advisors
+                    - generic [ref=e1457]: phd
+                - button "Start" [ref=e1459] [cursor=pointer]:
+                  - img [ref=e1460]
+              - listitem [ref=e1462]:
+                - button "Drag to reorder" [ref=e1463]
+                - checkbox [ref=e1465] [cursor=pointer]
+                - button "Hand Claude the other PhD documents to flesh out this area PhD phd" [ref=e1466] [cursor=pointer]:
+                  - generic [ref=e1468]: Hand Claude the other PhD documents to flesh out this area
+                  - generic [ref=e1469]:
+                    - generic [ref=e1470]: PhD
+                    - generic [ref=e1472]: phd
+                - button "Start" [ref=e1474] [cursor=pointer]:
+                  - img [ref=e1475]
+              - listitem [ref=e1477]:
+                - button "Drag to reorder" [ref=e1478]
+                - checkbox [ref=e1480] [cursor=pointer]
+                - 'button "Register a domain (`sproutingprints.com` / `.shop`) or decide to defer Ventures sprouting-prints ventures" [ref=e1481] [cursor=pointer]':
+                  - generic [ref=e1483]: "Register a domain (`sproutingprints.com` / `.shop`) or decide to defer"
+                  - generic [ref=e1484]:
+                    - generic [ref=e1485]: Ventures
+                    - generic [ref=e1487]: sprouting-prints
+                    - generic [ref=e1488]: ventures
+                - button "Start" [ref=e1490] [cursor=pointer]:
+                  - img [ref=e1491]
+              - listitem [ref=e1493]:
+                - button "Drag to reorder" [ref=e1494]
+                - checkbox [ref=e1496] [cursor=pointer]
+                - 'button "Decide: validate existing market or create demand Ventures sprouting-prints ventures" [ref=e1497] [cursor=pointer]':
+                  - generic [ref=e1499]: "Decide: validate existing market or create demand"
+                  - generic [ref=e1500]:
+                    - generic [ref=e1501]: Ventures
+                    - generic [ref=e1503]: sprouting-prints
+                    - generic [ref=e1504]: ventures
+                - button "Start" [ref=e1506] [cursor=pointer]:
+                  - img [ref=e1507]
+              - listitem [ref=e474]:
+                - button "Drag to reorder" [ref=e475]
+                - checkbox [ref=e477] [cursor=pointer]
+                - button "Schedule dermatologist appointment Personal calls-emails personal" [ref=e478] [cursor=pointer]:
+                  - generic [ref=e480]: Schedule dermatologist appointment
+                  - generic [ref=e481]:
+                    - generic [ref=e482]: Personal
+                    - generic [ref=e484]: calls-emails
+                    - generic [ref=e485]: personal
+                - button "Start" [ref=e487] [cursor=pointer]:
+                  - img [ref=e488]
+              - listitem [ref=e1509]:
+                - button "Drag to reorder" [ref=e1510]
+                - checkbox [ref=e1512] [cursor=pointer]
+                - 'button "Discussion Move 1: background/methodology recap 2026-07-22 Research aaai-2027 research" [ref=e1513] [cursor=pointer]':
+                  - generic [ref=e1515]: "Discussion Move 1: background/methodology recap"
+                  - generic [ref=e1516]:
+                    - generic [ref=e1517]: 2026-07-22
+                    - generic [ref=e1518]: Research
+                    - generic [ref=e1520]: aaai-2027
+                    - generic [ref=e1521]: research
+                - button "Start" [ref=e1523] [cursor=pointer]:
+                  - img [ref=e1524]
+              - listitem [ref=e1526]:
+                - button "Drag to reorder" [ref=e1527]
+                - checkbox [ref=e1529] [cursor=pointer]
+                - 'button "Intro Move 1: research territory established with prior work cited 2026-07-12 Research aaai-2027 research" [ref=e1530] [cursor=pointer]':
+                  - generic [ref=e1532]: "Intro Move 1: research territory established with prior work cited"
+                  - generic [ref=e1533]:
+                    - generic [ref=e1534]: 2026-07-12
+                    - generic [ref=e1535]: Research
+                    - generic [ref=e1537]: aaai-2027
+                    - generic [ref=e1538]: research
+                - button "Start" [ref=e1540] [cursor=pointer]:
+                  - img [ref=e1541]
+              - listitem [ref=e1543]:
+                - button "Drag to reorder" [ref=e1544]
+                - checkbox [ref=e1546] [cursor=pointer]
+                - button "Advisor/program research + outreach (see [[todos]]) PhD phd" [ref=e1547] [cursor=pointer]:
+                  - generic [ref=e1549]: Advisor/program research + outreach (see [[todos]])
+                  - generic [ref=e1550]:
+                    - generic [ref=e1551]: PhD
+                    - generic [ref=e1553]: phd
+                - button "Start" [ref=e1555] [cursor=pointer]:
+                  - img [ref=e1556]
+              - listitem [ref=e1558]:
+                - button "Drag to reorder" [ref=e1559]
+                - checkbox [ref=e1561] [cursor=pointer]
+                - 'button "Anonymity: no identifying paths/filenames in supplementary code 2026-07-27 Research aaai-2027 research" [ref=e1562] [cursor=pointer]':
+                  - generic [ref=e1564]: "Anonymity: no identifying paths/filenames in supplementary code"
+                  - generic [ref=e1565]:
+                    - generic [ref=e1566]: 2026-07-27
+                    - generic [ref=e1567]: Research
+                    - generic [ref=e1569]: aaai-2027
+                    - generic [ref=e1570]: research
+                - button "Start" [ref=e1572] [cursor=pointer]:
+                  - img [ref=e1573]
+              - listitem [ref=e1575]:
+                - button "Drag to reorder" [ref=e1576]
+                - checkbox [ref=e1578] [cursor=pointer]
+                - 'button "Abstract Move 3: methods summary 2026-07-25 Research aaai-2027 research" [ref=e1579] [cursor=pointer]':
+                  - generic [ref=e1581]: "Abstract Move 3: methods summary"
+                  - generic [ref=e1582]:
+                    - generic [ref=e1583]: 2026-07-25
+                    - generic [ref=e1584]: Research
+                    - generic [ref=e1586]: aaai-2027
+                    - generic [ref=e1587]: research
+                - button "Start" [ref=e1589] [cursor=pointer]:
+                  - img [ref=e1590]
+          - generic [ref=e212]:
+            - 'generic "Last successful sync: 6/12/2026, 12:00:53 AM" [ref=e329]': synced 1h ago
+            - button "Save" [ref=e215] [cursor=pointer]
+      - complementary [ref=e216]:
+        - generic [ref=e217]:
+          - heading "Task Details" [level=2] [ref=e218]
+          - button "Close" [ref=e219] [cursor=pointer]: ×
+        - generic [ref=e220]:
+          - generic [ref=e221]:
+            - generic [ref=e222]:
+              - generic [ref=e223]: Title
+              - textbox "Title" [ref=e224]: Send Dr. Savage update email (what's planned + what's being worked on next week)
+            - generic [ref=e225]:
+              - generic [ref=e226]:
+                - generic [ref=e227]: Project
+                - combobox "Project" [ref=e228]:
+                  - option "Inbox"
+                  - option "AAAI Submission"
+                  - option "Personal" [selected]
+                  - option "PhD"
+                  - option "Research"
+                  - option "Ventures"
+                  - option "Second Brain"
+                  - option "Sprouting Prints"
+                  - option "Dashboard App"
+                  - option "3D Printing"
+              - generic [ref=e229]:
+                - generic [ref=e230]: Priority
+                - combobox "Priority" [ref=e231]:
+                  - option "Low"
+                  - option "Medium" [selected]
+                  - option "High"
+                  - option "Urgent"
+              - generic [ref=e232]:
+                - generic [ref=e233]: Due Date
+                - textbox "Due Date" [ref=e234]: 2026-05-25
+              - generic [ref=e235]:
+                - generic [ref=e236]: Recurrence
+                - combobox "Recurrence" [ref=e237]:
+                  - option "No repeat" [selected]
+                  - option "Daily"
+                  - option "Weekly"
+                  - option "Monthly"
+              - generic [ref=e238]:
+                - generic [ref=e239]: Est. Pomodoros
+                - spinbutton "Est. Pomodoros" [ref=e240]: "0"
+            - generic [ref=e241]:
+              - generic [ref=e242]: Tags
+              - textbox "Tags" [ref=e243]:
+                - /placeholder: comma separated
+                - text: calls-emails, personal, todos
+            - generic [ref=e244]:
+              - generic [ref=e245]: Notes
+              - textbox "Notes" [ref=e246]:
+                - /placeholder: Details and next steps…
+          - generic [ref=e247]:
+            - generic [ref=e248]: Timer
+            - generic [ref=e249]:
+              - generic [ref=e250]: Total
+              - generic [ref=e251]: 0m 00s
+            - button "Start" [ref=e253] [cursor=pointer]
+          - generic [ref=e254]:
+            - generic [ref=e255]: Actions
+            - generic [ref=e256]:
+              - button "Set as Focus Task" [ref=e257] [cursor=pointer]
+              - button "Duplicate" [ref=e258] [cursor=pointer]
+              - button "Remove" [ref=e259] [cursor=pointer]
+          - generic [ref=e260]:
+            - generic [ref=e261]: Pomodoro
+            - generic [ref=e262]:
+              - generic [ref=e263]:
+                - generic [ref=e264]: Focus
+                - generic [ref=e265]: 25:00
+              - generic [ref=e266]:
+                - generic [ref=e267]: Focus Task
+                - combobox "Focus Task" [ref=e268]:
+                  - option "Select task…" [selected]
+                  - option "Draft an email to Raj + update to Dr. Savage"
+                  - option "Plan birthday"
+                  - option "make email helper"
+                  - 'option "Style: no `etc.` / `and so forth`"'
+                  - option "[[2026-06-04-dj-stin-sprout|DJ Stin]] — scene/genre TBD — waiting on logo"
+                  - 'option "Discussion Move 5: future work direction"'
+                  - 'option "Style: passed [[ai-writing-forbidden-patterns]] audit (A-T patterns)"'
+                  - option "Abstract within ~250 words (CS norm ~232)"
+                  - 'option "Intro Move 3e: paper structure indicated"'
+                  - 'option "Abstract Move 1: background/situation"'
+                  - 'option "Discussion Move 4: limitations stated"'
+                  - option "Send Dr. Savage update email (what's planned + what's being worked on next week)"
+                  - option "[[2026-06-04-cowson-sprout|Cowson]] — DnB + dubstep / Boston bass — printed, ready to deliver + content shoot ✅ design done (first content unlock)"
+                  - option "Email Stephen Intille — master's project with him OR general meeting (he's recruiting PhDs for Fall 2027)"
+                  - 'option "Anonymity: self-citations masked appropriately"'
+                  - option "All axes have units; complex metrics motivated"
+                  - option "Set up IG + TikTok profiles with the locked launch copy (bios + first pinned post in [[2026-05-26-initial-brainstorm]] → \"Launch copy\")"
+                  - option "Results general → specific ordering within each result"
+                  - option "Pull in the old advisor list and compare/merge"
+                  - option "Identify target professors + check their fall teaching schedules"
+                  - 'option "Anonymity: no `\\author{}` or acknowledgments revealing identity"'
+                  - option "Redraw logo as vector (SVG) + export an icon-only square for profile pics — steps in [[logo-vectorization]]"
+                  - option "Email target professors about taking class + possible master's project (after identifying targets)"
+                  - 'option "Style: hedging strength appropriate per claim (not overclaiming)"'
+                  - 'option "Style: no contractions"'
+                  - option "Remove OneDrive — download cloud-only files first (25,703 placeholders / ~5 GB), then unlink + uninstall; see [[onedrive-removal]]"
+                  - 'option "Intro Move 3b: research questions or hypotheses listed"'
+                  - option "Schedule dentist appointment"
+                  - 'option "Schedule appointment with Cailyn re: class options + master''s project (also ask: when does fall registration open?)"'
+                  - 'option "Intro Move 3a: purpose stated"'
+                  - option "Draft outreach (TriTower-results framing) for the 🟢 list"
+                  - option "All figures readable in grayscale"
+                  - 'option "Intro Move 3c: principal findings announced"'
+                  - 'option "Email Raj re: not doing thesis this summer + request advice meeting"'
+                  - 'option "Discussion Move 3: results interpreted, compared to prior work"'
+                  - option "Methods hyperparameter tuning protocol described (cross-ref decisions log on [[tritower-paper]])"
+                  - option "Email (lead with TriTower results; note the MIND connection)"
+                  - 'option "Figure 2: W/A/L/T/E/R present"'
+                  - option "Switch IG + TikTok to Business/Creator profiles (unlocks email contact button)"
+                  - option "Methods at right level of detail for AAAI audience (likely condensed)"
+                  - option "Confirm what's current vs outdated in the grant-pitch arc (system, Paper 1 focus, venue)"
+                  - 'option "Style: no second-person \"you\""'
+                  - 'option "Abstract Move 2: present research/purpose"'
+                  - 'option "Abstract Move 4: key results"'
+                  - option "Results cite agreement or disagreement with prior work"
+                  - 'option "Shortlist ~5 from the 🟢 + top 🟡 (likely: Xu, Mishra, Intille, Savage, + Doshi-Velez/Gajos or Nock)"'
+                  - option "[[2026-06-04-kg-sprout|KG]] — scene/genre TBD — waiting on logo"
+                  - option "Email (lead with TriTower results; frame MindStorm as the dashboard MIND points toward)"
+                  - 'option "Pick DM-phase payment method (lean: Stripe payment links)"'
+                  - option "Talk to Saiph directly about the PhD + MindStorm venture angle"
+                  - option "Results methodology justified where relevant"
+                  - option "[[2026-06-04-mikey-g-sprout|Mikey G]] — scene/genre TBD — waiting on logo"
+                  - option "Email the ❓/🟡 to confirm recruiting (Savage first — she's your advisor)"
+                  - 'option "Figure 1: W/A/L/T/E/R present in caption + surrounding commentary"'
+                  - option "Methods linking phrases between procedures"
+                  - option "Email finale-lab to confirm cycle + fit *before* applying (lead with TriTower interpretability results)"
+                  - option "[[2026-06-04-dave-the-wave-sprout|Dave The Wave]] — scene/genre TBD — waiting on logo"
+                  - 'option "Style: vocabulary shift pass (no informal verbs)"'
+                  - option "Decide which SKU launches first"
+                  - 'option "Discussion Move 2: key results summarized"'
+                  - 'option "Style: both active and passive used purposefully"'
+                  - 'option "Intro Move 2: gap or niche explicitly identified"'
+                  - 'option "Email re: PhD recruiting + fit (lead with TriTower results)"'
+                  - option "Hand Claude the other PhD documents to flesh out this area"
+                  - 'option "Register a domain (`sproutingprints.com` / `.shop`) or decide to defer"'
+                  - 'option "Decide: validate existing market or create demand"'
+                  - option "Schedule dermatologist appointment"
+                  - 'option "Discussion Move 1: background/methodology recap"'
+                  - 'option "Intro Move 1: research territory established with prior work cited"'
+                  - option "Advisor/program research + outreach (see [[todos]])"
+                  - 'option "Anonymity: no identifying paths/filenames in supplementary code"'
+                  - 'option "Abstract Move 3: methods summary"'
+              - generic [ref=e269]:
+                - button "Start" [ref=e270] [cursor=pointer]
+                - button "Skip" [ref=e271] [cursor=pointer]
+                - button "Reset" [ref=e272] [cursor=pointer]
+              - generic [ref=e273]:
+                - generic [ref=e274]:
+                  - generic [ref=e275]: Focus
+                  - spinbutton "Focus" [ref=e276]: "25"
+                - generic [ref=e277]:
+                  - generic [ref=e278]: Short
+                  - spinbutton "Short" [ref=e279]: "5"
+                - generic [ref=e280]:
+                  - generic [ref=e281]: Long
+                  - spinbutton "Long" [ref=e282]: "15"
+                - generic [ref=e283]:
+                  - generic [ref=e284]: Cycles
+                  - spinbutton "Cycles" [ref=e285]: "4"
+              - generic [ref=e286]:
+                - generic [ref=e287] [cursor=pointer]:
+                  - checkbox "Auto break" [checked] [ref=e288]
+                  - generic [ref=e289]: Auto break
+                - generic [ref=e290] [cursor=pointer]:
+                  - checkbox "Auto focus" [checked] [ref=e291]
+                  - generic [ref=e292]: Auto focus
+              - list [ref=e293]:
+                - listitem [ref=e294]:
+                  - generic [ref=e295]: Break
+                  - generic [ref=e296]: 5m 00s
+                - listitem [ref=e297]:
+                  - generic [ref=e298]: Focus
+                  - generic [ref=e299]: 25m 00s
+                - listitem [ref=e300]:
+                  - generic [ref=e301]: Break
+                  - generic [ref=e302]: 5m 00s
+                - listitem [ref=e303]:
+                  - generic [ref=e304]: Focus
+                  - generic [ref=e305]: 25m 00s
+          - generic [ref=e306]:
+            - generic [ref=e490]: Due 2026-05-25
+            - generic [ref=e307]: Pomodoros 0/—
+  - region

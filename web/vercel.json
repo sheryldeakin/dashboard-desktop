@@ -1,27 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/admin/:path*",
-      "destination": "/"
-    },
-    {
-      "source": "/history/:path*",
-      "destination": "/"
-    },
-    {
-      "source": "/todo/:path*",
-      "destination": "/"
-    },
-    {
-      "source": "/settings/:path*",
-      "destination": "/"
-    },
-    {
-      "source": "/stats/:path*",
-      "destination": "/"
-    },
-    {
-      "source": "/home/:path*",
+      "source": "/(.*)",
       "destination": "/"
     }
   ]
