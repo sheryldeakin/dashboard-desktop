@@ -5,10 +5,12 @@ import {
   Navigate,
   Outlet,
   RouterProvider,
+  useLocation,
   useNavigate,
 } from "react-router-dom";
 import TopNav from "./components/TopNav.jsx";
 import SideNav from "./components/SideNav.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 
 // Route elements are lazy-loaded so a fresh visit to /home doesn't have
 // to download all of /stats's chart code, etc. Each page becomes its own
@@ -542,15 +544,22 @@ function RouteSuspenseFallback() {
 /* AppShellLayout — wraps the sidebar pages (/home, /history, /stats,
    /settings). Renders SideNav + an Outlet for the matched child route.
    Suspense wraps the Outlet so each lazy chunk loads cleanly without
-   knocking out the surrounding chrome (sidebar stays visible). */
+   knocking out the surrounding chrome (sidebar stays visible).
+   ErrorBoundary wraps Suspense so a page-level crash falls back to a
+   fallback UI without taking out the sidebar — user can still navigate
+   away. resetKeys: pathname so navigating to a new route clears the
+   error state automatically. */
 function AppShellLayout() {
+  const location = useLocation();
   return (
     <div className="app-shell">
       <SideNav />
       <div className="app-shell-main">
-        <Suspense fallback={<RouteSuspenseFallback />}>
-          <Outlet />
-        </Suspense>
+        <ErrorBoundary scope="route" resetKeys={[location.pathname]}>
+          <Suspense fallback={<RouteSuspenseFallback />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
       </div>
     </div>
   );
@@ -559,12 +568,15 @@ function AppShellLayout() {
 /* TodoLayout — /todo gets the top nav, not the side nav (focus-mode
    takes over the full viewport, sidebar would clash). */
 function TodoLayout() {
+  const location = useLocation();
   return (
     <>
       <TopNav />
-      <Suspense fallback={<RouteSuspenseFallback />}>
-        <Outlet />
-      </Suspense>
+      <ErrorBoundary scope="route" resetKeys={[location.pathname]}>
+        <Suspense fallback={<RouteSuspenseFallback />}>
+          <Outlet />
+        </Suspense>
+      </ErrorBoundary>
     </>
   );
 }
@@ -619,5 +631,13 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  // Top-level ErrorBoundary is the last line of defense. If a layout or
+  // routing layer itself crashes (rare — those are stable surfaces),
+  // this prevents the whole app from going white-screen. Recovery from
+  // here is reload-only since the router context is what broke.
+  return (
+    <ErrorBoundary scope="app">
+      <RouterProvider router={router} />
+    </ErrorBoundary>
+  );
 }

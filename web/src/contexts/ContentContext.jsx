@@ -44,6 +44,13 @@ export function ContentProvider({ children }) {
   // distinguish "showing cached fallback" from "showing fresh data".
   const [content, setContentState] = useState(() => loadContent() ?? cloneContent(DEFAULT_CONTENT));
   const [loaded, setLoaded] = useState(() => loadContent() !== null);
+  // apiOnline tracks whether the most recent GET succeeded. true on
+  // happy path; flips to false when a fetch rejects (network down,
+  // backend crashed, MongoServerSelectionError, etc.). UI badges read
+  // this to show a small offline indicator. PUT failures aren't yet
+  // wired in (they're fire-and-forget inside persistContent); good
+  // followup if writes silently failing becomes a recurring pain.
+  const [apiOnline, setApiOnline] = useState(true);
   // Held in a ref so updateContent's closure doesn't capture stale state
   // across calls (callers can chain updates without setState batching
   // surprises).
@@ -73,12 +80,22 @@ export function ContentProvider({ children }) {
   // Initial load: same flow each page used to do on its own.
   useEffect(() => {
     let mounted = true;
-    loadAndHydratePreferredContent().then((c) => {
-      if (!mounted) return;
-      contentRef.current = c;
-      setContentState(c);
-      setLoaded(true);
-    });
+    loadAndHydratePreferredContent()
+      .then((c) => {
+        if (!mounted) return;
+        contentRef.current = c;
+        setContentState(c);
+        setLoaded(true);
+        setApiOnline(true);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        console.warn("Initial content load failed:", err?.message);
+        setApiOnline(false);
+        // Still mark loaded so the UI doesn't sit on a skeleton
+        // forever; we fall back to whatever's in localStorage cache.
+        setLoaded(true);
+      });
     return () => { mounted = false; };
   }, []);
 
@@ -101,23 +118,30 @@ export function ContentProvider({ children }) {
   }, []);
 
   // Visibility-change refresh: when the tab becomes active again, pull
-  // the latest. Lightweight stale-while-revalidate.
+  // the latest. Lightweight stale-while-revalidate. Also flips
+  // apiOnline depending on whether the refresh succeeded — so the
+  // offline badge clears once connectivity returns + a tab focus
+  // triggers the next fetch.
   useEffect(() => {
     function onVisibilityChange() {
       if (document.visibilityState !== "visible") return;
-      loadAndHydratePreferredContent().then((c) => {
-        // Only re-render if something actually differs — avoids a full
-        // re-render every time the user alt-tabs.
-        try {
-          if (JSON.stringify(contentRef.current) === JSON.stringify(c)) return;
-        } catch {
-          // fall through and accept the new content
-        }
-        contentRef.current = c;
-        setContentState(c);
-      }).catch(() => {
-        // network errors are fine — keep showing the cached doc
-      });
+      loadAndHydratePreferredContent()
+        .then((c) => {
+          setApiOnline(true);
+          // Only re-render if something actually differs — avoids a full
+          // re-render every time the user alt-tabs.
+          try {
+            if (JSON.stringify(contentRef.current) === JSON.stringify(c)) return;
+          } catch {
+            // fall through and accept the new content
+          }
+          contentRef.current = c;
+          setContentState(c);
+        })
+        .catch((err) => {
+          console.warn("Visibility-change refresh failed:", err?.message);
+          setApiOnline(false);
+        });
     }
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -126,17 +150,23 @@ export function ContentProvider({ children }) {
   // Manual refresh — used by the /stats Sync Now flow which needs to
   // know exactly when fresh content has landed. Returns the fetched doc.
   const reloadContent = useCallback(async () => {
-    const c = await loadAndHydratePreferredContent();
-    contentRef.current = c;
-    setContentState(c);
-    return c;
+    try {
+      const c = await loadAndHydratePreferredContent();
+      contentRef.current = c;
+      setContentState(c);
+      setApiOnline(true);
+      return c;
+    } catch (err) {
+      setApiOnline(false);
+      throw err;
+    }
   }, []);
 
   // Memoize the context value so consumers only re-render when content or
   // loaded actually change — not when an unrelated parent re-renders.
   const value = useMemo(
-    () => ({ content, setContent, updateContent, reloadContent, loaded }),
-    [content, setContent, updateContent, reloadContent, loaded],
+    () => ({ content, setContent, updateContent, reloadContent, loaded, apiOnline }),
+    [content, setContent, updateContent, reloadContent, loaded, apiOnline],
   );
 
   return <ContentCtx.Provider value={value}>{children}</ContentCtx.Provider>;

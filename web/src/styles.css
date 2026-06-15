@@ -1928,6 +1928,160 @@ button:focus-visible {
   border-bottom-color: var(--ink);
 }
 
+/* Error boundary fallback — shown when a React render error escapes a
+   page. Same visual family as the 404 page (quiet, no panic) since the
+   recovery is the same shape: tell the user what happened, give them
+   buttons to recover. The `--app` variant takes the whole viewport
+   (top-level boundary, nothing else is rendering). The `--route`
+   variant lives inside a layout so the sidebar is visible — sizing is
+   the same as not-found. */
+.error-boundary {
+  max-width: clamp(720px, 92vw, 1800px);
+  margin: 0 auto;
+  padding: clamp(40px, 5vw, 72px) clamp(24px, 4vw, 56px);
+}
+
+.error-boundary--app {
+  /* Top-level fallback with no surrounding chrome. Center it. */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.error-boundary-title {
+  font-size: clamp(22px, 2.5vw, 32px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+}
+
+.error-boundary-text {
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 24px;
+  max-width: 60ch;
+}
+
+.error-boundary-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.error-boundary-btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.error-boundary-btn:hover {
+  border-color: var(--ink-muted);
+}
+
+.error-boundary-btn.is-primary {
+  font-weight: 500;
+}
+
+/* Details expander stays out of the way unless the user wants the
+   stack trace. Useful for "send me a screenshot" debugging. */
+.error-boundary-details {
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.error-boundary-details summary {
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: 12px;
+  user-select: none;
+}
+
+.error-boundary-message {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.error-boundary-stack {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  background: rgba(0, 0, 0, 0.03);
+  padding: 12px 14px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 16px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+/* Offline badge — quiet pill that appears in nav surfaces when the
+   backend isn't reachable. Two placement variants set their own
+   spacing; the badge styling itself is shared. */
+.offline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(183, 110, 53, 0.08);
+  color: #b76e35;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  user-select: none;
+}
+
+.offline-badge-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #b76e35;
+  /* Slow pulse to draw the eye without being shouty. Respects the
+     prefers-reduced-motion media query via opacity-only animation. */
+  animation: offline-badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes offline-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offline-badge-dot { animation: none; }
+}
+
+/* SideNav placement: small top margin so the badge sits below the
+   system links without crowding. align-self start keeps it left-edged
+   like the rest of the nav. */
+.side-nav-offline {
+  margin-top: 12px;
+  align-self: flex-start;
+}
+
+/* TopNav placement: push to the right edge of the nav row. */
+.top-nav-offline {
+  margin-left: auto;
+}
+
 /* Sidebar — sticky so the nav stays in view as you scroll the main area.
    Background is a slightly warmer paper tone than the page bg, so the
    shell reads as two surfaces without needing a heavy divider.

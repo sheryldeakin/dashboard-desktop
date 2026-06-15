@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import OfflineBadge from "./OfflineBadge.jsx";
 
 const NAV_LINKS = [
   { href: "/home", label: "Home" },
@@ -32,6 +33,7 @@ export default function TopNav() {
           {label}
         </Link>
       ))}
+      <OfflineBadge className="top-nav-offline" />
     </nav>
   );
 }

@@ -13,6 +13,7 @@
 
 import { useEffect, useState } from "react";
 import { Link as RouterLink, useLocation } from "react-router-dom";
+import OfflineBadge from "./OfflineBadge.jsx";
 
 /* Stroke-based icon set matching the /home rail icon family
    (1.8px strokes, 16×16 viewBox, currentColor). Each link in the
@@ -263,6 +264,10 @@ export default function SideNav() {
             />
           ))}
         </nav>
+
+        {/* Offline badge — renders nothing when online. Pinned below the
+            system links so it doesn't push primary nav around. */}
+        <OfflineBadge className="side-nav-offline" />
       </aside>
     </>
   );
