@@ -335,20 +335,20 @@ export default function TodoPage() {
 
   // Sync selectedTaskId → ?taskId in the URL. Runs only after the initial
   // restore above, so we don't blow away the URL param on first render.
+  // Reads window.location.search directly (not the setSearchParams updater's
+  // `prev`) because React Router batches setSearchParams calls in a way
+  // that can stale-out `prev` when multiple sources update URL in the same
+  // tick (e.g., the restore effect's section auto-switch). Using the live
+  // URL guarantees we preserve any params written just before us.
   useEffect(() => {
     if (!taskIdRestoredRef.current) return;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        // Don't fight the focus-handoff effect — if ?focus=1 is active,
-        // ?taskId is owned by that path.
-        if (next.get("focus") === "1") return prev;
-        if (selectedTaskId) next.set("taskId", selectedTaskId);
-        else next.delete("taskId");
-        return next;
-      },
-      { replace: true },
-    );
+    const next = new URLSearchParams(window.location.search);
+    // Don't fight the focus-handoff effect — if ?focus=1 is active,
+    // ?taskId is owned by that path.
+    if (next.get("focus") === "1") return;
+    if (selectedTaskId) next.set("taskId", selectedTaskId);
+    else next.delete("taskId");
+    setSearchParams(next, { replace: true });
   }, [selectedTaskId, setSearchParams]);
 
   const drawerProps = {
