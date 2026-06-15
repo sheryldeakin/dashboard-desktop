@@ -8,6 +8,7 @@ import {
   formatRecurrence,
   RECURRENCE_TYPES,
   getLastSyncedAt,
+  isTaskOverdue,
 } from "../../utils/taskUtils.js";
 
 // Small "synced Xm ago" indicator near the save bar. Reads localStorage on a
@@ -40,11 +41,12 @@ import { useTasks } from "../../hooks/useTasks.js";
 import { usePomodoro } from "../../hooks/usePomodoro.js";
 import { useTimer } from "../../hooks/useTimer.js";
 import Sidebar from "./Sidebar.jsx";
-import SummaryBar from "./SummaryBar.jsx";
 import TaskList from "./TaskList.jsx";
 import DetailDrawer from "./DetailDrawer.jsx";
 import TimerBar from "./TimerBar.jsx";
 import FocusMode from "./FocusMode.jsx";
+import PageHeader from "../PageHeader.jsx";
+import Chip from "../Chip.jsx";
 
 export default function TodoPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -415,12 +417,46 @@ export default function TodoPage() {
         />
 
         <div className="tp-main">
-          <div className="tp-main-header">
-            <div className="tp-main-title-row">
-              <h1 className="tp-main-title">Tasks</h1>
-            </div>
-            <SummaryBar tasks={tasks} />
-          </div>
+          {/* Summary chip values are computed inline below — chips now
+              ride in the PageHeader slot, not as a SummaryBar row. */}
+          <PageHeader
+            title="Tasks"
+            chips={(() => {
+              const active = tasks.filter((t) => !t.done).length;
+              const done = tasks.filter((t) => t.done).length;
+              const overdue = tasks.filter((t) => isTaskOverdue(t)).length;
+              const estPomos = tasks.reduce(
+                (s, t) => s + (t.done ? 0 : t.estimatedPomodoros || 0),
+                0,
+              );
+              const donePomos = tasks.reduce((s, t) => s + (t.completedPomodoros || 0), 0);
+              return [
+                <Chip key="active">
+                  <strong>{active}</strong> active
+                </Chip>,
+                <Chip key="done">
+                  <strong>{done}</strong> done
+                </Chip>,
+                overdue > 0 && (
+                  <Chip key="overdue" tone="warning">
+                    <strong>{overdue}</strong> overdue
+                  </Chip>
+                ),
+                <Chip key="pomos">
+                  <strong>{donePomos}</strong>/{estPomos || "—"} pomos
+                </Chip>,
+              ].filter(Boolean);
+            })()}
+            actions={
+              <form className="tp-header-actions" onSubmit={handleSave}>
+                {status && <span className="tp-header-status">{status}</span>}
+                <SyncIndicator />
+                <button type="submit" className="settings-btn is-primary">
+                  Save
+                </button>
+              </form>
+            }
+          />
 
           {/* Filters accordion */}
           <div className="tp-filters-bar">
@@ -499,13 +535,6 @@ export default function TodoPage() {
             onQuickAdd={handleQuickAdd}
           />
 
-          <form className="tp-save-bar" onSubmit={handleSave}>
-            <div className="tp-save-status-group">
-              <span className="tp-save-status">{status}</span>
-              <SyncIndicator />
-            </div>
-            <button type="submit" className="tp-btn">Save</button>
-          </form>
         </div>
 
         {/* Inline detail panel on wide screens */}

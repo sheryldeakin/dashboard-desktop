@@ -8,7 +8,6 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import TopNav from "./components/TopNav.jsx";
 import SideNav from "./components/SideNav.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 
@@ -565,22 +564,6 @@ function AppShellLayout() {
   );
 }
 
-/* TodoLayout — /todo gets the top nav, not the side nav (focus-mode
-   takes over the full viewport, sidebar would clash). */
-function TodoLayout() {
-  const location = useLocation();
-  return (
-    <>
-      <TopNav />
-      <ErrorBoundary scope="route" resetKeys={[location.pathname]}>
-        <Suspense fallback={<RouteSuspenseFallback />}>
-          <Outlet />
-        </Suspense>
-      </ErrorBoundary>
-    </>
-  );
-}
-
 /* NotFound — catch-all for unknown paths. Renders inside AppShellLayout
    so the user keeps the nav for getting unstuck. */
 function NotFound() {
@@ -609,7 +592,9 @@ const router = createBrowserRouter([
 
   // Sidebar-shelled pages. The catch-all (`*`) also lives here so a
   // mis-typed URL renders a 404 page with the sidebar intact, not a
-  // blank screen.
+  // blank screen. /todo joined this group in 2026-06-15 (Phase A of the
+  // /todo refresh) — FocusMode is position:fixed full-screen so the
+  // SideNav underneath is harmless when focus is active.
   {
     element: <AppShellLayout />,
     children: [
@@ -617,15 +602,8 @@ const router = createBrowserRouter([
       { path: "/history", element: <HistoryPage /> },
       { path: "/stats", element: <StatsPage /> },
       { path: "/settings", element: <SettingsPage /> },
-      { path: "*", element: <NotFound /> },
-    ],
-  },
-
-  // Top-nav-shelled pages.
-  {
-    element: <TodoLayout />,
-    children: [
       { path: "/todo", element: <TodoPage /> },
+      { path: "*", element: <NotFound /> },
     ],
   },
 ]);
