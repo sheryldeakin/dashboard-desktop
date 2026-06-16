@@ -456,38 +456,38 @@ export default function TodoPage() {
             </button>
             {filtersOpen && (
               <div className="tp-filters-panel">
-                <label className="tp-field">
-                  <span className="tp-field-label">Search</span>
-                  <input className="tp-input" type="search" placeholder="Find tasks…"
+                <label className="settings-field">
+                  <span className="settings-label">Search</span>
+                  <input className="settings-input" type="search" placeholder="Find tasks…"
                     value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </label>
-                <label className="tp-field">
-                  <span className="tp-field-label">Project</span>
-                  <select className="tp-select" value={filterProjectId}
+                <label className="settings-field">
+                  <span className="settings-label">Project</span>
+                  <select className="settings-select" value={filterProjectId}
                     onChange={(e) => handleDropdownProjectFilter(e.target.value)}>
                     <option value="all">All Projects</option>
                     {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </label>
-                <label className="tp-field">
-                  <span className="tp-field-label">Status</span>
-                  <select className="tp-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                <label className="settings-field">
+                  <span className="settings-label">Status</span>
+                  <select className="settings-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                     <option value="all">All</option>
                     <option value="active">Active</option>
                     <option value="done">Done</option>
                     <option value="overdue">Overdue</option>
                   </select>
                 </label>
-                <label className="tp-field">
-                  <span className="tp-field-label">Priority</span>
-                  <select className="tp-select" value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
+                <label className="settings-field">
+                  <span className="settings-label">Priority</span>
+                  <select className="settings-select" value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
                     <option value="all">All</option>
                     {PRIORITY_LEVELS.map((p) => <option key={p} value={p}>{formatPriority(p)}</option>)}
                   </select>
                 </label>
-                <label className="tp-field">
-                  <span className="tp-field-label">Sort</span>
-                  <select className="tp-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <label className="settings-field">
+                  <span className="settings-label">Sort</span>
+                  <select className="settings-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                     <option value="manual">Manual</option>
                     <option value="priority">Priority</option>
                     <option value="dueDate">Due Date</option>
@@ -496,9 +496,9 @@ export default function TodoPage() {
                   </select>
                 </label>
                 <div className="tp-filters-actions">
-                  <button type="button" className="tp-btn tp-btn-sm tp-btn-ghost" onClick={handleMarkVisibleDone}>Mark Done</button>
-                  <button type="button" className="tp-btn tp-btn-sm tp-btn-ghost" onClick={handleClearCompleted}>Clear Done</button>
-                  <button type="button" className="tp-btn tp-btn-sm tp-btn-ghost" onClick={handleResetFilters}>Reset</button>
+                  <button type="button" className="settings-btn" onClick={handleMarkVisibleDone}>Mark Done</button>
+                  <button type="button" className="settings-btn" onClick={handleClearCompleted}>Clear Done</button>
+                  <button type="button" className="settings-btn" onClick={handleResetFilters}>Reset</button>
                 </div>
               </div>
             )}

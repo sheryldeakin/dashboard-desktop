@@ -179,16 +179,16 @@ function TaskDetail({
           <div className="tp-drawer-timer-actions">
             {task.timer.status === "running" ? (
               <>
-                <button type="button" className="tp-btn tp-btn-sm" onClick={() => onTaskAction(task.id, "rest")}>Pause</button>
-                <button type="button" className="tp-btn tp-btn-sm tp-btn-ghost" onClick={() => onTaskAction(task.id, "stop")}>Stop</button>
+                <button type="button" className="settings-btn is-primary" onClick={() => onTaskAction(task.id, "rest")}>Pause</button>
+                <button type="button" className="settings-btn" onClick={() => onTaskAction(task.id, "stop")}>Stop</button>
               </>
             ) : task.timer.status === "paused" ? (
               <>
-                <button type="button" className="tp-btn tp-btn-sm" onClick={() => onTaskAction(task.id, "resume")}>Resume</button>
-                <button type="button" className="tp-btn tp-btn-sm tp-btn-ghost" onClick={() => onTaskAction(task.id, "stop")}>Stop</button>
+                <button type="button" className="settings-btn is-primary" onClick={() => onTaskAction(task.id, "resume")}>Resume</button>
+                <button type="button" className="settings-btn" onClick={() => onTaskAction(task.id, "stop")}>Stop</button>
               </>
             ) : (
-              <button type="button" className="tp-btn tp-btn-sm" onClick={() => onTaskAction(task.id, "start")}>
+              <button type="button" className="settings-btn is-primary" onClick={() => onTaskAction(task.id, "start")}>
                 {task.timer.totalWorkMs > 0 ? "Resume" : "Start"}
               </button>
             )}
@@ -202,14 +202,14 @@ function TaskDetail({
           {!task.done && (
             <button
               type="button"
-              className={`tp-btn tp-btn-sm${pomodoroRun.taskId === task.id ? " is-active" : ""}`}
+              className={`settings-btn is-primary${pomodoroRun.taskId === task.id ? " is-active" : ""}`}
               onClick={() => onAssignPomodoro(task.id)}
             >
               Set as Focus Task
             </button>
           )}
-          <button type="button" className="tp-btn tp-btn-sm tp-btn-ghost" onClick={() => onDuplicate(task.id)}>Duplicate</button>
-          <button type="button" className="tp-btn tp-btn-sm tp-btn-danger" onClick={() => onRemove(task.id)}>Remove</button>
+          <button type="button" className="settings-btn" onClick={() => onDuplicate(task.id)}>Duplicate</button>
+          <button type="button" className="settings-btn settings-btn-danger" onClick={() => onRemove(task.id)}>Remove</button>
         </div>
       </div>
 
@@ -235,14 +235,14 @@ function TaskDetail({
           </label>
           <div className="tp-pomo-controls">
             {pomodoroRun.status === "running" ? (
-              <button type="button" className="tp-btn tp-btn-sm" onClick={onPausePomodoro}>Pause</button>
+              <button type="button" className="settings-btn is-primary" onClick={onPausePomodoro}>Pause</button>
             ) : (
-              <button type="button" className="tp-btn tp-btn-sm" onClick={onStartPomodoro}>
+              <button type="button" className="settings-btn is-primary" onClick={onStartPomodoro}>
                 {pomodoroRun.status === "paused" ? "Resume" : "Start"}
               </button>
             )}
-            <button type="button" className="tp-btn tp-btn-sm tp-btn-ghost" onClick={onSkipPomodoro}>Skip</button>
-            <button type="button" className="tp-btn tp-btn-sm tp-btn-ghost" onClick={onResetPomodoro}>Reset</button>
+            <button type="button" className="settings-btn" onClick={onSkipPomodoro}>Skip</button>
+            <button type="button" className="settings-btn" onClick={onResetPomodoro}>Reset</button>
           </div>
           <div className="tp-pomo-settings-grid">
             <label className="settings-field">

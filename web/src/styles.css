@@ -2912,107 +2912,11 @@ button:focus-visible {
   text-transform: uppercase;
 }
 
-.tp-field-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.tp-input,
-.tp-select,
-.tp-textarea {
-  width: 100%;
-  border: 1px solid rgba(182, 139, 97, 0.3);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.8);
-  color: var(--ink);
-  padding: 8px 10px;
-  font: inherit;
-  font-size: 13px;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.tp-input:focus,
-.tp-select:focus,
-.tp-textarea:focus {
-  outline: none;
-  border-color: rgba(182, 110, 53, 0.45);
-  box-shadow: 0 0 0 3px rgba(182, 110, 53, 0.08);
-}
-
-.tp-input-sm {
-  padding: 6px 8px;
-  font-size: 12px;
-}
-
-.tp-textarea {
-  resize: vertical;
-  min-height: 64px;
-}
-
-.tp-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--ink-soft);
-  cursor: pointer;
-}
-
-.tp-toggle input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--accent);
-}
-
 /* ----- Buttons ----- */
-.tp-btn {
-  border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  background: linear-gradient(180deg, #d7b68c, #c59c69);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 150ms ease, filter 150ms ease;
-}
-
-.tp-btn:hover {
-  filter: brightness(1.03);
-  transform: translateY(-1px);
-}
-
-.tp-btn:active {
-  transform: translateY(0);
-  filter: brightness(0.97);
-}
-
-.tp-btn-sm {
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: 7px;
-}
-
-.tp-btn-ghost {
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--ink-soft);
-  border: 1px solid rgba(182, 139, 97, 0.2);
-}
-
-.tp-btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.85);
-}
-
-.tp-btn-danger {
-  background: linear-gradient(180deg, #d6bfb8, #c4a69d);
-  color: #6b3528;
-  border: 1px solid rgba(170, 80, 50, 0.2);
-}
-
-.tp-btn.is-active {
-  background: linear-gradient(180deg, #bf7a40, #a66735);
-}
+/* .tp-btn / .tp-btn-sm / .tp-btn-ghost / .tp-btn-danger / .tp-btn.is-active
+   removed in Phase F.2 — all usages migrated to .settings-btn variants
+   (see .settings-btn-danger and .settings-btn.is-active below for the
+   non-default states). */
 
 /* ----- Save Bar ----- */
 /* tp-save-bar / tp-save-status / tp-save-status-group removed when
@@ -4270,19 +4174,12 @@ button:focus-visible {
 
 /* ----- Focus Rings (keyboard) ----- */
 .tp-play-btn:focus-visible,
-.tp-btn:focus-visible,
 .tp-drawer-close:focus-visible,
 .tp-task-body:focus-visible,
 .tp-timer-bar-btn:focus-visible,
 .tp-filters-toggle:focus-visible {
   outline: 2px solid rgba(182, 110, 53, 0.5);
   outline-offset: 2px;
-}
-
-.tp-input:focus-visible,
-.tp-select:focus-visible,
-.tp-textarea:focus-visible {
-  outline: none;
 }
 
 /* ----- Responsive ----- */
@@ -4412,6 +4309,29 @@ button:focus-visible {
 
 .settings-btn.is-primary {
   font-weight: 500;
+}
+
+/* "Currently selected" — used for the drawer's Set-as-Focus-Task button
+   when this task IS the active pomodoro task. Tinted background + a
+   bolder border so it reads "you're already in this state." */
+.settings-btn.is-active {
+  background-color: rgba(var(--accent-tan-rgb), 0.18);
+  border-color: var(--accent-tan, #b6885a);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Destructive action — used for Remove. Red text + red border, no fill
+   so it stays consistent with the other ghost-style buttons in the
+   same row; the color does the warning work. */
+.settings-btn-danger {
+  color: #a2512f;
+  border-color: rgba(164, 82, 48, 0.4);
+}
+
+.settings-btn-danger:hover:not(:disabled) {
+  border-color: #a2512f;
+  background-color: rgba(164, 82, 48, 0.08);
 }
 
 /* Field building blocks. */
