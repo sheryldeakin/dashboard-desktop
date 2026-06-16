@@ -37,20 +37,20 @@ function TaskDetail({
   return (
     <div className="tp-drawer-body">
       <div className="tp-drawer-section">
-        <label className="tp-field">
-          <span className="tp-field-label">Title</span>
+        <label className="settings-field">
+          <span className="settings-label">Title</span>
           <input
-            className="tp-input"
+            className="settings-input"
             value={task.text}
             onChange={(e) => onTaskField(task.id, (c) => ({ ...c, text: e.target.value }))}
           />
         </label>
 
-        <div className="tp-field-grid">
-          <label className="tp-field">
-            <span className="tp-field-label">Project</span>
+        <div className="settings-field-grid tp-drawer-field-grid">
+          <label className="settings-field">
+            <span className="settings-label">Project</span>
             <select
-              className="tp-select"
+              className="settings-select"
               value={task.projectId}
               onChange={(e) => onTaskField(task.id, (c) => ({ ...c, projectId: e.target.value }))}
             >
@@ -60,10 +60,10 @@ function TaskDetail({
             </select>
           </label>
 
-          <label className="tp-field">
-            <span className="tp-field-label">Priority</span>
+          <label className="settings-field">
+            <span className="settings-label">Priority</span>
             <select
-              className="tp-select"
+              className="settings-select"
               value={task.priority}
               onChange={(e) => onTaskField(task.id, (c) => ({ ...c, priority: e.target.value }))}
             >
@@ -73,20 +73,20 @@ function TaskDetail({
             </select>
           </label>
 
-          <label className="tp-field">
-            <span className="tp-field-label">Due Date</span>
+          <label className="settings-field">
+            <span className="settings-label">Due Date</span>
             <input
               type="date"
-              className="tp-input"
+              className="settings-input"
               value={task.dueDate || ""}
               onChange={(e) => onTaskField(task.id, (c) => ({ ...c, dueDate: e.target.value || null }))}
             />
           </label>
 
-          <label className="tp-field">
-            <span className="tp-field-label">Recurrence</span>
+          <label className="settings-field">
+            <span className="settings-label">Recurrence</span>
             <select
-              className="tp-select"
+              className="settings-select"
               value={task.recurrence.type}
               onChange={(e) => onTaskField(task.id, (c) => ({
                 ...c, recurrence: { ...c.recurrence, type: e.target.value },
@@ -99,11 +99,11 @@ function TaskDetail({
           </label>
 
           {task.recurrence.type !== "none" && (
-            <label className="tp-field">
-              <span className="tp-field-label">Interval</span>
+            <label className="settings-field">
+              <span className="settings-label">Interval</span>
               <input
                 type="number"
-                className="tp-input"
+                className="settings-input"
                 min={1}
                 value={task.recurrence.interval}
                 onChange={(e) => onTaskField(task.id, (c) => ({
@@ -113,11 +113,11 @@ function TaskDetail({
             </label>
           )}
 
-          <label className="tp-field">
-            <span className="tp-field-label">Est. Pomodoros</span>
+          <label className="settings-field">
+            <span className="settings-label">Est. Pomodoros</span>
             <input
               type="number"
-              className="tp-input"
+              className="settings-input"
               min={0}
               value={task.estimatedPomodoros}
               onChange={(e) => onTaskField(task.id, (c) => ({
@@ -127,10 +127,10 @@ function TaskDetail({
           </label>
         </div>
 
-        <label className="tp-field">
-          <span className="tp-field-label">Tags</span>
+        <label className="settings-field">
+          <span className="settings-label">Tags</span>
           <input
-            className="tp-input"
+            className="settings-input"
             placeholder="comma separated"
             value={task.tags.join(", ")}
             onChange={(e) => {
@@ -140,10 +140,10 @@ function TaskDetail({
           />
         </label>
 
-        <label className="tp-field">
-          <span className="tp-field-label">Notes</span>
+        <label className="settings-field">
+          <span className="settings-label">Notes</span>
           <textarea
-            className="tp-textarea"
+            className="settings-input settings-textarea"
             rows={3}
             placeholder="Details and next steps…"
             value={task.notes}
@@ -220,10 +220,10 @@ function TaskDetail({
             <span className="tp-pomo-mode">{pomodoroModeLabel}</span>
             <span className="tp-pomo-clock">{formatClock(pomodoroRun.remainingSeconds)}</span>
           </div>
-          <label className="tp-field">
-            <span className="tp-field-label">Focus Task</span>
+          <label className="settings-field">
+            <span className="settings-label">Focus Task</span>
             <select
-              className="tp-select"
+              className="settings-select"
               value={pomodoroRun.taskId}
               onChange={(e) => onSetPomodoroRun((prev) => ({ ...prev, taskId: e.target.value }))}
             >
@@ -245,42 +245,42 @@ function TaskDetail({
             <button type="button" className="tp-btn tp-btn-sm tp-btn-ghost" onClick={onResetPomodoro}>Reset</button>
           </div>
           <div className="tp-pomo-settings-grid">
-            <label className="tp-field">
-              <span className="tp-field-label">Focus</span>
-              <input type="number" className="tp-input" min={5} max={180}
+            <label className="settings-field">
+              <span className="settings-label">Focus</span>
+              <input type="number" className="settings-input" min={5} max={180}
                 value={pomodoro.settings.focusMinutes}
                 onChange={(e) => onUpdatePomodoroSetting("focusMinutes", Math.max(5, Math.min(180, Number(e.target.value) || 25)))}
               />
             </label>
-            <label className="tp-field">
-              <span className="tp-field-label">Short</span>
-              <input type="number" className="tp-input" min={1} max={60}
+            <label className="settings-field">
+              <span className="settings-label">Short</span>
+              <input type="number" className="settings-input" min={1} max={60}
                 value={pomodoro.settings.shortBreakMinutes}
                 onChange={(e) => onUpdatePomodoroSetting("shortBreakMinutes", Math.max(1, Math.min(60, Number(e.target.value) || 5)))}
               />
             </label>
-            <label className="tp-field">
-              <span className="tp-field-label">Long</span>
-              <input type="number" className="tp-input" min={1} max={90}
+            <label className="settings-field">
+              <span className="settings-label">Long</span>
+              <input type="number" className="settings-input" min={1} max={90}
                 value={pomodoro.settings.longBreakMinutes}
                 onChange={(e) => onUpdatePomodoroSetting("longBreakMinutes", Math.max(1, Math.min(90, Number(e.target.value) || 15)))}
               />
             </label>
-            <label className="tp-field">
-              <span className="tp-field-label">Cycles</span>
-              <input type="number" className="tp-input" min={1} max={12}
+            <label className="settings-field">
+              <span className="settings-label">Cycles</span>
+              <input type="number" className="settings-input" min={1} max={12}
                 value={pomodoro.settings.cyclesBeforeLongBreak}
                 onChange={(e) => onUpdatePomodoroSetting("cyclesBeforeLongBreak", Math.max(1, Math.min(12, Number(e.target.value) || 4)))}
               />
             </label>
           </div>
           <div className="tp-pomo-toggles">
-            <label className="tp-toggle">
+            <label className="settings-toggle">
               <input type="checkbox" checked={pomodoro.settings.autoStartBreak}
                 onChange={(e) => onUpdatePomodoroSetting("autoStartBreak", e.target.checked)} />
               <span>Auto break</span>
             </label>
-            <label className="tp-toggle">
+            <label className="settings-toggle">
               <input type="checkbox" checked={pomodoro.settings.autoStartFocus}
                 onChange={(e) => onUpdatePomodoroSetting("autoStartFocus", e.target.checked)} />
               <span>Auto focus</span>

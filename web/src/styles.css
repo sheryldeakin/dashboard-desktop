@@ -4850,19 +4850,27 @@ button:focus-visible {
   width: 100%;
   border: 1px solid var(--rule);
   border-radius: 4px;
-  background: transparent;
+  /* Lighter than the page canvas so editable fields read as "you can
+     type here" instead of static text. Used across /settings, the /todo
+     drawer, and anywhere .settings-input lives. */
+  background-color: rgba(255, 255, 255, 0.6);
   color: var(--ink);
   padding: 8px 10px;
   font: inherit;
   font-size: 14px;
   box-sizing: border-box;
-  transition: border-color var(--motion-fast) ease;
+  transition: background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.settings-input:hover {
+  background-color: rgba(255, 255, 255, 0.75);
 }
 
 .settings-input:focus {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
   border-color: var(--ink-muted);
+  background-color: rgba(255, 255, 255, 0.85);
 }
 
 .settings-select {
@@ -4870,7 +4878,10 @@ button:focus-visible {
   padding: 8px 28px 8px 10px;
   border: 1px solid var(--rule);
   border-radius: 4px;
-  background: transparent;
+  /* Same lighter-than-canvas tint as .settings-input. Kept as a separate
+     property (not the background shorthand) so the chevron image below
+     stays intact. */
+  background-color: rgba(255, 255, 255, 0.6);
   background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
@@ -4882,14 +4893,16 @@ button:focus-visible {
   -webkit-appearance: none;
   cursor: pointer;
   box-sizing: border-box;
-  transition: border-color var(--motion-fast) ease;
+  transition: background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
 }
 
 .settings-select:hover {
+  background-color: rgba(255, 255, 255, 0.75);
   border-color: var(--ink-muted);
 }
 
 .settings-select:focus-visible {
+  background-color: rgba(255, 255, 255, 0.85);
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
@@ -4900,6 +4913,23 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: clamp(16px, 1.5vw, 24px);
+}
+
+/* Textarea variant — inherits border/padding/font from .settings-input,
+   just relaxes the height-related rules so it acts like a textarea. */
+.settings-textarea {
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.45;
+}
+
+/* Drawer-scoped grid override (Phase E). The default .settings-field-grid
+   uses 240px min columns; the drawer is ~360px wide so 240px lets the
+   pair (Project / Priority etc.) collapse to one column. Tighten to 140px
+   so two compact fields sit side-by-side and gap shrinks. */
+.tp-drawer-field-grid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
 }
 
 .settings-help {
