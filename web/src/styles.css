@@ -6654,6 +6654,24 @@ button:focus-visible {
   color: var(--ink);
 }
 
+/* /todo section tabs (Phase B). Tighter gap than the default since we
+   have 8 fixed-vocabulary sections, and horizontal scroll on overflow
+   so a narrow main column doesn't push a page-level scrollbar. The
+   hairline bottom border stays on .ui-tabs; we just clip what the
+   scroll container shows. */
+.tp-section-tabs {
+  gap: clamp(14px, 1.4vw, 22px);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  /* The active-tab underline (::after, bottom: -12px) needs vertical
+     room or it gets clipped by overflow-x's implicit overflow-y. */
+  padding-bottom: 10px;
+  scrollbar-width: thin;
+}
+.tp-section-tabs .ui-tab {
+  flex: 0 0 auto;
+}
+
 /* ── Reusable: PageHeader ─────────────────────────────────────── */
 .ui-page-header {
   margin-bottom: clamp(28px, 3vw, 40px);
