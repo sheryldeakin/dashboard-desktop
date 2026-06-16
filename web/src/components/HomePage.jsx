@@ -8,6 +8,7 @@ import {
   createDefaultTask,
   createHistoryEntry,
   removeLatestHistoryEntry,
+  completeTask,
   MAX_TASK_HISTORY_ITEMS,
 } from "../utils/taskUtils.js";
 import { useContent } from "../contexts/ContentContext.jsx";
@@ -2258,17 +2259,91 @@ export default function HomePage() {
     });
   }
 
+  /* "Done" on an Unfinished row used to only mutate the history slot
+     (cosmetic). The underlying task in todaysTasks stayed alive with
+     top-3 + inTodayQueue intact, so it kept showing in /todo Top 3 /
+     Today. Now we also mark the linked task done (matches the /todo
+     checkbox path: completeTask + archive to taskHistory) so the row
+     disappears from active views. Safe if the link is broken (task
+     deleted or missing): just updates the history slot. */
   function handleDone(dayDate, slotIdx) {
-    updateHistorySlot(dayDate, slotIdx, {
-      done: true,
-      completedAt: new Date().toISOString(),
+    const entry = content.dailyTop3History.find((h) => h.date === dayDate);
+    const slot = entry?.slots?.[slotIdx];
+    const nowIso = new Date().toISOString();
+    const nowMs = parseIsoMs(nowIso) ?? Date.now();
+    const todayKeyStr = todayKey();
+
+    let nextTasks = content.todaysTasks || [];
+    let nextHistory = content.taskHistory || [];
+    const linkedId = slot?.promotedTaskId;
+    if (linkedId) {
+      const linkedTask = nextTasks.find((t) => t.id === linkedId);
+      if (linkedTask && !linkedTask.done) {
+        const completed = completeTask(linkedTask, nowIso, nowMs);
+        nextTasks = nextTasks.map((t) => (t.id === linkedId ? completed : t));
+        nextHistory = [createHistoryEntry(completed, nowIso, todayKeyStr), ...nextHistory]
+          .slice(0, MAX_TASK_HISTORY_ITEMS);
+      }
+    }
+
+    const history = content.dailyTop3History.map((h) =>
+      h.date === dayDate
+        ? {
+            ...h,
+            slots: h.slots.map((s, i) =>
+              i === slotIdx
+                ? { ...s, done: true, completedAt: nowIso, updatedAt: nowIso }
+                : s
+            ),
+          }
+        : h
+    );
+    patchContent({
+      dailyTop3History: history,
+      todaysTasks: nextTasks,
+      taskHistory: nextHistory,
     });
   }
 
+  /* "Drop" used to only flag the history slot. Now it also releases
+     the linked task — drops the top-3 tag + flips inTodayQueue=false
+     — because dropping is an explicit "I'm not doing this." The task
+     survives in /todo (Inbox/All depending on project) but stops
+     occupying today's queue or Top 3 list. */
   function handleDrop(dayDate, slotIdx) {
-    updateHistorySlot(dayDate, slotIdx, {
-      dropped: true,
-      droppedAt: new Date().toISOString(),
+    const entry = content.dailyTop3History.find((h) => h.date === dayDate);
+    const slot = entry?.slots?.[slotIdx];
+    const nowIso = new Date().toISOString();
+
+    let nextTasks = content.todaysTasks || [];
+    const linkedId = slot?.promotedTaskId;
+    if (linkedId) {
+      nextTasks = nextTasks.map((t) => {
+        if (t.id !== linkedId || t.done) return t;
+        return {
+          ...t,
+          tags: (t.tags || []).filter((tag) => tag !== "top-3"),
+          inTodayQueue: false,
+          updatedAt: nowIso,
+        };
+      });
+    }
+
+    const history = content.dailyTop3History.map((h) =>
+      h.date === dayDate
+        ? {
+            ...h,
+            slots: h.slots.map((s, i) =>
+              i === slotIdx
+                ? { ...s, dropped: true, droppedAt: nowIso, updatedAt: nowIso }
+                : s
+            ),
+          }
+        : h
+    );
+    patchContent({
+      dailyTop3History: history,
+      todaysTasks: nextTasks,
     });
   }
 

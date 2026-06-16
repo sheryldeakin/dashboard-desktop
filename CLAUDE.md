@@ -129,3 +129,13 @@ Content schema (v2) has these top-level fields: `phase`, `projects`, `todaysTask
 - **Stale code from prior audit** (P2, not urgent): `useTimer.getTimerText` exported but never imported (4 inline reimplementations); `TimerBar` accepts `onPausePomodoro`/`onStartPomodoro` props but never binds them; `dashboard.html` at repo root is an unreferenced prototype with hardcoded "ARR Submission".
 - **Dashboard inline-edit headings keyboard-accessible** (P0, trivial): `<span onClick>` for title/phase/deadline need `tabIndex`/`role="button"`/Enter handler.
 - **Post-AAAI Store-abstraction refactor**: pluggable `IContentStore` (Mongo / JsonFile / ObsidianStore). Target August 2026. Spec at vault's `Areas/Personal/dashboard-app/integration-notes.md`.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
