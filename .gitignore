@@ -19,3 +19,9 @@ test-results/
 # we adopt other prefixes.
 verify-*.png
 verify-*.jpeg
+
+# Session logs written by /compress for AI recall via /resume. Local-only
+# memory; not meaningful to commit. Two earlier files (2026-06-03 and
+# 2026-06-10) were committed by accident before this rule existed —
+# git-rm --cached from tracking but kept on disk.
+System/Session-Logs/

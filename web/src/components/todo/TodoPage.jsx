@@ -47,6 +47,7 @@ import TimerBar from "./TimerBar.jsx";
 import FocusMode from "./FocusMode.jsx";
 import PageHeader from "../PageHeader.jsx";
 import Chip from "../Chip.jsx";
+import Tabs from "../Tabs.jsx";
 
 export default function TodoPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -394,9 +395,6 @@ export default function TodoPage() {
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((p) => !p)}
-          activeSectionId={activeSectionId}
-          sectionCounts={sectionCounts}
-          onSelectSection={handleSelectSidebarSectionWithUrl}
           projects={projects}
           defaultProjectId={defaultProjectId}
           filterProjectId={filterProjectId}
@@ -408,9 +406,6 @@ export default function TodoPage() {
           onNewProjectNameChange={setNewProjectName}
           onAddProject={handleAddProject}
           onRemoveProject={handleRemoveProject}
-          dragOverSectionId={dragOverSectionId}
-          onSectionDragOver={handleSectionDragOver}
-          onSectionDrop={handleSectionDrop}
           dragOverProjectId={dragOverProjectId}
           onProjectDragOver={handleProjectDragOver}
           onProjectDrop={handleProjectDrop}
@@ -456,6 +451,21 @@ export default function TodoPage() {
                 </button>
               </form>
             }
+          />
+
+          {/* Section tabs (Phase B). Replaces the old .tp-sidebar-sections
+              column. Counts come from useTasks's sectionCounts map. Tabs
+              with no items collapse the count badge; the falsy-count
+              check inside <Tabs> handles that. */}
+          <Tabs
+            tabs={TODO_SIDEBAR_SECTIONS.map((s) => ({
+              id: s.id,
+              label: s.label,
+              count: sectionCounts[s.id] || 0,
+            }))}
+            active={activeSectionId}
+            onChange={handleSelectSidebarSectionWithUrl}
+            className="tp-section-tabs"
           />
 
           {/* Filters accordion */}

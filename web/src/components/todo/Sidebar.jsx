@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { TODO_SIDEBAR_SECTIONS } from "../../utils/taskUtils.js";
 
 // Slug helper mirrors the one in sync-todos.py so "PhD" project name lines up
 // with the `#phd` tag it auto-generates.
@@ -10,9 +9,6 @@ function slug(s) {
 export default function Sidebar({
   collapsed,
   onToggleCollapse,
-  activeSectionId,
-  sectionCounts,
-  onSelectSection,
   projects,
   defaultProjectId,
   filterProjectId,
@@ -24,24 +20,10 @@ export default function Sidebar({
   onNewProjectNameChange,
   onAddProject,
   onRemoveProject,
-  dragOverSectionId,
-  onSectionDragOver,
-  onSectionDrop,
   dragOverProjectId,
   onProjectDragOver,
   onProjectDrop,
 }) {
-  const sectionIcons = {
-    top3: "★",
-    today: "☀",
-    inbox: "✉",
-    planned: "📅",
-    recurring: "↻",
-    overdue: "⚠",
-    done: "✓",
-    all: "≡",
-  };
-
   // Build per-project sub-items from each task's tags. The project's own slug
   // (matching the area tag the sync script generates, e.g. Research → #research)
   // is excluded so it doesn't duplicate. Sorted by count desc, then alpha.
@@ -94,34 +76,10 @@ export default function Sidebar({
         {collapsed ? "›" : "‹"}
       </button>
 
-      <nav className="tp-sidebar-sections">
-        <div className="tp-sidebar-heading">{!collapsed && "Sections"}</div>
-        <ul className="tp-section-list">
-          {TODO_SIDEBAR_SECTIONS.map((section) => (
-            <li
-              key={section.id}
-              className={`tp-section-item${dragOverSectionId === section.id ? " is-drop-target" : ""}`}
-              onDragOver={(e) => onSectionDragOver(e, section.id)}
-              onDrop={(e) => onSectionDrop(e, section.id)}
-            >
-              <button
-                type="button"
-                className={`tp-section-btn${activeSectionId === section.id ? " is-active" : ""}`}
-                onClick={() => onSelectSection(section.id)}
-                title={collapsed ? section.label : undefined}
-              >
-                <span className="tp-section-icon">{sectionIcons[section.id]}</span>
-                {!collapsed && (
-                  <>
-                    <span className="tp-section-name">{section.label}</span>
-                    <span className="tp-section-count">{sectionCounts[section.id] || 0}</span>
-                  </>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      {/* Sections list moved to a horizontal <Tabs> row in TodoPage (Phase B
+          of the /todo refresh). Drag-onto-section reordering went with it
+          for now; if Sheryl misses it, we can re-add drop targets on the
+          tabs. */}
 
       {!collapsed && (
         <div className="tp-sidebar-projects">

@@ -6629,6 +6629,31 @@ button:focus-visible {
   height: 14px;
 }
 
+/* Numeric badge after the label (e.g. "Today 12"). Subtle by default;
+   on the active tab it picks up the ink color so it stays legible
+   against the highlighted label. */
+.ui-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0 6px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--surface-2, #ece5d7);
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+}
+
+.ui-tab.is-active .ui-tab-count {
+  background: var(--accent-tan-soft, #e7d3b3);
+  color: var(--ink);
+}
+
 /* ── Reusable: PageHeader ─────────────────────────────────────── */
 .ui-page-header {
   margin-bottom: clamp(28px, 3vw, 40px);
