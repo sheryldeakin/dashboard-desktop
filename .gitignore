@@ -25,3 +25,11 @@ verify-*.jpeg
 # 2026-06-10) were committed by accident before this rule existed —
 # git-rm --cached from tracking but kept on disk.
 System/Session-Logs/
+
+# Graphify knowledge-graph artifacts. graphify-out/ is generated output
+# (graph.json/html + report), regenerable via `graphify update .` — large,
+# machine-specific, not meaningful to commit. .graphifyignore here is a
+# local code-only filter (strips docs to keep extraction API-free), not a
+# shared config.
+graphify-out/
+.graphifyignore

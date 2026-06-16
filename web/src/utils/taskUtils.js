@@ -1312,10 +1312,52 @@ export function removeLatestHistoryEntry(history, taskId) {
   return history.filter((_, i) => i !== index);
 }
 
+/* Drop the `top-3` tag from undone tasks whose `from-YYYY-MM-DD` tag
+   refers to a prior day. "Gentle release": the task survives in
+   todaysTasks with inTodayQueue intact, but the top-3 priority flag
+   expires at midnight (Top 3 is a per-day concept). User can then
+   either finish/remove the task in /todo as a regular today item, or
+   explicitly re-promote it via the /home Unfinished card.
+   Idempotent — re-running on already-released tasks no-ops.
+   Done tasks untouched: they're already filtered out of Top 3 / Today. */
+function releaseStaleTop3Tasks(tasks, todayKey) {
+  let changed = false;
+  const next = tasks.map((task) => {
+    if (task.done) return task;
+    if (!Array.isArray(task.tags) || !task.tags.includes("top-3")) return task;
+    const hasStaleFrom = task.tags.some(
+      (t) =>
+        typeof t === "string" &&
+        t.startsWith("from-") &&
+        t.length === 15 &&
+        t.slice(5) < todayKey,
+    );
+    if (!hasStaleFrom) return task;
+    changed = true;
+    return {
+      ...task,
+      tags: task.tags.filter((t) => t !== "top-3"),
+    };
+  });
+  return { tasks: next, changed };
+}
+
 export function applyDailyRollover(content) {
   const todayKey = getTodayKey();
-  if (content.todaysTasksDate === todayKey) {
-    return { content, changed: false };
+  const dateChanged = content.todaysTasksDate !== todayKey;
+
+  // Always run the stale-Top-3 release pass first. Runs regardless of
+  // date change so already-stuck data (orphan top-3 tasks accumulated
+  // before this logic existed) gets cleaned up on next load.
+  const { tasks: releasedTasks, changed: releaseChanged } =
+    releaseStaleTop3Tasks(content.todaysTasks || [], todayKey);
+
+  if (!dateChanged) {
+    if (!releaseChanged) return { content, changed: false };
+    return {
+      content: { ...content, todaysTasks: releasedTasks },
+      changed: true,
+    };
   }
 
   const nowIso = new Date().toISOString();
@@ -1324,7 +1366,7 @@ export function applyDailyRollover(content) {
   // Open tasks are "frozen" (timer reset to idle, accumulated time preserved); completed
   // tasks are kept as-is so they stay visible in the Done section. The Today/dashboard
   // views filter out done tasks already, so kept completions don't clutter them.
-  const carriedTasks = content.todaysTasks.map((task) =>
+  const carriedTasks = releasedTasks.map((task) =>
     task.done ? task : freezeTaskForRollover(task, nowIso, nowMs)
   );
   const existingRecurringKeys = new Set(
