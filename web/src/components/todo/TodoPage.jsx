@@ -360,18 +360,10 @@ export default function TodoPage() {
     pomodoro,
     pomodoroRun,
     onTaskField: handleTaskField,
-    onTaskDone: handleTaskDone,
     onDuplicate: handleDuplicateTask,
     onRemove: handleRemoveTaskFull,
     onTaskAction: handleTaskAction,
     onAssignPomodoro: assignPomodoroTask,
-    onStartPomodoro: startPomodoro,
-    onPausePomodoro: pausePomodoro,
-    onResetPomodoro: resetPomodoro,
-    onSkipPomodoro: skipPomodoro,
-    onUpdatePomodoroSetting: updatePomodoroSetting,
-    activeTasks,
-    onSetPomodoroRun: setPomodoroRun,
   };
 
   return (

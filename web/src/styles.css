@@ -2784,21 +2784,39 @@ button:focus-visible {
   border-bottom: 1px solid rgba(182, 139, 97, 0.1);
 }
 
-.tp-drawer-timer-display {
+/* Title input — headline-style, no border by default so it reads like a
+   heading rather than a form field. Border shows up on hover/focus. */
+.tp-drawer-title-input {
+  font-size: clamp(16px, 0.4vw + 14px, 18px);
+  font-weight: 600;
+  padding: 6px 10px;
+  border-color: transparent;
+  background-color: transparent;
+}
+.tp-drawer-title-input:hover {
+  border-color: var(--rule);
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Effort section: per-task time spent + start/stop. The label, value,
+   and buttons sit on one row with the value emphasized. */
+.tp-drawer-timer-row {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
 }
 
-.tp-timer-label {
-  font-size: 11px;
-  color: var(--ink-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.tp-drawer-timer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.tp-timer-value {
-  font-size: 22px;
+.tp-drawer-timer-value {
+  font-size: 18px;
   font-weight: 600;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -2809,76 +2827,119 @@ button:focus-visible {
   gap: 8px;
 }
 
+/* Read-only readout (e.g. Done count) styled to look like a field value
+   without being editable. Matches input height/padding for vertical
+   alignment in a grid row. */
+.tp-drawer-readout {
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
 .tp-drawer-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.tp-drawer-meta {
+/* Danger zone — Remove button isolated at the bottom with a hairline
+   above. Full-width so it's prominent but not crowded by other actions. */
+.tp-drawer-danger-zone {
+  border-top: 1px solid var(--rule-soft);
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
+.tp-drawer-remove-btn {
+  width: 100%;
+}
+
+/* Tag chip input — pill per tag with × remove, "+ Add tag" affordance
+   at the end that morphs into an inline input. Reuses the chip pattern
+   from the section tabs / project chips for visual consistency. */
+.tp-tag-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(182, 139, 97, 0.1);
+  padding: 4px 0;
 }
 
-.tp-meta-tag {
-  font-size: 11px;
-  color: var(--ink-muted);
-  padding: 3px 8px;
+.tp-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(182, 139, 97, 0.15);
+  background-color: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1;
 }
 
-.tp-meta-tag.is-overdue {
-  color: #a2512f;
-  border-color: rgba(164, 82, 48, 0.35);
-  background: rgba(220, 161, 136, 0.15);
+.tp-tag-chip-name {
+  display: inline-block;
 }
 
-/* ----- Pomodoro Mini (in drawer) ----- */
-.tp-pomo-mini {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.tp-pomo-display {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.tp-pomo-mode {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.tp-tag-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
   color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
 }
 
-.tp-pomo-clock {
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
+.tp-tag-chip-remove:hover {
+  background: rgba(164, 82, 48, 0.12);
+  color: #a2512f;
 }
 
-.tp-pomo-controls {
-  display: flex;
-  gap: 8px;
+.tp-tag-chip-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px dashed rgba(182, 139, 97, 0.4);
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease, border-style var(--motion-fast) ease;
 }
 
-.tp-pomo-settings-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+.tp-tag-chip-add:hover {
+  border-color: var(--accent-tan, #b6885a);
+  border-style: solid;
+  color: var(--ink);
 }
 
-.tp-pomo-toggles {
-  display: flex;
-  gap: 12px;
+.tp-tag-chip-input {
+  padding: 3px 10px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-tan, #b6885a);
+  background-color: rgba(255, 255, 255, 0.9);
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  outline: none;
+  width: 100px;
+}
+
+.tp-tag-chip-input:focus {
+  box-shadow: 0 0 0 2px rgba(182, 136, 90, 0.2);
 }
 
 .tp-pomo-history {
@@ -2893,23 +2954,11 @@ button:focus-visible {
 .tp-pomo-history-item {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-muted);
-  padding: 3px 0;
-}
-
-/* ----- Shared form elements ----- */
-.tp-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.tp-field-label {
-  font-size: 10px;
-  color: var(--ink-muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.5);
 }
 
 /* ----- Buttons ----- */
@@ -4192,10 +4241,6 @@ button:focus-visible {
 @media (max-width: 768px) {
   .tp-main {
     padding: 16px;
-  }
-
-  .tp-pomo-settings-grid {
-    grid-template-columns: 1fr;
   }
 
   .focus-time-display {
