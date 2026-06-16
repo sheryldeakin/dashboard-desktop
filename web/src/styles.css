@@ -2304,6 +2304,74 @@ button:focus-visible {
   color: var(--ink);
 }
 
+/* Phase D: tag drilldown nested under the active project. Hairline
+   guide on the left replicates the file-explorer "this belongs to that"
+   pattern from the old sidebar. Slightly smaller font + softer color so
+   the parent project stays visually dominant. */
+.side-nav-project-tags {
+  list-style: none;
+  margin: 2px 0 6px 18px;
+  padding: 0 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-left: 1px solid rgba(182, 139, 97, 0.22);
+}
+
+.side-nav-project-tag {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: clamp(11px, 0.25vw + 9.5px, 12px);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.side-nav-project-tag:hover {
+  background: rgba(var(--accent-tan-rgb), 0.06);
+  color: var(--ink);
+}
+
+.side-nav-project-tag.is-active {
+  background: rgba(var(--accent-tan-rgb), 0.14);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.side-nav-project-tag:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.side-nav-project-tag-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-nav-project-tag-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.side-nav-project-tag.is-active .side-nav-project-tag-count {
+  color: var(--ink);
+}
+
 .side-nav-project-add {
   width: 100%;
   display: flex;

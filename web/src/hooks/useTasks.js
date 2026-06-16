@@ -200,7 +200,7 @@ export function useTasks(setStatus) {
 
     if (sortBy === "manual") return filtered;
     return [...filtered].sort((a, b) => compareTasksBySort(a, b, sortBy));
-  }, [tasks, projects, searchTerm, activeSectionId, filterProjectId, filterPriority, filterStatus, sortBy, defaultProjectId]);
+  }, [tasks, projects, searchTerm, activeSectionId, filterProjectId, filterTag, filterPriority, filterStatus, sortBy, defaultProjectId]);
 
   const sectionCounts = useMemo(() => {
     const todayKey = getTodayKey();

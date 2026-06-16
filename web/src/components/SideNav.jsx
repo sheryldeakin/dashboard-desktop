@@ -134,11 +134,19 @@ function HamburgerIcon() {
    Reads projects from ContentProvider and the active filter from the
    ?project= URL param so it stays in sync with the page state without
    any cross-component plumbing. */
+// Slug helper mirrors sync-todos.py so "PhD" project name lines up with
+// the #phd tag it auto-generates. Used to filter out a project's own
+// area-tag from its tag drilldown list (Phase D).
+function slug(s) {
+  return (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 function ProjectsPanel({ onNavigate }) {
   const { content, updateContent } = useContent();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeProjectId = searchParams.get("project") || "all";
+  const activeTag = searchParams.get("tag") || "";
 
   const [adding, setAdding] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -157,16 +165,52 @@ function ProjectsPanel({ onNavigate }) {
     return counter;
   }, [content.todaysTasks]);
 
+  // Phase D: tag drilldown. For the currently-active project, build a
+  // sorted list of its task tags (count-desc, then alpha). The project's
+  // own area-tag (#<slug>) is filtered out so it doesn't show as a
+  // self-link. Empty list when no project is active.
+  const activeProjectTags = useMemo(() => {
+    if (activeProjectId === "all") return [];
+    const project = projects.find((p) => p.id === activeProjectId);
+    if (!project) return [];
+    const areaSlug = slug(project.name);
+    const counter = new Map();
+    for (const t of content.todaysTasks || []) {
+      if (t.done) continue;
+      if (t.projectId !== activeProjectId) continue;
+      for (const tag of t.tags || []) {
+        if (tag === areaSlug) continue;
+        counter.set(tag, (counter.get(tag) || 0) + 1);
+      }
+    }
+    return [...counter.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([tag, count]) => ({ tag, count }));
+  }, [content.todaysTasks, projects, activeProjectId]);
+
+  function selectTag(tag) {
+    const next = new URLSearchParams(searchParams);
+    if (activeTag === tag) next.delete("tag");
+    else next.set("tag", tag);
+    // ?project stays; ?section is already cleared by project selection.
+    navigate({ pathname: "/todo", search: next.toString() ? `?${next.toString()}` : "" }, { replace: true });
+    onNavigate?.();
+  }
+
   function selectProject(projectId) {
     // Click-active-to-deselect: clicking the current filter clears it.
-    // Build the next URL preserving any other params (taskId, section).
+    // Build the next URL preserving any other params (taskId).
     const next = new URLSearchParams(searchParams);
-    if (activeProjectId === projectId) next.delete("project");
-    else {
+    if (activeProjectId === projectId) {
+      next.delete("project");
+      next.delete("tag");
+    } else {
       next.set("project", projectId);
       // Project filter and section filter are mutually exclusive in
       // useTasks; clear the section so the new selection takes effect.
+      // Switching to a different project also clears any leftover tag.
       next.delete("section");
+      next.delete("tag");
     }
     navigate({ pathname: "/todo", search: next.toString() ? `?${next.toString()}` : "" }, { replace: true });
     onNavigate?.();
@@ -219,6 +263,31 @@ function ProjectsPanel({ onNavigate }) {
                 <span className="side-nav-project-name">{project.name}</span>
                 {count > 0 && <span className="side-nav-project-count">{count}</span>}
               </button>
+              {/* Phase D: tag drilldown rows. Only the active project's
+                  tags are shown, indented under the row with a hairline
+                  guide on the left so the parent-child relationship is
+                  visual. Counts mirror the project row pattern. */}
+              {active && activeProjectTags.length > 0 && (
+                <ul className="side-nav-project-tags">
+                  {activeProjectTags.map(({ tag, count }) => {
+                    const tagActive = activeTag === tag;
+                    return (
+                      <li key={tag}>
+                        <button
+                          type="button"
+                          className={`side-nav-project-tag${tagActive ? " is-active" : ""}`}
+                          onClick={() => selectTag(tag)}
+                          aria-pressed={tagActive}
+                          title={tagActive ? `Clear #${tag} filter` : `Filter by #${tag}`}
+                        >
+                          <span className="side-nav-project-tag-name">#{tag}</span>
+                          <span className="side-nav-project-tag-count">{count}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </li>
           );
         })}

@@ -160,20 +160,30 @@ export default function TodoPage() {
     handleSelectProjectFilterWithUrl(projectId);
   }
 
-  // URL ↔ state sync for ?section= and ?project=. Runs on every searchParams
-  // change (not just mount) so the global SideNav projects panel can drive
-  // /todo's filter state: navigate to /todo?project=X and the page picks it
-  // up live. The internal state is the source of UI rendering, so we reflect
-  // URL → state without ever fighting our own writes (no-op if equal).
+  // URL ↔ state sync for ?section=, ?project=, ?tag=. Runs on every
+  // searchParams change so the global SideNav can drive /todo's filter
+  // state (project + tag drilldown) live. The internal state is the
+  // source of UI rendering; we reflect URL → state without fighting our
+  // own writes (no-op if equal).
   useEffect(() => {
     const urlProject = searchParams.get("project");
     const urlSection = searchParams.get("section");
+    const urlTag = searchParams.get("tag") || "";
     if (urlProject) {
-      if (filterProjectId !== urlProject) handleSelectProjectFilter(urlProject);
+      // ?project + optional ?tag → project filter with optional tag drill.
+      if (urlTag) {
+        // handleSelectFileTag sets both filterProjectId and filterTag.
+        if (filterProjectId !== urlProject || filterTag !== urlTag) {
+          handleSelectFileTag(urlProject, urlTag);
+        }
+      } else {
+        if (filterProjectId !== urlProject) handleSelectProjectFilter(urlProject);
+        else if (filterTag) handleSelectProjectFilter(urlProject); // clear tag, keep project
+      }
     } else if (urlSection) {
       if (activeSectionId !== urlSection) handleSelectSidebarSection(urlSection);
-    } else if (filterProjectId !== "all" || activeSectionId !== "today") {
-      // URL has no filter and no section → reset to defaults (Today/All).
+    } else if (filterProjectId !== "all" || activeSectionId !== "today" || filterTag) {
+      // URL has no filter, no section, no tag → reset to defaults.
       handleSelectSidebarSection("today");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
