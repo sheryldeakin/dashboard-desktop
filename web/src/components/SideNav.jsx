@@ -11,9 +11,10 @@
      - Close on Esc, on backdrop click, on link tap, on viewport resize
        past the desktop breakpoint. */
 
-import { useEffect, useState } from "react";
-import { Link as RouterLink, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import OfflineBadge from "./OfflineBadge.jsx";
+import { useContent } from "../contexts/ContentContext.jsx";
 
 /* Stroke-based icon set matching the /home rail icon family
    (1.8px strokes, 16×16 viewBox, currentColor). Each link in the
@@ -124,6 +125,132 @@ function HamburgerIcon() {
       <line x1="2.5" y1="9" x2="15.5" y2="9" />
       <line x1="2.5" y1="13" x2="15.5" y2="13" />
     </svg>
+  );
+}
+
+/* Projects panel — route-scoped to /todo. Sits between primary nav and
+   system nav with a tinted background + hairline rules, so it feels
+   like a contextual filter band rather than a permanent column.
+   Reads projects from ContentProvider and the active filter from the
+   ?project= URL param so it stays in sync with the page state without
+   any cross-component plumbing. */
+function ProjectsPanel({ onNavigate }) {
+  const { content, updateContent } = useContent();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const activeProjectId = searchParams.get("project") || "all";
+
+  const [adding, setAdding] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const inputRef = useRef(null);
+
+  const projects = content.projects || [];
+
+  // Active task counts per project, derived from todaysTasks. Matches the
+  // count semantics in the old sidebar (active = not done).
+  const countByProject = useMemo(() => {
+    const counter = new Map();
+    for (const t of content.todaysTasks || []) {
+      if (t.done) continue;
+      counter.set(t.projectId, (counter.get(t.projectId) || 0) + 1);
+    }
+    return counter;
+  }, [content.todaysTasks]);
+
+  function selectProject(projectId) {
+    // Click-active-to-deselect: clicking the current filter clears it.
+    // Build the next URL preserving any other params (taskId, section).
+    const next = new URLSearchParams(searchParams);
+    if (activeProjectId === projectId) next.delete("project");
+    else {
+      next.set("project", projectId);
+      // Project filter and section filter are mutually exclusive in
+      // useTasks; clear the section so the new selection takes effect.
+      next.delete("section");
+    }
+    navigate({ pathname: "/todo", search: next.toString() ? `?${next.toString()}` : "" }, { replace: true });
+    onNavigate?.();
+  }
+
+  function startAdd() {
+    setAdding(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+  function cancelAdd() {
+    setAdding(false);
+    setDraftName("");
+  }
+  function commitAdd() {
+    const name = draftName.trim();
+    if (!name) {
+      cancelAdd();
+      return;
+    }
+    const id = `project-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
+    const palette = ["#b66e35", "#5b8a5a", "#477f99", "#a0678c", "#a27d3e"];
+    updateContent((prev) => {
+      const color = palette[(prev.projects || []).length % palette.length];
+      return { ...prev, projects: [...(prev.projects || []), { id, name, color }] };
+    });
+    cancelAdd();
+  }
+
+  return (
+    <div className="side-nav-projects" aria-label="Projects filter">
+      <div className="side-nav-projects-heading">Projects</div>
+      <ul className="side-nav-projects-list">
+        {projects.map((project) => {
+          const active = activeProjectId === project.id;
+          const count = countByProject.get(project.id) || 0;
+          return (
+            <li key={project.id}>
+              <button
+                type="button"
+                className={`side-nav-project${active ? " is-active" : ""}`}
+                onClick={() => selectProject(project.id)}
+                aria-pressed={active}
+                title={active ? `Clear ${project.name} filter` : `Filter by ${project.name}`}
+              >
+                <span
+                  className="side-nav-project-dot"
+                  style={{ backgroundColor: project.color }}
+                  aria-hidden="true"
+                />
+                <span className="side-nav-project-name">{project.name}</span>
+                {count > 0 && <span className="side-nav-project-count">{count}</span>}
+              </button>
+            </li>
+          );
+        })}
+        <li>
+          {adding ? (
+            <input
+              ref={inputRef}
+              type="text"
+              className="side-nav-project-add-input"
+              placeholder="New project…"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commitAdd(); }
+                else if (e.key === "Escape") { e.preventDefault(); cancelAdd(); }
+              }}
+              onBlur={commitAdd}
+            />
+          ) : (
+            <button
+              type="button"
+              className="side-nav-project-add"
+              onClick={startAdd}
+              aria-label="Add project"
+            >
+              <span className="side-nav-project-add-icon" aria-hidden="true">+</span>
+              <span className="side-nav-project-add-label">Add project</span>
+            </button>
+          )}
+        </li>
+      </ul>
+    </div>
   );
 }
 
@@ -251,6 +378,11 @@ export default function SideNav() {
             />
           ))}
         </nav>
+
+        {/* Projects band — only when on /todo. Sits between the daily-driver
+            links and the system links, with a tinted background to read as
+            a contextual filter rather than additional nav. */}
+        {path === "/todo" && <ProjectsPanel onNavigate={handleNavigate} />}
 
         <nav className="side-nav-links side-nav-links-system">
           {SYSTEM_LINKS.map(({ href, label, icon }) => (

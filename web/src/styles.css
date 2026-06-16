@@ -2193,6 +2193,167 @@ button:focus-visible {
   font-weight: 600;
 }
 
+/* /todo projects panel — route-scoped band between primary nav and the
+   system links. Tinted band spans the SideNav's full inner width via
+   negative horizontal margin escaping the parent's 16px padding, with
+   hairline rules above + below to read as its own zone.
+   Picks up the brightening tint that the old tp-sidebar used so it
+   feels structurally related to the page (projects = page filter, not
+   navigation). */
+.side-nav-projects {
+  margin: 0 -16px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.42);
+  border-top: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Cap the panel so the system links + offline badge stay reachable
+     without scrolling the whole sidebar — only the projects list itself
+     scrolls when it overflows. */
+  max-height: 50vh;
+  min-height: 0;
+}
+
+.side-nav-projects-heading {
+  font-size: clamp(10px, 0.2vw + 9px, 11px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  padding: 2px 12px 4px;
+}
+
+.side-nav-projects-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(160, 121, 84, 0.35) transparent;
+  min-height: 0;
+}
+
+.side-nav-projects-list::-webkit-scrollbar { width: 5px; }
+.side-nav-projects-list::-webkit-scrollbar-track { background: transparent; }
+.side-nav-projects-list::-webkit-scrollbar-thumb { background: rgba(160, 121, 84, 0.35); border-radius: 999px; }
+
+.side-nav-project {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: clamp(12px, 0.3vw + 10px, 13px);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.side-nav-project:hover {
+  background: rgba(var(--accent-tan-rgb), 0.08);
+  color: var(--ink);
+}
+
+.side-nav-project.is-active {
+  background: rgba(var(--accent-tan-rgb), 0.18);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.side-nav-project:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.side-nav-project-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+.side-nav-project-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-nav-project-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.side-nav-project.is-active .side-nav-project-count {
+  color: var(--ink);
+}
+
+.side-nav-project-add {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: clamp(12px, 0.3vw + 10px, 13px);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.side-nav-project-add:hover {
+  background: rgba(var(--accent-tan-rgb), 0.08);
+  color: var(--ink);
+}
+
+.side-nav-project-add-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.side-nav-project-add-input {
+  width: calc(100% - 8px);
+  margin: 2px 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--accent-tan, #b6885a);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: clamp(12px, 0.3vw + 10px, 13px);
+  color: var(--ink);
+  outline: none;
+}
+
+.side-nav-project-add-input:focus {
+  box-shadow: 0 0 0 2px rgba(182, 136, 90, 0.2);
+}
+
 /* Hamburger trigger + drawer header + close — hidden by default on
    desktop, only revealed at the mobile breakpoint below. */
 .side-nav-trigger {

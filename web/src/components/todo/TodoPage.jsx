@@ -40,7 +40,6 @@ function SyncIndicator() {
 import { useTasks } from "../../hooks/useTasks.js";
 import { usePomodoro } from "../../hooks/usePomodoro.js";
 import { useTimer } from "../../hooks/useTimer.js";
-import Sidebar from "./Sidebar.jsx";
 import TaskList from "./TaskList.jsx";
 import DetailDrawer from "./DetailDrawer.jsx";
 import TimerBar from "./TimerBar.jsx";
@@ -59,14 +58,13 @@ export default function TodoPage() {
     searchTerm, setSearchTerm, activeSectionId,
     filterProjectId, setFilterProjectId, filterStatus, setFilterStatus,
     filterPriority, setFilterPriority, filterTag, sortBy, setSortBy,
-    dragTaskId, dragOverTaskId, dragOverSectionId, dragOverProjectId,
-    newProjectName, setNewProjectName, handleAddProject, handleRemoveProject,
+    dragTaskId, dragOverTaskId,
+    newProjectName, setNewProjectName, handleAddProject,
     handleTaskField, handleTaskDone, handleDuplicateTask, handleRemoveTask,
     handleMarkVisibleDone, handleClearCompleted, handleSave,
     handleSelectSidebarSection, handleSelectProjectFilter, handleSelectFileTag, handleResetFilters,
     handleTaskDragStart, handleTaskDragOver, handleTaskDrop,
-    handleSectionDragOver, handleSectionDrop, handleProjectDragOver,
-    handleProjectDrop, handleTaskDragEnd,
+    handleTaskDragEnd,
     setTasks,
   } = taskState;
 
@@ -77,7 +75,6 @@ export default function TodoPage() {
     assignPomodoroTask, updatePomodoroSetting,
   } = usePomodoro(pomodoro, taskState.setPomodoro, tasks, setTasks, setStatus);
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [quickAddText, setQuickAddText] = useState("");
@@ -163,20 +160,24 @@ export default function TodoPage() {
     handleSelectProjectFilterWithUrl(projectId);
   }
 
-  // On mount: restore section/project from URL if present. Project takes
-  // precedence over section (matches the mutually-exclusive semantics of
-  // the handlers — selecting one clears the other). Guarded by a ref so
-  // we don't re-apply if searchParams change later from other paths.
-  const sectionRestoredRef = useRef(false);
+  // URL ↔ state sync for ?section= and ?project=. Runs on every searchParams
+  // change (not just mount) so the global SideNav projects panel can drive
+  // /todo's filter state: navigate to /todo?project=X and the page picks it
+  // up live. The internal state is the source of UI rendering, so we reflect
+  // URL → state without ever fighting our own writes (no-op if equal).
   useEffect(() => {
-    if (sectionRestoredRef.current) return;
     const urlProject = searchParams.get("project");
     const urlSection = searchParams.get("section");
-    if (urlProject) handleSelectProjectFilter(urlProject);
-    else if (urlSection) handleSelectSidebarSection(urlSection);
-    sectionRestoredRef.current = true;
+    if (urlProject) {
+      if (filterProjectId !== urlProject) handleSelectProjectFilter(urlProject);
+    } else if (urlSection) {
+      if (activeSectionId !== urlSection) handleSelectSidebarSection(urlSection);
+    } else if (filterProjectId !== "all" || activeSectionId !== "today") {
+      // URL has no filter and no section → reset to defaults (Today/All).
+      handleSelectSidebarSection("today");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   function handleSelectTask(taskId) {
     if (isWideScreen) {
@@ -208,17 +209,6 @@ export default function TodoPage() {
       setDrawerOpen(false);
     }
   }
-
-  // Auto-collapse sidebar on narrow viewports
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1200px)");
-    function handle(e) {
-      if (e.matches) setSidebarCollapsed(true);
-    }
-    handle(mq);
-    mq.addEventListener("change", handle);
-    return () => mq.removeEventListener("change", handle);
-  }, []);
 
   // Wide screen detection for inline detail panel
   useEffect(() => {
@@ -392,25 +382,6 @@ export default function TodoPage() {
       />
 
       <div className="tp-layout">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed((p) => !p)}
-          projects={projects}
-          defaultProjectId={defaultProjectId}
-          filterProjectId={filterProjectId}
-          filterTag={filterTag}
-          onSelectProject={handleSelectProjectFilterWithUrl}
-          onSelectFileTag={handleSelectFileTag}
-          tasks={tasks}
-          newProjectName={newProjectName}
-          onNewProjectNameChange={setNewProjectName}
-          onAddProject={handleAddProject}
-          onRemoveProject={handleRemoveProject}
-          dragOverProjectId={dragOverProjectId}
-          onProjectDragOver={handleProjectDragOver}
-          onProjectDrop={handleProjectDrop}
-        />
-
         <div className="tp-main">
           {/* Summary chip values are computed inline below — chips now
               ride in the PageHeader slot, not as a SummaryBar row. */}
