@@ -222,14 +222,54 @@ app.get("/api/content", async (_req, res) => {
 // would clobber whatever entries the hourly importer added since page load.
 // Other top-level arrays stay REPLACE semantics — they're user-editable so
 // the user can legitimately delete from them.
-function mergeWorkSessions(existing, incoming, deletes) {
+function mergeWorkSessions(existing, incoming, deletes, validProjectIds, projectMoves) {
   const map = new Map();
   for (const e of existing || []) {
     if (e && e.id) map.set(e.id, e);
   }
   // Incoming wins on id collision so the client can update an entry it owns.
+  // EXCEPT for two cases of importer-stale-snapshot revert:
+  //   1. aiSummary: import script's GET happens before backfill fills it,
+  //      then import's PUT carries the still-empty summary and overwrites.
+  //      Rule: if existing has a non-empty summary, keep it against empty
+  //      incoming.
+  //   2. projectId: same shape with reclassify scripts. Import's PUT has
+  //      the stale project assignment; reclassify moved it; merge would
+  //      revert. Rule: preserve existing projectId if it points to a
+  //      currently-valid project. If existing projectId is invalid
+  //      (project was deleted), let incoming win — that's how the orphan-
+  //      recovery scripts repair sessions pointing at dead ids.
+  //   Explicit overrides via `workSessionProjectMoves: {sessionId: pid}`
+  //   bypass the projectId guard so reclassify scripts can still move
+  //   sessions deliberately.
+  const moves = (projectMoves && typeof projectMoves === "object" && !Array.isArray(projectMoves))
+    ? projectMoves : {};
+  const validPids = validProjectIds instanceof Set ? validProjectIds : new Set();
   for (const e of incoming || []) {
-    if (e && e.id) map.set(e.id, e);
+    if (!e || !e.id) continue;
+    const cur = map.get(e.id);
+    let next = e;
+    if (cur) {
+      // (1) aiSummary preserve.
+      const curSum = (cur.aiSummary || "").trim();
+      const inSum = (e.aiSummary || "").trim();
+      if (curSum && !inSum) {
+        next = { ...next, aiSummary: cur.aiSummary };
+      }
+      // (2) projectId preserve — only when existing is still valid AND
+      // there's no explicit move override for this id.
+      const moveTarget = moves[e.id];
+      if (typeof moveTarget === "string" && moveTarget) {
+        next = { ...next, projectId: moveTarget };
+      } else if (
+        cur.projectId &&
+        validPids.has(cur.projectId) &&
+        e.projectId !== cur.projectId
+      ) {
+        next = { ...next, projectId: cur.projectId };
+      }
+    }
+    map.set(e.id, next);
   }
   // Explicit deletes — used by cleanup scripts to remove specific entries
   // (e.g., headless `claude -p` artifacts that got imported as workSessions).
@@ -369,12 +409,23 @@ app.put("/api/content", async (req, res) => {
       // workSessions / dailyTop3History / scheduledTaskHeartbeats / dailyTop3:
       // all merged so background writers (importer, sync scripts) and stale
       // client snapshots can't clobber each other. Everything else: client wins.
+      // Build validProjectIds from the post-merge projects set so newly-
+      // added projects in this PUT are considered valid (avoids "newly
+      // created project not in validPids → projectId preservation fails").
+      const postMergeProjects = mergeProjects(
+        existing.content.projects,
+        payload.projects,
+        payload.projectDeletes,
+      );
+      const validProjectIds = new Set(postMergeProjects.map((p) => p.id));
       const mergedPayload = {
         ...payload,
         workSessions: mergeWorkSessions(
           existing.content.workSessions,
           payload.workSessions,
           payload.workSessionDeletes,
+          validProjectIds,
+          payload.workSessionProjectMoves,
         ),
         dailyTop3History: mergeDailyTop3History(
           existing.content.dailyTop3History,
@@ -396,11 +447,7 @@ app.put("/api/content", async (req, res) => {
           existing.content.manualSyncTriggers,
           payload.manualSyncTriggers,
         ),
-        projects: mergeProjects(
-          existing.content.projects,
-          payload.projects,
-          payload.projectDeletes,
-        ),
+        projects: postMergeProjects,
       };
       const normalizedPayload = normalizeContentRecord(mergedPayload);
       return await saveContentDocument(collection, normalizedPayload);
