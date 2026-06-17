@@ -1222,6 +1222,13 @@ button:focus-visible {
   opacity: 0.9;
 }
 
+.history-claude-session-summary.is-fallback {
+  font-style: normal;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  opacity: 0.55;
+}
+
 /* Empty summary cell stays in the grid so the "when" column lands in
    slot 4 consistently. No visible content; just preserves layout. */
 

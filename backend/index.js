@@ -276,6 +276,30 @@ function mergeChatLinks(existing, incoming) {
   return incoming;
 }
 
+// Projects: union by id with last-write-wins on name/color. Without this,
+// stale client snapshots (e.g. a /todo tab open since before the importer
+// auto-created Bambu Logger) silently drop newly-added projects, which
+// then orphans every workSession that referenced the dropped id. Frontend
+// can delete a project via `projectDeletes: [pid…]` — applied last so a
+// delete wins. Names are preserved verbatim from incoming so renames
+// through /settings still propagate.
+function mergeProjects(existing, incoming, deletes) {
+  if (!Array.isArray(incoming)) return existing || [];
+  const map = new Map();
+  for (const e of existing || []) {
+    if (e && e.id) map.set(e.id, e);
+  }
+  for (const e of incoming) {
+    if (e && e.id) map.set(e.id, e);
+  }
+  if (Array.isArray(deletes)) {
+    for (const id of deletes) {
+      if (typeof id === "string" && id) map.delete(id);
+    }
+  }
+  return [...map.values()];
+}
+
 function mergeHeartbeats(existing, incoming) {
   const e = existing && typeof existing === "object" ? existing : {};
   const i = incoming && typeof incoming === "object" ? incoming : {};
@@ -371,6 +395,11 @@ app.put("/api/content", async (req, res) => {
         manualSyncTriggers: mergeHeartbeats(
           existing.content.manualSyncTriggers,
           payload.manualSyncTriggers,
+        ),
+        projects: mergeProjects(
+          existing.content.projects,
+          payload.projects,
+          payload.projectDeletes,
         ),
       };
       const normalizedPayload = normalizeContentRecord(mergedPayload);

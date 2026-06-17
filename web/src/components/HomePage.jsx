@@ -2361,7 +2361,7 @@ export default function HomePage() {
       projectId: defaultProjectId,
       done: false,
       inTodayQueue: true,
-      tags: [TOP3_TAG, `from-${dayDate}`],
+      tags: [TOP3_TAG],
     });
     const todaysTasks = [...(content.todaysTasks || []), newTask];
     const history = content.dailyTop3History.map((h) =>

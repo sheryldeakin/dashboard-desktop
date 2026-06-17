@@ -104,6 +104,8 @@ export default function ClaudeProjectBucket({
             {bucket.sessions.map((s) => {
               const startedMs = new Date(s.startedAt).getTime();
               const aiSummary = (s.aiSummary || "").trim();
+              const cwdLeaf = (s.cwd || "").split(/[\\/]+/).filter(Boolean).slice(-2).join("/");
+              const fallback = !aiSummary && cwdLeaf ? `…${cwdLeaf}` : "";
               return (
                 <li key={s.id} className="history-claude-session-item">
                   <Tooltip content={`${s.messageCount || 0} message${s.messageCount === 1 ? "" : "s"}`}>
@@ -114,8 +116,11 @@ export default function ClaudeProjectBucket({
                   <span className="history-claude-session-duration">
                     {fmtHrMin(s.activeMs || 0)}
                   </span>
-                  <span className="history-claude-session-summary">
-                    {aiSummary}
+                  <span
+                    className={`history-claude-session-summary${aiSummary ? "" : " is-fallback"}`}
+                    title={!aiSummary && s.cwd ? s.cwd : undefined}
+                  >
+                    {aiSummary || fallback}
                   </span>
                   <Tooltip content={new Date(s.startedAt).toLocaleString()}>
                     <span className="history-claude-session-when">

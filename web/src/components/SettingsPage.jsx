@@ -108,10 +108,22 @@ export default function SettingsPage() {
     setStatus({ phase: "saving", message: "Saving…" });
     try {
       const normalized = normalizeContentRecord(draft);
+      // Backend now merges projects union-by-id (stale-snapshot defence),
+      // so a removed project in `draft.projects` is invisible to the merge
+      // and won't delete. Explicit deletes go through `projectDeletes`,
+      // which backend applies last. Diff against the snapshot to find them.
+      const removedProjectIds = (snapshot?.projects || [])
+        .map((p) => p.id)
+        .filter((id) => id && !(normalized.projects || []).some((p) => p.id === id));
+      const payload = removedProjectIds.length
+        ? { ...normalized, projectDeletes: removedProjectIds }
+        : normalized;
       // updateContent propagates the save through ContentProvider so /home,
       // /todo, /stats etc all see the new projects/dates/pomodoro settings
-      // without a page reload.
-      updateContent(() => normalized);
+      // without a page reload. The projectDeletes field is a one-shot
+      // directive — backend reads it, applies it, then normalize drops it
+      // on the next read.
+      updateContent(() => payload);
       setSnapshot(normalized);
       setDraft(cloneContent(normalized));
       setStatus({ phase: "saved", message: "Saved" });
