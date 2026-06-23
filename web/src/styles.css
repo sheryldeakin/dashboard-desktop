@@ -7208,6 +7208,50 @@ button:focus-visible {
   gap: 4px;
 }
 
+/* Inbox card — same rail-card chrome as Chats, list of vault +Inbox/
+   items sorted oldest-first so stale captures stay visible. */
+.home-inbox-meta {
+  font-size: clamp(11px, 0.25vw + 9px, 12px);
+  color: var(--ink-muted);
+  margin: 4px 0 6px;
+}
+.home-inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.home-inbox-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.home-inbox-item:last-child {
+  border-bottom: none;
+}
+.home-inbox-link {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: clamp(12px, 0.3vw + 9.5px, 13px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.home-inbox-link:hover {
+  text-decoration: underline;
+}
+.home-inbox-age {
+  font-size: clamp(10px, 0.2vw + 8.5px, 11px);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .home-chats-row {
   display: grid;
   grid-template-columns: 1fr auto auto;

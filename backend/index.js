@@ -316,6 +316,20 @@ function mergeChatLinks(existing, incoming) {
   return incoming;
 }
 
+/* Vault snapshot fields. REPLACE semantics with a "missing field means
+   preserve" guard — most PUTs (every /todo save, every Settings save,
+   every workSession importer push) don't carry these fields. Without
+   the guard, the sync-vault.py snapshot would get wiped on the next
+   unrelated PUT. Same shape as mergeChatLinks. */
+function preserveIfMissing(existing, incoming) {
+  return incoming === undefined ? (existing ?? null) : incoming;
+}
+
+function preserveArrayIfMissing(existing, incoming) {
+  if (incoming === undefined) return existing || [];
+  return Array.isArray(incoming) ? incoming : [];
+}
+
 // Projects: union by id with last-write-wins on name/color. Without this,
 // stale client snapshots (e.g. a /todo tab open since before the importer
 // auto-created Bambu Logger) silently drop newly-added projects, which
@@ -448,6 +462,12 @@ app.put("/api/content", async (req, res) => {
           payload.manualSyncTriggers,
         ),
         projects: postMergeProjects,
+        // Vault snapshots: preserve existing if this PUT didn't carry the
+        // field (typical: every non-vault-sync PUT). Only sync-vault.py
+        // sets these, and it's the authoritative writer.
+        dailyNote: preserveIfMissing(existing.content.dailyNote, payload.dailyNote),
+        inbox: preserveArrayIfMissing(existing.content.inbox, payload.inbox),
+        recentVaultEdits: preserveArrayIfMissing(existing.content.recentVaultEdits, payload.recentVaultEdits),
       };
       const normalizedPayload = normalizeContentRecord(mergedPayload);
       return await saveContentDocument(collection, normalizedPayload);

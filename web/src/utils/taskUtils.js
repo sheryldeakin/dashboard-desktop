@@ -784,6 +784,9 @@ export function cloneContent(content) {
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(content.scheduledTaskHeartbeats),
     chatLinks: normalizeChatLinks(content.chatLinks),
     manualSyncTriggers: normalizeManualSyncTriggers(content.manualSyncTriggers),
+    dailyNote: normalizeDailyNote(content.dailyNote),
+    inbox: normalizeInbox(content.inbox),
+    recentVaultEdits: normalizeRecentVaultEdits(content.recentVaultEdits),
     defaultNewTaskProjectId:
       typeof content.defaultNewTaskProjectId === "string" ? content.defaultNewTaskProjectId : "",
   };
@@ -802,6 +805,67 @@ export function normalizeManualSyncTriggers(value) {
     out[k] = v;
   }
   return out;
+}
+
+/* Vault snapshot — mirror of backend's normalizeDailyNote. Pushed by
+   sync-vault.py every ~5 min. null/missing → no daily note for today
+   (or sync hasn't run yet). */
+export function normalizeDailyNote(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const date = typeof value.date === "string" && value.date ? value.date : "";
+  if (!date) return null;
+  const out = {
+    date,
+    path: typeof value.path === "string" ? value.path : "",
+    raw: typeof value.raw === "string" ? value.raw : "",
+    sections: {},
+    mtime: typeof value.mtime === "string" ? value.mtime : "",
+    syncedAt: typeof value.syncedAt === "string" ? value.syncedAt : "",
+  };
+  if (value.sections && typeof value.sections === "object" && !Array.isArray(value.sections)) {
+    for (const [k, v] of Object.entries(value.sections)) {
+      if (typeof k === "string" && typeof v === "string") out.sections[k] = v;
+    }
+  }
+  return out;
+}
+
+/* Vault +Inbox/ listing — mirror of backend's normalizeInbox. */
+export function normalizeInbox(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const name = typeof item.name === "string" ? item.name : "";
+    const path = typeof item.path === "string" ? item.path : "";
+    if (!name || !path) continue;
+    out.push({
+      name,
+      path,
+      mtime: typeof item.mtime === "string" ? item.mtime : "",
+      ageDays: Number.isFinite(item.ageDays) ? item.ageDays : 0,
+    });
+  }
+  return out;
+}
+
+/* Recently-modified vault files — mirror of backend's normalizeRecentVaultEdits. */
+const RECENT_VAULT_EDITS_CAP = 100;
+export function normalizeRecentVaultEdits(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const path = typeof item.path === "string" ? item.path : "";
+    if (!path) continue;
+    out.push({
+      path,
+      mtime: typeof item.mtime === "string" ? item.mtime : "",
+      project: typeof item.project === "string" ? item.project : "",
+      tags: Array.isArray(item.tags) ? item.tags.filter((t) => typeof t === "string") : [],
+    });
+  }
+  return out.slice(0, RECENT_VAULT_EDITS_CAP);
 }
 
 /* See backend/lib/content-schema.js for the canonical definition.
@@ -850,6 +914,9 @@ export function normalizeContentRecord(record) {
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
     chatLinks: normalizeChatLinks(record.chatLinks),
     manualSyncTriggers: normalizeManualSyncTriggers(record.manualSyncTriggers),
+    dailyNote: normalizeDailyNote(record.dailyNote),
+    inbox: normalizeInbox(record.inbox),
+    recentVaultEdits: normalizeRecentVaultEdits(record.recentVaultEdits),
     // User preference: which project new tasks default to. Validated
     // against the current projects list — invalid/missing → "" (falls
     // back to projects[0] at task-creation time).
@@ -1026,6 +1093,15 @@ async function fetchRemoteContent() {
 async function saveRemoteContent(nextContent) {
   if (!API_BASE_URL) return;
 
+  // Vault snapshot fields (dailyNote / inbox / recentVaultEdits) are owned by
+  // sync-vault.py, not the app. The frontend normalizer always emits them
+  // (null / []), so including them here would clobber the stored snapshot on
+  // every unrelated save — the backend's preserve-on-missing guard only fires
+  // when the field is ABSENT, not when it's an explicit empty. Strip them so
+  // they arrive as `undefined` and the backend keeps whatever the sync wrote.
+  // (The authoritative writer, sync-vault.py, sends its own full-doc PUT.)
+  const { dailyNote, inbox, recentVaultEdits, ...body } = nextContent;
+
   const pushSerial = saveSerial;
   try {
     const response = await fetch(getApiUrl("/api/content"), {
@@ -1033,7 +1109,7 @@ async function saveRemoteContent(nextContent) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(nextContent),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

@@ -731,6 +731,13 @@ export function normalizeContentRecord(record) {
     scheduledTaskHeartbeats: normalizeScheduledTaskHeartbeats(record.scheduledTaskHeartbeats),
     chatLinks: normalizeChatLinks(record.chatLinks),
     manualSyncTriggers: normalizeManualSyncTriggers(record.manualSyncTriggers),
+    // Vault snapshot fields (Phase 0 of the homebase work) — pushed by
+    // sync-vault.py from the local Obsidian vault. Each is a REPLACE-
+    // semantics snapshot; backend's merge preserves them when an
+    // unrelated PUT (e.g. /todo save) omits the field.
+    dailyNote: normalizeDailyNote(record.dailyNote),
+    inbox: normalizeInbox(record.inbox),
+    recentVaultEdits: normalizeRecentVaultEdits(record.recentVaultEdits),
     // User preference: which project new tasks default to (Top 3
     // promote, /todo quick-add, etc.). Empty string falls back to
     // projects[0] which is typically Inbox. Validated to be an
@@ -767,6 +774,76 @@ function normalizeChatLinks(value) {
   return out;
 }
 
+/* Vault snapshot — today's daily note text + parsed sections. Pushed by
+   sync-vault.py every ~5 min. Null/missing → empty snapshot (no daily
+   note for today, or sync hasn't run). */
+function normalizeDailyNote(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const date = typeof value.date === "string" && value.date ? value.date : "";
+  if (!date) return null;
+  const out = {
+    date,
+    path: typeof value.path === "string" ? value.path : "",
+    raw: typeof value.raw === "string" ? value.raw : "",
+    sections: {},
+    mtime: typeof value.mtime === "string" ? value.mtime : "",
+    syncedAt: typeof value.syncedAt === "string" ? value.syncedAt : "",
+  };
+  if (value.sections && typeof value.sections === "object" && !Array.isArray(value.sections)) {
+    for (const [k, v] of Object.entries(value.sections)) {
+      if (typeof k === "string" && typeof v === "string") {
+        out.sections[k] = v;
+      }
+    }
+  }
+  return out;
+}
+
+/* Vault +Inbox/ listing — array of items, each `{ name, path, mtime,
+   ageDays }`. Pushed by sync-vault.py. Used by the Inbox card on /home. */
+function normalizeInbox(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const name = typeof item.name === "string" ? item.name : "";
+    const path = typeof item.path === "string" ? item.path : "";
+    if (!name || !path) continue;
+    out.push({
+      name,
+      path,
+      mtime: typeof item.mtime === "string" ? item.mtime : "",
+      ageDays: Number.isFinite(item.ageDays) ? item.ageDays : 0,
+    });
+  }
+  return out;
+}
+
+/* Recently-modified vault files — last ~100, each with the project we
+   attribute the file to via import-claude-sessions.py's rule table.
+   Used by activity feed + per-project cards. */
+const RECENT_VAULT_EDITS_CAP = 100;
+function normalizeRecentVaultEdits(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const path = typeof item.path === "string" ? item.path : "";
+    if (!path) continue;
+    out.push({
+      path,
+      mtime: typeof item.mtime === "string" ? item.mtime : "",
+      project: typeof item.project === "string" ? item.project : "",
+      tags: Array.isArray(item.tags) ? item.tags.filter((t) => typeof t === "string") : [],
+    });
+  }
+  // Cap to the intended ~100 most-recent edits so a runaway producer can't
+  // inflate the content document unbounded. Producer sends newest-first.
+  return out.slice(0, RECENT_VAULT_EDITS_CAP);
+}
+
 export function isContentPayload(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
   if (typeof payload.phase !== "string") return false;
@@ -794,6 +871,18 @@ export function isContentPayload(payload) {
     return false;
   }
   if (payload.defaultNewTaskProjectId !== undefined && typeof payload.defaultNewTaskProjectId !== "string") {
+    return false;
+  }
+  // Vault snapshot fields: optional, but if present must be the right shape so
+  // a malformed payload is rejected outright rather than silently normalized
+  // to empty (which the preserve-on-missing merge can't distinguish from intent).
+  if (payload.inbox !== undefined && !Array.isArray(payload.inbox)) return false;
+  if (payload.recentVaultEdits !== undefined && !Array.isArray(payload.recentVaultEdits)) return false;
+  if (
+    payload.dailyNote !== undefined &&
+    payload.dailyNote !== null &&
+    (typeof payload.dailyNote !== "object" || Array.isArray(payload.dailyNote))
+  ) {
     return false;
   }
   return true;

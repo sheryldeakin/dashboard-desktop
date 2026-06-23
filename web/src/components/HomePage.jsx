@@ -270,6 +270,12 @@ const RAIL_ICONS = {
       <path d="M1.5 8h2.5l1.5-3 2 6 1.5-3h5.5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" fill="none" />
     </svg>
   ),
+  inbox: (
+    <svg viewBox="0 0 16 16" className="home-rail-icon" aria-hidden="true">
+      <path d="M2 3h12v7H10l-1 2H7l-1-2H2V3z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M2 8h4M10 8h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
 };
 
 function RailCardTitle({ icon, children, className = "" }) {
@@ -958,6 +964,58 @@ function TodaySnapshot({ stats }) {
 }
 
 /* ── Right now (rail) ── */
+/* InboxCard — vault +Inbox/ surfacing. Pushed by sync-vault.py every
+   ~5 min. Shows count + oldest age + clickable items that open in
+   Obsidian via the obsidian:// URL scheme. Empty inbox: card hidden
+   entirely so /home rail isn't cluttered when there's nothing pending. */
+// Obsidian vault name for obsidian:// deep-links. Configured via the
+// Vite env var so a second machine with a differently-named vault can
+// just set its own. Falls back to 'second_brain' (Sheryl's primary).
+const OBSIDIAN_VAULT_NAME = (
+  import.meta.env.VITE_OBSIDIAN_VAULT_NAME || "second_brain"
+).trim();
+
+function InboxCard({ inbox = [] }) {
+  if (!inbox.length) return null;
+  function obsidianUrl(path) {
+    return `obsidian://open?vault=${encodeURIComponent(OBSIDIAN_VAULT_NAME)}&file=${encodeURIComponent(path)}`;
+  }
+  // Strip .md so titles read clean; show oldest items first so the most
+  // stale ones don't drown under newer captures. sorted[0] is the oldest.
+  const sorted = [...inbox].sort((a, b) => (b.ageDays ?? 0) - (a.ageDays ?? 0));
+  const oldestDays = Math.round(sorted[0]?.ageDays ?? 0);
+  return (
+    <section className="home-rail-card">
+      <RailCardTitle icon={RAIL_ICONS.inbox}>Inbox</RailCardTitle>
+      <div className="home-inbox-meta">
+        <strong>{inbox.length}</strong> {inbox.length === 1 ? "item" : "items"}
+        {oldestDays >= 1 && (
+          <>
+            <span className="home-section-meta-sep" aria-hidden="true">·</span>
+            <span>oldest {oldestDays}d</span>
+          </>
+        )}
+      </div>
+      <ul className="home-inbox-list">
+        {sorted.slice(0, 5).map((item) => (
+          <li key={item.path} className="home-inbox-item">
+            <a
+              href={obsidianUrl(item.path)}
+              className="home-inbox-link"
+              title={item.path}
+            >
+              {item.name.replace(/\.md$/, "")}
+            </a>
+            <span className="home-inbox-age">
+              {Math.round(item.ageDays ?? 0)}d
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function RightNowCard({ rightNow }) {
   if (!rightNow) return null;
   const dotClass =
@@ -2476,6 +2534,7 @@ export default function HomePage() {
             chats={content.chatLinks || []}
             onChatsChange={(next) => patchContent({ chatLinks: next })}
           />
+          <InboxCard inbox={content.inbox || []} />
           <RightNowCard rightNow={todayStats.rightNow} />
           <CountdownCard content={content} />
           {/* Week recap moves to the rail — longer-horizon context, not
