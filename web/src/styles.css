@@ -8618,3 +8618,223 @@ button:focus-visible {
   color: rgba(0, 0, 0, 0.4);
   text-align: right;
 }
+
+/* /chats-live — tiled live view of recent Claude Code sessions. Reads
+   ~/.claude/projects/*/<session>.jsonl files modified in the last 30 min
+   and renders one card per session with idle time, last user/assistant
+   snippets, token counts, and a focus-terminal button. */
+.chats-live-page {
+  padding: 24px 32px 48px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.chats-live-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.chats-live-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.chats-live-subtitle {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.5);
+  margin: 0;
+}
+
+.chats-live-status {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.chats-live-error {
+  color: #b03a2e;
+}
+
+.chats-live-updated {
+  font-variant-numeric: tabular-nums;
+}
+
+.chats-live-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.chats-live-empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+}
+
+.chats-live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.chats-live-card {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.chats-live-card--active {
+  border-left: 3px solid #34a853;
+}
+
+.chats-live-card--recent {
+  border-left: 3px solid #f4b400;
+}
+
+.chats-live-card--idle {
+  border-left: 3px solid rgba(0, 0, 0, 0.18);
+  opacity: 0.9;
+}
+
+.chats-live-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.chats-live-card-pill {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.78);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.chats-live-card-idle {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.5);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chats-live-card-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.45);
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+}
+
+.chats-live-card-session {
+  font-weight: 500;
+}
+
+.chats-live-card-branch::before {
+  content: "⎇ ";
+}
+
+.chats-live-card-line {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.chats-live-card-line-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  height: fit-content;
+  margin-top: 1px;
+}
+
+.chats-live-card-line--user .chats-live-card-line-tag {
+  background: rgba(66, 133, 244, 0.12);
+  color: #1a5fcc;
+}
+
+.chats-live-card-line--assistant .chats-live-card-line-tag {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.chats-live-card-line-text {
+  color: rgba(0, 0, 0, 0.72);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.chats-live-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 8px;
+}
+
+.chats-live-card-tokens {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.4);
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+}
+
+.chats-live-card-focus {
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.7);
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.chats-live-card-focus:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.25);
+}
+
+.chats-live-card-focus:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

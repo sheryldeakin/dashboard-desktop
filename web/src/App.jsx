@@ -21,6 +21,7 @@ const TodoPage = lazy(() => import("./components/todo/TodoPage.jsx"));
 const StatsPage = lazy(() => import("./components/StatsPage.jsx"));
 const HomePage = lazy(() => import("./components/HomePage.jsx"));
 const HistoryPage = lazy(() => import("./components/HistoryPage.jsx"));
+const ChatsLivePage = lazy(() => import("./components/ChatsLivePage.jsx"));
 import {
   TITLE,
   START_ISO,
@@ -603,6 +604,7 @@ const router = createBrowserRouter([
       { path: "/stats", element: <StatsPage /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "/todo", element: <TodoPage /> },
+      { path: "/chats-live", element: <ChatsLivePage /> },
       { path: "*", element: <NotFound /> },
     ],
   },

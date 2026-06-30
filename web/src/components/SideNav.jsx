@@ -72,12 +72,21 @@ const NAV_ICONS = {
       <path d="M8 1.5v1.6M8 12.9v1.6M2.5 8H.9M15.1 8h-1.6M3.6 3.6L2.5 2.5M13.5 13.5l-1.1-1.1M3.6 12.4L2.5 13.5M13.5 2.5l-1.1 1.1" />
     </svg>
   ),
+  chatsLive: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2.5 3.5h7a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H7L5 11V9.5H3.5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z" />
+      <path d="M7.5 12.5h5a1 1 0 0 0 1-1v-3" />
+      <circle cx="5" cy="6.5" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="7" cy="6.5" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  ),
 };
 
 const PRIMARY_LINKS = [
   { href: "/home", label: "Today", icon: NAV_ICONS.today },
   { href: "/todo", label: "Tasks", icon: NAV_ICONS.tasks },
   { href: "/todo?focus=1", label: "Focus", icon: NAV_ICONS.focus },
+  { href: "/chats-live", label: "Chats", icon: NAV_ICONS.chatsLive },
   { href: "/stats", label: "Stats", icon: NAV_ICONS.stats },
   { href: "/history", label: "History", icon: NAV_ICONS.history },
 ];

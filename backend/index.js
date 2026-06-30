@@ -1,8 +1,15 @@
+import { execFile } from "child_process";
 import compression from "compression";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import fs from "fs/promises";
 import { MongoClient } from "mongodb";
+import os from "os";
+import path from "path";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
 import {
   SCHEMA_VERSION,
   createDefaultContent,
@@ -500,6 +507,278 @@ app.post("/api/content/migrate", async (_req, res) => {
   } catch (error) {
     console.error("Failed to migrate dashboard content:", error);
     return res.status(500).json({ error: "Failed to migrate dashboard content." });
+  }
+});
+
+const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), ".claude", "projects");
+const CHATS_LIVE_WINDOW_MS = 30 * 60 * 1000;
+const CHATS_LIVE_TEXT_LIMIT = 240;
+
+function projectLabelFromCwd(cwd) {
+  if (!cwd) return "unknown";
+  const normalized = String(cwd).replace(/\\/g, "/").replace(/\/+$/, "");
+  const segments = normalized.split("/").filter(Boolean);
+  return segments[segments.length - 1] || "unknown";
+}
+
+function extractTextFromContent(content) {
+  if (!content) return "";
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  for (let i = content.length - 1; i >= 0; i -= 1) {
+    const part = content[i];
+    if (part && part.type === "text" && typeof part.text === "string") {
+      return part.text;
+    }
+  }
+  return "";
+}
+
+function clipText(text) {
+  if (!text) return "";
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= CHATS_LIVE_TEXT_LIMIT) return trimmed;
+  return `${trimmed.slice(0, CHATS_LIVE_TEXT_LIMIT - 1)}…`;
+}
+
+async function summarizeSessionFile(filePath) {
+  const raw = await fs.readFile(filePath, "utf8");
+  const lines = raw.split("\n");
+  let sessionId = "";
+  let cwd = "";
+  let entrypoint = "";
+  let model = "";
+  let gitBranch = "";
+  let firstTimestamp = "";
+  let lastTimestamp = "";
+  let lastUserText = "";
+  let lastAssistantText = "";
+  let userMessages = 0;
+  let assistantMessages = 0;
+  let tokensIn = 0;
+  let tokensOut = 0;
+  let tokensCacheRead = 0;
+  let tokensCacheCreate = 0;
+
+  for (const line of lines) {
+    if (!line) continue;
+    let evt;
+    try {
+      evt = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (evt.sessionId && !sessionId) sessionId = evt.sessionId;
+    if (evt.cwd && !cwd) cwd = evt.cwd;
+    if (evt.entrypoint && !entrypoint) entrypoint = evt.entrypoint;
+    if (evt.gitBranch && !gitBranch) gitBranch = evt.gitBranch;
+    if (evt.timestamp) {
+      if (!firstTimestamp || evt.timestamp < firstTimestamp) firstTimestamp = evt.timestamp;
+      if (!lastTimestamp || evt.timestamp > lastTimestamp) lastTimestamp = evt.timestamp;
+    }
+    if (evt.type === "assistant" && evt.message) {
+      assistantMessages += 1;
+      if (evt.message.model && !model) model = evt.message.model;
+      const text = extractTextFromContent(evt.message.content);
+      if (text) lastAssistantText = text;
+      const usage = evt.message.usage;
+      if (usage) {
+        tokensIn += Number(usage.input_tokens || 0);
+        tokensOut += Number(usage.output_tokens || 0);
+        tokensCacheRead += Number(usage.cache_read_input_tokens || 0);
+        tokensCacheCreate += Number(usage.cache_creation_input_tokens || 0);
+      }
+    } else if (evt.type === "user" && evt.message) {
+      userMessages += 1;
+      const text = extractTextFromContent(evt.message.content);
+      if (text) lastUserText = text;
+    }
+  }
+
+  return {
+    sessionId,
+    cwd,
+    entrypoint,
+    model,
+    gitBranch,
+    projectLabel: projectLabelFromCwd(cwd),
+    firstTimestamp,
+    lastTimestamp,
+    messageCount: userMessages + assistantMessages,
+    userMessages,
+    assistantMessages,
+    lastUserText: clipText(lastUserText),
+    lastAssistantText: clipText(lastAssistantText),
+    tokens: {
+      input: tokensIn,
+      output: tokensOut,
+      cacheRead: tokensCacheRead,
+      cacheCreation: tokensCacheCreate,
+    },
+  };
+}
+
+app.get("/api/chats-live", async (_req, res) => {
+  try {
+    const cutoff = Date.now() - CHATS_LIVE_WINDOW_MS;
+    let projectDirs = [];
+    try {
+      projectDirs = await fs.readdir(CLAUDE_PROJECTS_DIR);
+    } catch (err) {
+      if (err.code === "ENOENT") {
+        return res.json({ sessions: [], cutoffMs: CHATS_LIVE_WINDOW_MS });
+      }
+      throw err;
+    }
+
+    const recentFiles = [];
+    await Promise.all(
+      projectDirs.map(async (dir) => {
+        const dirPath = path.join(CLAUDE_PROJECTS_DIR, dir);
+        let entries;
+        try {
+          entries = await fs.readdir(dirPath);
+        } catch {
+          return;
+        }
+        await Promise.all(
+          entries.map(async (entry) => {
+            if (!entry.endsWith(".jsonl")) return;
+            const filePath = path.join(dirPath, entry);
+            try {
+              const stat = await fs.stat(filePath);
+              if (stat.mtimeMs >= cutoff) {
+                recentFiles.push({ filePath, mtimeMs: stat.mtimeMs });
+              }
+            } catch {}
+          }),
+        );
+      }),
+    );
+
+    const summaries = await Promise.all(
+      recentFiles.map(async ({ filePath, mtimeMs }) => {
+        try {
+          const summary = await summarizeSessionFile(filePath);
+          return { ...summary, mtimeMs };
+        } catch (err) {
+          console.warn("chats-live: failed to read", filePath, err.message);
+          return null;
+        }
+      }),
+    );
+
+    const now = Date.now();
+    const sessions = summaries
+      .filter((s) => s && s.entrypoint !== "sdk-cli" && s.sessionId)
+      .map((s) => {
+        const lastMs = s.lastTimestamp ? Date.parse(s.lastTimestamp) : s.mtimeMs;
+        const idleMs = Number.isFinite(lastMs) ? Math.max(0, now - lastMs) : null;
+        return { ...s, idleMs, idleMinutes: idleMs == null ? null : Math.round(idleMs / 60000) };
+      })
+      .sort((a, b) => {
+        const at = a.lastTimestamp ? Date.parse(a.lastTimestamp) : a.mtimeMs;
+        const bt = b.lastTimestamp ? Date.parse(b.lastTimestamp) : b.mtimeMs;
+        return bt - at;
+      });
+
+    return res.json({ sessions, cutoffMs: CHATS_LIVE_WINDOW_MS, generatedAt: new Date().toISOString() });
+  } catch (error) {
+    console.error("Failed to list live chats:", error);
+    return res.status(500).json({ error: "Failed to list live chats." });
+  }
+});
+
+// POST /api/focus-terminal — brings the terminal window matching the
+// given cwd to the foreground via a PowerShell + Win32 P/Invoke shell-
+// out. Best-effort: matches by cwd leaf-folder substring in the window
+// title. Multi-tab terminal windows (Windows Terminal with tabs) may
+// match the wrong tab — that's a documented limitation, not a bug.
+// Endpoint is unauthenticated; safe because the API is bound to
+// localhost-origin requests via the existing CORS allowlist.
+const FOCUS_TERMINAL_SCRIPT = String.raw`
+$ErrorActionPreference = "Stop"
+$needle = $args[0]
+if (-not $needle) { Write-Output "NO_NEEDLE"; exit 1 }
+
+Add-Type @"
+  using System;
+  using System.Runtime.InteropServices;
+  using System.Text;
+  public class Win32Focus {
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+    [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+    [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+  }
+"@
+
+$candidates = Get-Process | Where-Object {
+  $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -and ($_.MainWindowTitle.ToLower().Contains($needle.ToLower()))
+} | Sort-Object { $_.MainWindowTitle.Length }
+
+if (-not $candidates) { Write-Output "NO_MATCH"; exit 0 }
+
+$target = $candidates | Select-Object -First 1
+$handle = $target.MainWindowHandle
+$title  = $target.MainWindowTitle
+
+if ([Win32Focus]::IsIconic($handle)) { [Win32Focus]::ShowWindowAsync($handle, 9) | Out-Null }
+
+$fg = [Win32Focus]::GetForegroundWindow()
+$fgThread = [Win32Focus]::GetWindowThreadProcessId($fg, [ref]([uint32]0))
+$curThread = [Win32Focus]::GetCurrentThreadId()
+[Win32Focus]::AttachThreadInput($curThread, $fgThread, $true) | Out-Null
+[Win32Focus]::BringWindowToTop($handle) | Out-Null
+[Win32Focus]::SetForegroundWindow($handle) | Out-Null
+[Win32Focus]::AttachThreadInput($curThread, $fgThread, $false) | Out-Null
+
+Write-Output "OK:$title"
+`;
+
+function focusNeedleFromCwd(cwd) {
+  if (!cwd) return "";
+  const normalized = String(cwd).replace(/\\/g, "/").replace(/\/+$/, "");
+  const segments = normalized.split("/").filter(Boolean);
+  return segments[segments.length - 1] || "";
+}
+
+app.post("/api/focus-terminal", async (req, res) => {
+  try {
+    const cwd = typeof req.body?.cwd === "string" ? req.body.cwd : "";
+    const needle = focusNeedleFromCwd(cwd);
+    if (!needle) {
+      return res.status(400).json({ error: "Missing or unrecognized cwd." });
+    }
+    if (process.platform !== "win32") {
+      return res.status(501).json({ error: "Focus only implemented on Windows." });
+    }
+
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", FOCUS_TERMINAL_SCRIPT, needle],
+      { timeout: 5000, windowsHide: true },
+    );
+
+    const trimmed = stdout.trim();
+    if (trimmed.startsWith("OK:")) {
+      return res.json({ matched: true, windowTitle: trimmed.slice(3), needle });
+    }
+    if (trimmed === "NO_MATCH") {
+      return res.json({
+        matched: false,
+        needle,
+        reason: `No terminal window found containing "${needle}" in its title.`,
+      });
+    }
+    return res.json({ matched: false, needle, reason: trimmed || "Unknown result." });
+  } catch (error) {
+    console.error("Focus terminal failed:", error);
+    return res.status(500).json({ error: error.message || "Focus request failed." });
   }
 });
 
