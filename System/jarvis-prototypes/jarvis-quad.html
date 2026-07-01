@@ -1,0 +1,3565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Jarvis · 4-way (Combo · D · E · F-Neural)</title>
+<meta name="viewport" content="width=1620" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-base: #02060f;
+    --bg-deep: #000206;
+    --cyan: #22d3ee;
+    --cyan-bright: #67e8f9;
+    --cyan-glow: rgba(34, 211, 238, 0.5);
+    --text: #cbe9ee;
+    --text-mid: #6c92a0;
+    --text-mute: #3d5763;
+    --hairline: rgba(34, 211, 238, 0.16);
+    --grid: rgba(34, 211, 238, 0.05);
+    --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    --ui: -apple-system, 'Inter', BlinkMacSystemFont, system-ui, sans-serif;
+  }
+  html, body {
+    font-family: var(--ui);
+    color: var(--text);
+    overflow: hidden;
+    background: #000;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 1.2px) 0 0 / 24px 24px,
+      radial-gradient(1000px 700px at 50% 0%, rgba(34, 211, 238, 0.04) 0%, transparent 60%),
+      linear-gradient(160deg, var(--bg-base) 0%, var(--bg-deep) 100%);
+    background-attachment: fixed;
+    font-variant-numeric: tabular-nums;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at center, transparent 55%, rgba(0,0,0,0.45) 100%);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .app {
+    width: 1620px;
+    min-height: 2150px;             /* extended for third row of variants */
+    padding: 16px 18px;
+    display: grid;
+    grid-template-rows: auto auto auto auto auto auto;
+    gap: 12px;
+  }
+
+  .topbar {
+    display: flex; align-items: baseline; gap: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .topbar h1 { font-family: var(--mono); font-size: 14px; letter-spacing: 0.18em; color: var(--cyan); font-weight: 600; }
+  .topbar .desc { font-size: 12px; color: var(--text-mute); }
+  .topbar .meta { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--text-mute); letter-spacing: 0.1em; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 12px;
+    min-height: 600px;
+  }
+  .grid-2 {                          /* second row: 3 columns for G, H, and I */
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    min-height: 640px;
+  }
+  .grid-2 .reactor-canvas {
+    width: 400px; height: 400px;
+  }
+  .grid-3 {                          /* third row: J (pure jelly) + K (jelly+network) */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    min-height: 660px;
+  }
+  .grid-3 .reactor-canvas {
+    width: 480px; height: 480px;
+  }
+  .grid-3 .status-tl { top: 60px;  left: 28px; }
+  .grid-3 .status-tr { top: 60px;  right: 28px; text-align: right; }
+  .grid-3 .status-bl { bottom: 72px; left: 28px; }
+  .grid-3 .status-br { bottom: 72px; right: 28px; text-align: right; }
+  .grid-2 .status-tl { top: 60px;  left: 28px; }
+  .grid-2 .status-tr { top: 60px;  right: 28px; text-align: right; }
+  .grid-2 .status-bl { bottom: 72px; left: 28px; }
+  .grid-2 .status-br { bottom: 72px; right: 28px; text-align: right; }
+  .col {
+    position: relative;
+    border: 1px solid rgba(34, 211, 238, 0.10);
+    border-radius: 4px;
+    background: rgba(8, 12, 24, 0.30);
+    backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .col-header {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--hairline);
+    background: rgba(34, 211, 238, 0.04);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .col-header .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--bg-base);
+    background: var(--cyan);
+    padding: 2px 6px;
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+  }
+  .col-header .badge.hot {
+    background: linear-gradient(90deg, #67e8f9, #d0f4ff);
+    color: #062c33;
+  }
+  .col-header .badge.new {
+    background: linear-gradient(90deg, #80e0ff, #67e8f9);
+    color: #062c33;
+  }
+  .col-header .name {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+  .col-header .tag { font-family: var(--mono); font-size: 8.5px; color: var(--text-mute); margin-left: auto; letter-spacing: 0.08em; }
+  .col-body { position: relative; flex: 1; overflow: hidden; }
+  .col-foot {
+    padding: 8px 12px;
+    border-top: 1px solid var(--hairline);
+    background: rgba(0,0,0,0.20);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    line-height: 1.5;
+    color: var(--text-mid);
+  }
+  .col-foot .label { color: var(--cyan); font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; display: block; margin-bottom: 3px; font-size: 8.5px; }
+  .col-foot .pros { color: #10b981; font-size: 9px; margin-top: 5px; }
+  .col-foot .cons { color: #fbbf24; font-size: 9px; margin-top: 2px; }
+
+  .hud-corner { position: absolute; width: 16px; height: 16px; pointer-events: none; }
+  .hud-corner::before, .hud-corner::after { content: ''; position: absolute; background: var(--cyan); opacity: 0.55; }
+  .hud-corner.tl { top: 9px; left: 9px; }
+  .hud-corner.tl::before { top: 0; left: 0; width: 12px; height: 1.4px; }
+  .hud-corner.tl::after  { top: 0; left: 0; width: 1.4px; height: 12px; }
+  .hud-corner.tr { top: 9px; right: 9px; }
+  .hud-corner.tr::before { top: 0; right: 0; width: 12px; height: 1.4px; }
+  .hud-corner.tr::after  { top: 0; right: 0; width: 1.4px; height: 12px; }
+  .hud-corner.bl { bottom: 9px; left: 9px; }
+  .hud-corner.bl::before { bottom: 0; left: 0; width: 12px; height: 1.4px; }
+  .hud-corner.bl::after  { bottom: 0; left: 0; width: 1.4px; height: 12px; }
+  .hud-corner.br { bottom: 9px; right: 9px; }
+  .hud-corner.br::before { bottom: 0; right: 0; width: 12px; height: 1.4px; }
+  .hud-corner.br::after  { bottom: 0; right: 0; width: 1.4px; height: 12px; }
+
+  .stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .reactor-canvas {
+    width: 320px; height: 320px;
+    cursor: pointer;
+    display: block;
+    -webkit-mask: radial-gradient(circle at 50% 50%, black 60%, transparent 78%);
+    mask:         radial-gradient(circle at 50% 50%, black 60%, transparent 78%);
+  }
+  .status {
+    position: absolute;
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--text-mid);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    z-index: 4;
+  }
+  .status .v { color: var(--cyan); font-weight: 600; }
+  .status-tl { top: 52px; left: 18px; }
+  .status-tr { top: 52px; right: 18px; text-align: right; }
+  .status-bl { bottom: 62px; left: 18px; }
+  .status-br { bottom: 62px; right: 18px; text-align: right; }
+
+  .controls-bar {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    padding: 10px 4px 0 4px;
+    border-top: 1px solid var(--hairline);
+  }
+  .controls-bar .lbl { font-family: var(--mono); font-size: 9.5px; color: var(--text-mute); letter-spacing: 0.16em; text-transform: uppercase; margin-right: 4px; }
+  .state-controls { display: flex; gap: 6px; }
+  .state-btn {
+    background: rgba(34, 211, 238, 0.04);
+    border: 1px solid rgba(34, 211, 238, 0.20);
+    color: var(--text-mid);
+    padding: 5px 11px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .state-btn:hover { background: rgba(34, 211, 238, 0.10); color: var(--cyan); }
+  .state-btn.active {
+    background: rgba(34, 211, 238, 0.15);
+    border-color: var(--cyan);
+    color: var(--cyan-bright);
+    text-shadow: 0 0 4px var(--cyan-glow);
+  }
+  .state-chip {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--cyan);
+    background: rgba(34, 211, 238, 0.08);
+    border: 1px solid rgba(34, 211, 238, 0.30);
+    padding: 4px 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .state-chip .dot {
+    display: inline-block; width: 6px; height: 6px;
+    background: var(--cyan-bright); border-radius: 50%;
+    margin-right: 6px;
+    box-shadow: 0 0 6px var(--cyan-bright);
+    animation: dot-pulse 2s ease-in-out infinite;
+  }
+  @keyframes dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .chat-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(to right, rgba(34, 211, 238, 0.06), transparent 30%, transparent 70%, rgba(34, 211, 238, 0.06));
+    border: 1px solid rgba(34, 211, 238, 0.15);
+  }
+  .chat-preview .p { color: var(--cyan); font-family: var(--mono); font-size: 18px; font-weight: 600; text-shadow: 0 0 8px var(--cyan-glow); }
+  .chat-preview .input { flex: 1; color: var(--text-mid); font-family: var(--mono); font-size: 12px; font-style: italic; }
+  .chat-preview .tag {
+    font-family: var(--mono); font-size: 9.5px; color: var(--cyan);
+    padding: 3px 8px; background: rgba(34, 211, 238, 0.10);
+    border: 1px solid rgba(34, 211, 238, 0.25); letter-spacing: 0.08em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three":          "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <h1>JARVIS · NONA (9 candidates)</h1>
+    <span class="desc">row 1: COMBO · D · E · F &nbsp;—&nbsp; row 2: G dendrite · H supernode · I network-in-bubble &nbsp;—&nbsp; row 3: J jellyfish bell · K network-in-jelly</span>
+    <span class="meta">COMBO · D · E · F · G · H · I · J · K</span>
+  </header>
+
+  <main class="grid">
+
+    <!-- COMBO -->
+    <section class="col">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="col-header">
+        <span class="badge hot">★ COMBO</span>
+        <span class="name">Energy in Chrome</span>
+        <span class="tag">plasma rings · shell</span>
+      </div>
+      <div class="col-body">
+        <div class="status status-tl">core · <span class="v">live</span></div>
+        <div class="status status-tr">rings · <span class="v">5</span></div>
+        <div class="status status-bl">amp · <span class="v" id="ampCombo">0.00</span></div>
+        <div class="status status-br">mic · <span class="v">click</span></div>
+        <div class="stage"><canvas class="reactor-canvas" id="canvasCombo"></canvas></div>
+      </div>
+      <div class="col-foot">
+        <span class="label">The trick</span>
+        Wavy plasma rings + white-hot core inside translucent iridescent shell.
+        <div class="pros">+ unique · most "wow"</div>
+        <div class="cons">− highest GPU load</div>
+      </div>
+    </section>
+
+    <!-- D -->
+    <section class="col">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="col-header">
+        <span class="badge">D</span>
+        <span class="name">SVG Core in Chrome</span>
+        <span class="tag">geometric · shell</span>
+      </div>
+      <div class="col-body">
+        <div class="status status-tl">core · <span class="v">stable</span></div>
+        <div class="status status-tr">rpm · <span class="v">142</span></div>
+        <div class="status status-bl">amp · <span class="v" id="ampD">0.00</span></div>
+        <div class="status status-br">mic · <span class="v">click</span></div>
+        <div class="stage">
+          <div id="dStage" style="position:relative; width:320px; height:320px;">
+            <svg id="dReactor" viewBox="-130 -130 260 260" style="
+                position: absolute; left: 50%; top: 50%;
+                width: 190px; height: 190px;
+                margin: -95px 0 0 -95px; z-index: 1;
+                transform-origin: center;
+                transform: scale(var(--vd-scale, 1)) rotate(var(--vd-rot, 0deg));
+                filter: drop-shadow(0 0 var(--vd-shadow, 8px) var(--vd-tint, rgba(34, 211, 238, 0.5)));">
+              <defs><g id="seg-d"><path d="M 0 -100 A 100 100 0 0 1 70.7 -70.7 L 56.6 -56.6 A 80 80 0 0 0 0 -80 Z"/></g></defs>
+              <circle cx="0" cy="0" r="115" fill="none" stroke="rgba(34,211,238,0.25)" stroke-width="1.2"/>
+              <circle cx="0" cy="0" r="105" fill="none" stroke="rgba(34,211,238,0.25)" stroke-width="1.2"/>
+              <g style="transform-origin:center;">
+                <use href="#seg-d" fill="var(--vd-tint, #22d3ee)" fill-opacity="var(--vd-lit-alpha, 0.45)" stroke="rgba(34,211,238,0.40)" stroke-width="0.8"/>
+                <use href="#seg-d" fill="rgba(34,211,238,0.10)" stroke="rgba(34,211,238,0.40)" stroke-width="0.8" transform="rotate(45)"/>
+                <use href="#seg-d" fill="var(--vd-tint, #22d3ee)" fill-opacity="var(--vd-lit-alpha, 0.45)" stroke="rgba(34,211,238,0.40)" stroke-width="0.8" transform="rotate(90)"/>
+                <use href="#seg-d" fill="rgba(34,211,238,0.10)" stroke="rgba(34,211,238,0.40)" stroke-width="0.8" transform="rotate(135)"/>
+                <use href="#seg-d" fill="var(--vd-tint, #22d3ee)" fill-opacity="var(--vd-lit-alpha, 0.45)" stroke="rgba(34,211,238,0.40)" stroke-width="0.8" transform="rotate(180)"/>
+                <use href="#seg-d" fill="rgba(34,211,238,0.10)" stroke="rgba(34,211,238,0.40)" stroke-width="0.8" transform="rotate(225)"/>
+                <use href="#seg-d" fill="var(--vd-tint, #22d3ee)" fill-opacity="var(--vd-lit-alpha, 0.45)" stroke="rgba(34,211,238,0.40)" stroke-width="0.8" transform="rotate(270)"/>
+                <use href="#seg-d" fill="rgba(34,211,238,0.10)" stroke="rgba(34,211,238,0.40)" stroke-width="0.8" transform="rotate(315)"/>
+              </g>
+              <circle cx="0" cy="0" r="68" fill="none" stroke="rgba(34,211,238,0.35)" stroke-width="0.8"/>
+              <circle cx="0" cy="0" r="62" fill="none" stroke="rgba(34,211,238,0.35)" stroke-width="0.8"/>
+              <polygon points="0,-50 35,-35 50,0 35,35 0,50 -35,35 -50,0 -35,-35"
+                       fill="var(--vd-octa-fill, rgba(34,211,238,0.10))"
+                       stroke="var(--vd-tint, #22d3ee)" stroke-width="1.2"/>
+              <circle cx="0" cy="0" r="30" fill="none" stroke="rgba(34,211,238,0.35)" stroke-width="0.8"/>
+              <circle cx="0" cy="0" r="22" fill="none" stroke="rgba(34,211,238,0.35)" stroke-width="0.8"/>
+              <circle cx="0" cy="0" r="12" fill="var(--vd-tint, #67e8f9)" opacity="var(--vd-core-opacity, 0.9)"
+                      style="filter: drop-shadow(0 0 var(--vd-core-glow, 8px) var(--vd-tint, #67e8f9))"/>
+              <circle cx="0" cy="0" r="5" fill="#ffffff"
+                      style="filter: drop-shadow(0 0 6px var(--vd-tint, #67e8f9))"/>
+            </svg>
+            <canvas class="reactor-canvas" id="canvasD" style="position:absolute; left:50%; top:50%; width:320px; height:320px; margin:-160px 0 0 -160px; z-index:3;"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-foot">
+        <span class="label">The trick</span>
+        Static SVG arc reactor under iridescent chrome — clean and readable.
+        <div class="pros">+ cheapest · most readable inner detail</div>
+        <div class="cons">− inner core doesn't move like energy</div>
+      </div>
+    </section>
+
+    <!-- E -->
+    <section class="col">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="col-header">
+        <span class="badge">E</span>
+        <span class="name">Pure Arc Reactor</span>
+        <span class="tag">no shell · energy</span>
+      </div>
+      <div class="col-body">
+        <div class="status status-tl">level · <span class="v" id="lvlE">00</span></div>
+        <div class="status status-tr">rings · <span class="v">5</span></div>
+        <div class="status status-bl">amp · <span class="v" id="ampE">0.00</span></div>
+        <div class="status status-br">mic · <span class="v">click</span></div>
+        <div class="stage"><canvas class="reactor-canvas" id="canvasE"></canvas></div>
+      </div>
+      <div class="col-foot">
+        <span class="label">The trick</span>
+        Pure Iron Man arc reactor — 5 wavy plasma rings + white-hot core.
+        <div class="pros">+ instant Iron Man recognition · matches reference</div>
+        <div class="cons">− "iconic" = least uniquely Jarvis</div>
+      </div>
+    </section>
+
+    <!-- F: NEURAL -->
+    <section class="col">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="col-header">
+        <span class="badge new">F</span>
+        <span class="name">Neural in Chrome</span>
+        <span class="tag">synapses · shell</span>
+      </div>
+      <div class="col-body">
+        <div class="status status-tl">nodes · <span class="v" id="nodesF">14</span></div>
+        <div class="status status-tr">edges · <span class="v" id="edgesF">--</span></div>
+        <div class="status status-bl">amp · <span class="v" id="ampF">0.00</span></div>
+        <div class="status status-br">fire · <span class="v" id="fireF">0</span>/s</div>
+        <div class="stage"><canvas class="reactor-canvas" id="canvasF"></canvas></div>
+      </div>
+      <div class="col-foot">
+        <span class="label">The trick</span>
+        3D neuron network firing through iridescent chrome — pulses ride edges, nodes flash on receipt.
+        <div class="pros">+ literally "intelligence" · unique · meaning-mappable</div>
+        <div class="cons">− could read as molecule/atom if not tuned</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ROW 2: dendrite + supernode graph -->
+  <main class="grid-2">
+
+    <!-- G: DENDRITE -->
+    <section class="col">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="col-header">
+        <span class="badge new">G · NEW</span>
+        <span class="name">Dendrite Cell in Chrome</span>
+        <span class="tag">fractal branches · terminals · shell</span>
+      </div>
+      <div class="col-body">
+        <div class="status status-tl">soma · <span class="v">alive</span><br>branches · <span class="v" id="branchesG">--</span></div>
+        <div class="status status-tr">terminals · <span class="v" id="termG">--</span><br>shell · <span class="v">glass</span></div>
+        <div class="status status-bl">amp · <span class="v" id="ampG">0.00</span></div>
+        <div class="status status-br">mic · <span class="v">click</span></div>
+        <div class="stage"><canvas class="reactor-canvas" id="canvasG"></canvas></div>
+      </div>
+      <div class="col-foot">
+        <span class="label">The trick</span>
+        Organic dendritic tree radiating from a white-hot soma, with bright axon terminals along every branch — wrapped in a translucent chrome bubble. The graph is STATIC; only the soma and terminal brightness pulse with speech.
+        <div class="pros">+ literally "neural" · most biological · zero animation cost (just brightness)</div>
+        <div class="cons">− static structure could feel less "alive" than firing graphs</div>
+      </div>
+    </section>
+
+    <!-- H: SUPERNODE GRAPH -->
+    <section class="col">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="col-header">
+        <span class="badge new">H</span>
+        <span class="name">Supernode Graph</span>
+        <span class="tag">dense · curved arcs · HUD rings</span>
+      </div>
+      <div class="col-body">
+        <div class="status status-tl">hubs · <span class="v" id="hubsH">4</span><br>nodes · <span class="v" id="nodesH">--</span></div>
+        <div class="status status-tr">edges · <span class="v" id="edgesH">--</span><br>fire · <span class="v" id="fireH">0</span>/s</div>
+        <div class="status status-bl">amp · <span class="v" id="ampH">0.00</span></div>
+        <div class="status status-br">mic · <span class="v">click</span></div>
+        <div class="stage"><canvas class="reactor-canvas" id="canvasH"></canvas></div>
+      </div>
+      <div class="col-foot">
+        <span class="label">The trick</span>
+        Dense graph network — ~78 nodes, curved arc edges, 4 white-hot HUB supernodes, faint concentric HUD rings as background. NO chrome shell. Signals pulse from hub-to-hub along the curves.
+        <div class="pros">+ "network of brains" feel · readable density · scales to status display</div>
+        <div class="cons">− needs careful balance or reads as airport-map / network diagram</div>
+      </div>
+    </section>
+
+    <!-- I: HYBRID (G + old H) — radial hub network on dark bg -->
+    <section class="col">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="col-header">
+        <span class="badge new">I · NEW</span>
+        <span class="name">Supernode Graph in Chrome</span>
+        <span class="tag">H's network + G's bubble + smaller hubs</span>
+      </div>
+      <div class="col-body">
+        <div class="status status-tl">hubs · <span class="v" id="hubsI">4</span><br>nodes · <span class="v" id="nodesI">--</span></div>
+        <div class="status status-tr">edges · <span class="v" id="edgesI">--</span><br>fire · <span class="v" id="fireI">0</span>/s</div>
+        <div class="status status-bl">amp · <span class="v" id="ampI">0.00</span></div>
+        <div class="status status-br">mic · <span class="v">click</span></div>
+        <div class="stage"><canvas class="reactor-canvas" id="canvasI"></canvas></div>
+      </div>
+      <div class="col-foot">
+        <span class="label">The trick</span>
+        H's dense supernode graph (78 nodes, 4 hub-supernovas, ~430 curved arcs, signal pulses) wrapped in G's translucent chrome bubble. Hubs sized 0.7× of H so they don't dominate. Network rotates slowly inside the still bubble.
+        <div class="pros">+ H's structure user already loves · adds bubble container · best of both</div>
+        <div class="cons">− chrome bubble adds GPU cost vs. plain H</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ROW 3: jellyfish-inspired variants J + K -->
+  <main class="grid-3">
+
+    <!-- J: PURE JELLYFISH -->
+    <section class="col">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="col-header">
+        <span class="badge new">J · NEW</span>
+        <span class="name">Jellyfish Bell</span>
+        <span class="tag">bioluminescent · soft gradient · tentacles</span>
+      </div>
+      <div class="col-body">
+        <div class="status status-tl">bell · <span class="v">alive</span><br>tentacles · <span class="v" id="tentJ">12</span></div>
+        <div class="status status-tr">drift · <span class="v">slow</span><br>glow · <span class="v">soft</span></div>
+        <div class="status status-bl">amp · <span class="v" id="ampJ">0.00</span></div>
+        <div class="status status-br">mic · <span class="v">click</span></div>
+        <div class="stage"><canvas class="reactor-canvas" id="canvasJ"></canvas></div>
+      </div>
+      <div class="col-foot">
+        <span class="label">The trick</span>
+        Moon-jellyfish translucent bell — top brighter than bottom, scalloped lobed rim, wispy tentacles drifting below, soft white-blue core glow with the characteristic 4-petal pattern. Bobs gently.
+        <div class="pros">+ most "alive" + organic · soft, calming · zero technical aggression</div>
+        <div class="cons">− no obvious "intelligence" signal · easier to misread as decorative</div>
+      </div>
+    </section>
+
+    <!-- K: NETWORK INSIDE JELLYFISH -->
+    <section class="col">
+      <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+      <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+      <div class="col-header">
+        <span class="badge new">K · NEW</span>
+        <span class="name">Network in Jellyfish</span>
+        <span class="tag">I's network + jelly bell + tentacles</span>
+      </div>
+      <div class="col-body">
+        <div class="status status-tl">hubs · <span class="v">4</span><br>nodes · <span class="v" id="nodesK">--</span></div>
+        <div class="status status-tr">edges · <span class="v" id="edgesK">--</span><br>tentacles · <span class="v" id="tentK">12</span></div>
+        <div class="status status-bl">amp · <span class="v" id="ampK">0.00</span></div>
+        <div class="status status-br">mic · <span class="v">click</span></div>
+        <div class="stage"><canvas class="reactor-canvas" id="canvasK"></canvas></div>
+      </div>
+      <div class="col-foot">
+        <span class="label">The trick</span>
+        Variant I's supernode network living inside a jellyfish bell instead of a spherical glass shell. Soft blue gradient bell with scalloped rim, wispy tentacles drift below, the network of hubs + arcs + pulses fires inside.
+        <div class="pros">+ I's intelligence reading + J's organic feel · most distinctive · most alive</div>
+        <div class="cons">− most rendering layers stacked · highest GPU cost</div>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="controls-bar">
+    <span class="lbl">State (all 4)</span>
+    <div class="state-controls">
+      <button class="state-btn active" data-state="idle">Idle</button>
+      <button class="state-btn" data-state="speaking">Speaking</button>
+      <button class="state-btn" data-state="thinking">Thinking</button>
+    </div>
+    <span class="state-chip" id="stateChip"><span class="dot"></span>IDLE / LISTENING</span>
+  </div>
+
+  <div class="chat-preview">
+    <span class="p">›</span>
+    <span class="input">say something to jarvis... (or click any reactor to enable real mic)</span>
+    <span class="tag">/process-inbox</span>
+    <span style="font-family: var(--mono); font-size: 10px; color: var(--text-mute);">⌘K</span>
+  </div>
+
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer }   from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass }       from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass }  from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass }       from 'three/addons/postprocessing/OutputPass.js';
+
+// ===== Simplex noise (shared) =====
+const noiseGLSL = `
+  vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+  vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+  float snoise(vec3 v){
+    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+    vec3 i  = floor(v + dot(v, C.yyy));
+    vec3 x0 = v - i + dot(i, C.xxx);
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min(g.xyz, l.zxy);
+    vec3 i2 = max(g.xyz, l.zxy);
+    vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+    vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+    vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
+    i = mod(i, 289.0);
+    vec4 p = permute(permute(permute(
+              i.z + vec4(0.0, i1.z, i2.z, 1.0))
+            + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+            + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+    float n_ = 1.0/7.0;
+    vec3 ns = n_ * D.wyz - D.xzx;
+    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+    vec4 x_ = floor(j * ns.z);
+    vec4 y_ = floor(j - 7.0 * x_);
+    vec4 x = x_ * ns.x + ns.yyyy;
+    vec4 y = y_ * ns.x + ns.yyyy;
+    vec4 h = 1.0 - abs(x) - abs(y);
+    vec4 b0 = vec4(x.xy, y.xy);
+    vec4 b1 = vec4(x.zw, y.zw);
+    vec4 s0 = floor(b0)*2.0 + 1.0;
+    vec4 s1 = floor(b1)*2.0 + 1.0;
+    vec4 sh = -step(h, vec4(0.0));
+    vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+    vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+    vec3 p0 = vec3(a0.xy, h.x);
+    vec3 p1 = vec3(a0.zw, h.y);
+    vec3 p2 = vec3(a1.xy, h.z);
+    vec3 p3 = vec3(a1.zw, h.w);
+    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+    p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+  }
+`;
+
+// ===== Shared state + audio =====
+let simulatedState = 'idle';
+let audioSmooth = 0;
+let analyser = null, audioData = null;
+function trySetupMic(canvas) {
+  canvas.addEventListener('click', async () => {
+    if (analyser) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = ctx.createMediaStreamSource(stream);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.7;
+      audioData = new Uint8Array(analyser.frequencyBinCount);
+      src.connect(analyser);
+    } catch {}
+  }, { once: true });
+}
+function syntheticAudio(t) {
+  if (simulatedState === 'speaking') {
+    const burst = Math.max(0,
+      Math.sin(t * 2.4) * 0.7 + Math.sin(t * 4.7 + 0.5) * 0.4 + Math.sin(t * 1.1 + 1.2) * 0.3);
+    return Math.min(1.0, Math.pow(burst, 1.3) * 0.9);
+  }
+  if (simulatedState === 'thinking') {
+    return 0.10 + Math.abs(Math.sin(t * 3.1) * 0.18 + Math.sin(t * 5.7 + 0.9) * 0.12);
+  }
+  return 0.05 + Math.abs(Math.sin(t * 0.6) * 0.10 + Math.sin(t * 0.27 + 0.5) * 0.07);
+}
+function readAudio(t) {
+  if (analyser) {
+    analyser.getByteFrequencyData(audioData);
+    let s = 0; for (let i = 0; i < audioData.length; i++) s += audioData[i];
+    return Math.min(1.0, (s / audioData.length) / 140);
+  }
+  return syntheticAudio(t);
+}
+const stateButtons = document.querySelectorAll('.state-btn');
+const stateChip = document.getElementById('stateChip');
+stateButtons.forEach(b => b.addEventListener('click', () => {
+  simulatedState = b.dataset.state;
+  stateButtons.forEach(x => x.classList.toggle('active', x === b));
+  stateChip.innerHTML = '<span class="dot"></span>' + (
+    simulatedState === 'idle'     ? 'IDLE / LISTENING' :
+    simulatedState === 'speaking' ? 'SPEAKING / RESPONSIVE' :
+                                    'THINKING / PROCESSING'
+  );
+}));
+
+// ===== FACTORIES =====
+
+function makeWavyRing(scene, { radius, tube, color, intensity, spinSec, direction, freq, wobble }) {
+  const geo = new THREE.TorusGeometry(radius, tube, 12, 220);
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: {
+      uTime: { value: 0 }, uAudio: { value: 0 },
+      uColor: { value: new THREE.Color(color) },
+      uIntensity: { value: intensity }, uFreq: { value: freq }, uWobble: { value: wobble },
+    },
+    vertexShader: `
+      uniform float uTime, uAudio, uFreq, uWobble;
+      varying float vAng;
+      ${noiseGLSL}
+      void main() {
+        vec3 pos = position;
+        float ang = atan(pos.y, pos.x);
+        vec3 radial = vec3(cos(ang), sin(ang), 0.0);
+        float d = sin(ang * uFreq + uTime * 1.2) * 0.5
+                + sin(ang * (uFreq * 1.9) + uTime * 0.7) * 0.30
+                + snoise(vec3(ang * 2.0, uTime * 0.4, 0.0)) * 0.50;
+        d *= uWobble;
+        d += uAudio * 0.10;
+        pos += radial * d;
+        vAng = ang;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3  uColor;
+      uniform float uIntensity, uAudio, uTime;
+      varying float vAng;
+      void main() {
+        float stripe = 0.5 + 0.5 * sin(vAng * 9.0 + uTime * 0.8);
+        float bright = uIntensity * (0.35 + stripe * 0.35 + uAudio * 0.55);
+        vec3 col = mix(uColor, vec3(1.0), clamp(uAudio * 0.6 + stripe * 0.05, 0.0, 0.75));
+        gl_FragColor = vec4(col * bright, 1.0);
+      }
+    `,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+  return { mesh, mat, radius, spinSec, direction };
+}
+
+function makeCore(scene, { radiusScale = 1.0 } = {}) {
+  const geo = new THREE.SphereGeometry(0.20 * radiusScale, 48, 48);
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uAudio: { value: 0 } },
+    vertexShader: `
+      varying vec3 vNormal; varying vec3 vView;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vNormal = normalize(normalMatrix * normal);
+        vView = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime, uAudio;
+      varying vec3 vNormal, vView;
+      void main() {
+        float fres = pow(1.0 - max(dot(vNormal, vView), 0.0), 1.4);
+        vec3 hot  = vec3(1.0);
+        vec3 rim  = vec3(0.35, 0.85, 1.0);
+        vec3 col  = mix(hot, rim, fres);
+        float bright = (0.85 + uAudio * 1.0) * (0.90 + 0.10 * sin(uTime * 5.0));
+        gl_FragColor = vec4(col * bright, 1.0);
+      }
+    `,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+  return { mesh, mat };
+}
+
+// Chrome shell — hue band now CYAN→BLUE only (0.48 → 0.66 on the wheel).
+// No violet, no pink, no magenta. Pure Jarvis blue.
+// `jitter`        — opt-in vertex displacement for the C4 "imperfect water-droplet" look.
+// `alphaScale`    — per-variant translucency modifier; 1.0 = default, <1 = more see-through.
+// `specStrength`  — per-variant specular highlight brightness; 0.75 default, <1 dims the stationary rim glow.
+function makeChromeShell(scene, { radius = 1.55, jitter = 0, alphaScale = 1.0, specStrength = 0.75 } = {}) {
+  const geo = new THREE.IcosahedronGeometry(radius, 64);
+  if (jitter > 0) {
+    const positions = geo.attributes.position.array;
+    for (let i = 0; i < positions.length; i += 3) {
+      positions[i]   += (Math.random() - 0.5) * jitter;
+      positions[i+1] += (Math.random() - 0.5) * jitter;
+      positions[i+2] += (Math.random() - 0.5) * jitter;
+    }
+    geo.attributes.position.needsUpdate = true;
+    geo.computeVertexNormals();
+  }
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.NormalBlending, depthWrite: false,
+    uniforms: {
+      uTime:         { value: 0 },
+      uAudio:        { value: 0 },
+      uAlphaScale:   { value: alphaScale },     // per-variant translucency
+      uSpecStrength: { value: specStrength },   // per-variant rim spec
+    },
+    vertexShader: `
+      uniform float uTime, uAudio;
+      varying vec3 vNormal, vView;
+      varying float vDisp;
+      ${noiseGLSL}
+      void main() {
+        float n = snoise(position * 1.0 + uTime * 0.20) * 0.5
+                + snoise(position * 2.0 + uTime * 0.35) * 0.25;
+        float d = n * 0.05 + uAudio * 0.08;
+        vDisp = d;
+        vec3 p = position + normal * d;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        vNormal = normalize(normalMatrix * normal);
+        vView   = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime, uAudio, uAlphaScale, uSpecStrength;
+      varying vec3 vNormal, vView;
+      varying float vDisp;
+      vec3 hsv2rgb(vec3 c){
+        vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+        vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+        return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+      }
+      void main() {
+        float fres = 1.0 - max(dot(vNormal, vView), 0.0);
+        fres = pow(fres, 1.6);
+        float rawHue = fract(0.50 + fres * 0.45 + vDisp * 0.30 + uTime * 0.012 + uAudio * 0.10);
+        float hue = 0.48 + rawHue * 0.18;
+        float sat = 0.55 + fres * 0.35;
+        float val = 0.65 + fres * 0.35 + uAudio * 0.15;
+        vec3 col = hsv2rgb(vec3(hue, sat, val));
+        float spec = pow(max(dot(vNormal, normalize(vec3(0.4, 0.6, 1.0))), 0.0), 32.0);
+        col += vec3(1.0) * spec * uSpecStrength;
+        float alpha = (0.28 + pow(fres, 1.0) * 0.65) * uAlphaScale;
+        gl_FragColor = vec4(col, alpha);
+      }
+    `,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 10;
+  scene.add(mesh);
+  return { mesh, mat };
+}
+
+// ===== REAL GLASS BUBBLE (variant I) — Path B from research =====
+// MeshPhysicalMaterial with PBR transmission + iridescence + clearcoat + procedural envMap.
+// Reads as actual glass/soap-film, not as a fresnel-tinted emission ring.
+function makeGlassBubble(renderer, scene, parentGroup, { radius = 1.15 } = {}) {
+  // 1. Procedural envMap — soft small cool light from top, dim warm from bottom.
+  //    Much dimmer than v1 (which produced harsh white blobs from large bright planes).
+  const envScene = new THREE.Scene();
+  envScene.background = new THREE.Color(0x101822);    // brighter ambient base for richer reflections
+  const top = new THREE.Mesh(
+    new THREE.PlaneGeometry(14, 14),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(2.5, 3.2, 4.5) }),   // strong cool sky
+  );
+  top.position.set(0, 12, 0);
+  top.rotation.x = Math.PI / 2;
+  envScene.add(top);
+  const bottom = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 1.0, 1.5) }),   // brighter cool floor
+  );
+  bottom.position.set(0, -12, 0);
+  bottom.rotation.x = -Math.PI / 2;
+  envScene.add(bottom);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  // Higher sigma (0.15 vs 0.04) blurs the env so we get a soft gradient, not visible plane shapes
+  const envMap = pmrem.fromScene(envScene, 0.15).texture;
+  pmrem.dispose();
+  scene.environment = envMap;   // required for transmission/iridescence to read
+
+  // 2. Bubble — MeshPhysicalMaterial with PBR transmission + iridescence + clearcoat
+  const geo = new THREE.IcosahedronGeometry(radius, 64);
+  const mat = new THREE.MeshPhysicalMaterial({
+    transmission: 0.82,                    // <1.0 so the bubble has body, not just rim
+    thickness: 0.25,                       // thicker film → more pronounced iridescence
+    ior: 1.33,                             // soap-film IOR
+    roughness: 0.04,                       // sharp highlights = more visible bubble surface
+    metalness: 0.0,
+    iridescence: 1.0,
+    iridescenceIOR: 1.3,
+    iridescenceThicknessRange: [240, 640], // wide band → soap-bubble rainbow at rim
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.05,
+    emissive: new THREE.Color(0x1a3a55),   // subtle inherent cyan glow so body always reads
+    emissiveIntensity: 0.30,
+    envMap,
+    envMapIntensity: 1.6,                  // strong env contribution so reflections are clearly visible
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    color: new THREE.Color(0xc4e6ff),      // slightly stronger cyan tint
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 10;
+  parentGroup.add(mesh);
+  return { mesh, mat, envMap };
+}
+
+// ===== TOP-DOWN JELLYFISH DISC (variants J + K) =====
+// Renders the reference image directly via a single full-screen quad with a procedural
+// shader: scalloped outer ring + 4-petal cloverleaf center + central glow + scattered
+// network of dots + radial fade. Looks down at a moon-jellyfish from directly above.
+function makeJellyDisc(parentGroup, { size = 2.6 } = {}) {
+  const geo = new THREE.PlaneGeometry(size, size, 1, 1);
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.NormalBlending, depthWrite: false,
+    uniforms: {
+      uTime:  { value: 0 },
+      uAudio: { value: 0 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime, uAudio;
+      varying vec2 vUv;
+
+      // Pseudo-random hash for scattering particles
+      float hash21(vec2 p) {
+        p = fract(p * vec2(123.34, 456.21));
+        p += dot(p, p + 45.32);
+        return fract(p.x * p.y);
+      }
+
+      // CONNECTED 4-ARM ATOM SHAPE — 4 distinct rounded bulbs at the corners connected by
+      // narrow arms to a single shared center. No separate central blob — the arms simply
+      // meet at the origin. Bulb tips are large enough to read as distinct round shapes.
+      const float ARM_LEN = 0.30;     // longer arms (was 0.22)
+      const float BULB_R  = 0.13;     // bigger bulb tips (was 0.085)
+
+      // Inner fill of the bulbs is now HOLLOW — only the ring outline is visible.
+      // The body func still returns SOMETHING for the inside of the bulb so faint cyan
+      // shows through, but it's much dimmer than the outline.
+      float atomBody(vec2 uv) {
+        float spin = uTime * 0.05;
+        float total = 0.0;
+
+        for (int i = 0; i < 4; i++) {
+          float angle = float(i) * 1.5707963 + 0.7853982 + spin;
+          vec2 dir = vec2(cos(angle), sin(angle));
+          vec2 perp = vec2(-dir.y, dir.x);
+          float along = dot(uv, dir);
+          float across = abs(dot(uv, perp));
+          // Narrow arm fill
+          if (along >= -0.005 && along <= ARM_LEN) {
+            float armWidth = 0.022;
+            total += smoothstep(armWidth, armWidth * 0.5, across);
+          }
+          // Bulb INTERIOR — very dim fill so the hollow look reads
+          vec2 tipPos = dir * ARM_LEN;
+          float tipDist = length(uv - tipPos);
+          total += smoothstep(BULB_R - 0.025, BULB_R - 0.060, tipDist) * 0.25;
+        }
+        return clamp(total, 0.0, 1.0);
+      }
+
+      // Outline = arm edges + HOLLOW RING outline of each bulb (donut shape)
+      float atomRim(vec2 uv) {
+        float spin = uTime * 0.05;
+        float total = 0.0;
+
+        for (int i = 0; i < 4; i++) {
+          float angle = float(i) * 1.5707963 + 0.7853982 + spin;
+          vec2 dir = vec2(cos(angle), sin(angle));
+          vec2 perp = vec2(-dir.y, dir.x);
+          float along = dot(uv, dir);
+          float across = abs(dot(uv, perp));
+          // Arm edge
+          if (along >= -0.005 && along <= ARM_LEN) {
+            float armW = 0.022;
+            total += smoothstep(armW + 0.012, armW + 0.001, across)
+                   * smoothstep(armW - 0.002, armW + 0.001, across);
+          }
+          // BULB AS A HOLLOW RING — bright ring at radius BULB_R, transparent inside it
+          vec2 tipPos = dir * ARM_LEN;
+          float tipDist = length(uv - tipPos);
+          // Ring band: bright between BULB_R - 0.018 and BULB_R
+          float ringOuter = smoothstep(BULB_R + 0.008, BULB_R, tipDist);
+          float ringInner = smoothstep(BULB_R - 0.020, BULB_R - 0.030, tipDist);
+          total += ringOuter * ringInner;
+        }
+        return clamp(total, 0.0, 1.0);
+      }
+
+      // Scalloped edge radius — shallower lobes (0.07 amplitude) matching the reference's gentle waves
+      float scallopRadius(vec2 uv, float outerR, float lobes) {
+        float a = atan(uv.y, uv.x);
+        float wave = pow(abs(cos(a * lobes * 0.5 + uTime * 0.03)), 0.55);
+        return outerR + (wave - 0.5) * 0.07;
+      }
+
+      // Bell body fills inside the outer scalloped edge
+      float bellBody(vec2 uv, float outerR, float lobes) {
+        float r = length(uv);
+        float outerEdge = scallopRadius(uv, outerR, lobes);
+        return smoothstep(outerEdge + 0.012, outerEdge - 0.030, r);
+      }
+
+      // OUTER scalloped outline ring — the outermost crisp neon line
+      float bellOutlineOuter(vec2 uv, float outerR, float lobes) {
+        float r = length(uv);
+        float outerEdge = scallopRadius(uv, outerR, lobes);
+        return smoothstep(outerEdge + 0.014, outerEdge + 0.002, r)
+             * smoothstep(outerEdge - 0.020, outerEdge - 0.005, r);
+      }
+      // INNER scalloped outline ring — a second concentric scalloped outline just inside the outer one
+      float bellOutlineInner(vec2 uv, float outerR, float lobes) {
+        float r = length(uv);
+        float innerEdge = scallopRadius(uv, outerR * 0.92, lobes);
+        return smoothstep(innerEdge + 0.012, innerEdge + 0.001, r)
+             * smoothstep(innerEdge - 0.018, innerEdge - 0.004, r);
+      }
+
+      // CURVED ORGANIC STRANDS — radial lines warped by sine modulation so they curve through
+      // the bell body like neural fibers, not straight radial spokes
+      float radialThreads(vec2 uv, float count) {
+        float a = atan(uv.y, uv.x);
+        float r = length(uv);
+        // Per-thread angle wobble — modulates by both radius and the thread index
+        float wobble = sin(r * 10.0 + a * 3.0 + uTime * 0.15) * 0.05
+                     + cos(r * 7.0 - uTime * 0.10) * 0.04;
+        float band = sin((a + wobble) * count);
+        float thread = pow(max(band, 0.0), 45.0);
+        // Threads extend from just outside atom (r~0.42) all the way to the rim (r~0.78)
+        float radiusMask = smoothstep(0.40, 0.55, r) * (1.0 - smoothstep(0.74, 0.80, r));
+        return thread * radiusMask;
+      }
+
+      // RAYS from center (longer bright spikes emanating from the core)
+      float coreRays(vec2 uv) {
+        float a = atan(uv.y, uv.x);
+        float r = length(uv);
+        float rays = pow(max(sin(a * 24.0 + uTime * 0.03), 0.0), 80.0);
+        float radiusMask = smoothstep(0.06, 0.40, r) * (1.0 - smoothstep(0.55, 0.78, r));
+        return rays * radiusMask;
+      }
+
+      // VERY DENSE SCATTERED DOTS — many bright network particles filling the bell body
+      float denseDots(vec2 uv) {
+        float total = 0.0;
+        for (int i = 0; i < 320; i++) {
+          float fi = float(i);
+          float a = hash21(vec2(fi * 0.13, 7.0)) * 6.2831853;
+          float rr = 0.10 + hash21(vec2(fi * 0.31, 3.0)) * 0.70;
+          vec2 dotPos = vec2(cos(a) * rr, sin(a) * rr);
+          float d = length(uv - dotPos);
+          float twinkle = 0.55 + 0.45 * sin(uTime * 1.5 + fi * 1.7);
+          float size = 0.005 + hash21(vec2(fi * 0.17, 11.0)) * 0.013;
+          total += smoothstep(size, 0.0, d) * twinkle;
+        }
+        return total;
+      }
+
+      // FINE CURVED THREAD STRANDS — between random dot positions (network feel)
+      // Approximated as additional bright streaks along random chords
+      float crossThreads(vec2 uv) {
+        float total = 0.0;
+        for (int i = 0; i < 25; i++) {
+          float fi = float(i);
+          float a1 = hash21(vec2(fi * 0.21, 2.0)) * 6.2831853;
+          float a2 = hash21(vec2(fi * 0.37, 5.0)) * 6.2831853;
+          float r1 = 0.20 + hash21(vec2(fi * 0.41, 8.0)) * 0.55;
+          float r2 = 0.20 + hash21(vec2(fi * 0.53, 9.0)) * 0.55;
+          vec2 p1 = vec2(cos(a1) * r1, sin(a1) * r1);
+          vec2 p2 = vec2(cos(a2) * r2, sin(a2) * r2);
+          // Distance from uv to the line p1-p2 (clamped to segment)
+          vec2 d12 = p2 - p1;
+          float t = clamp(dot(uv - p1, d12) / max(dot(d12, d12), 0.0001), 0.0, 1.0);
+          vec2 nearest = p1 + d12 * t;
+          float d = length(uv - nearest);
+          total += smoothstep(0.004, 0.0, d) * 0.5;
+        }
+        return total;
+      }
+
+      void main() {
+        vec2 uv = (vUv - 0.5) * 2.0;
+        float r = length(uv);
+
+        // === LAYERS ===
+        float halo      = smoothstep(1.20, 0.50, r) * 0.85;
+        float body      = bellBody(uv, 0.80, 14.0);              // 14 lobes now
+        float outerLine = bellOutlineOuter(uv, 0.80, 14.0);
+        float innerLine = bellOutlineInner(uv, 0.80, 14.0);
+        float innerHalo = smoothstep(0.50, 0.34, r) * (1.0 - smoothstep(0.34, 0.22, r));
+
+        float atomB   = atomBody(uv);
+        float atomR   = atomRim(uv);
+        float threads = radialThreads(uv, 110.0);
+        float rays    = coreRays(uv);
+        float dots    = denseDots(uv);
+        float cross   = crossThreads(uv);
+        float coreHot = smoothstep(0.020, 0.0, r);
+
+        vec3 col = vec3(0.0);
+
+        // Tuned via pixel-diff MSE against kFoImWQU reference. Key changes vs v17:
+        //   - Deeper royal-blue body (not bright cobalt)
+        //   - DARK scalloped rim (not bright cyan ring)
+        //   - Two-lobe cyan halo around atom (sharp core + wider mid halo)
+        //   - Subtle body-lift adds cyan without bleaching
+
+        // 1. Outer halo — dim navy bleed beyond the bell edge (was too blue)
+        col += vec3(0.03, 0.10, 0.35) * halo * 0.35;
+
+        // 2. Bell body — deep royal blue (was too bright cobalt, matched via linearized ref sample)
+        col += vec3(0.06, 0.24, 0.72) * body * 0.85;
+
+        // 3. Inner cyan-white halo around the atom — the reference's bright zone
+        col += vec3(0.35, 0.75, 1.05) * innerHalo * 0.80;
+
+        // 4. DOUBLE-RING OUTLINE — dark scalloped edge (ref rim is dark navy, NOT bright cyan)
+        col += vec3(0.10, 0.30, 0.55) * outerLine * 0.55;
+        col += vec3(0.08, 0.24, 0.48) * innerLine * 0.40;
+
+        // 5. Curved organic strands through the body
+        col += vec3(0.40, 0.80, 1.20) * threads * 0.70;
+        col += vec3(0.35, 0.75, 1.15) * cross * 0.50;
+
+        // 6. Dense network dots — bright white-cyan sparkles
+        col += vec3(0.92, 1.00, 1.15) * dots * 1.15;
+
+        // 7. THE 4-ARM ATOM — bulbs are HOLLOW RINGS, only bright outlines visible.
+        //    Reduced brightness so bloom doesn't blow it into a white blob.
+        col += vec3(0.30, 0.75, 1.20) * atomB * 0.55;
+        col += vec3(0.85, 0.98, 1.10) * atomR * 1.10;
+
+        // 8. Small bright connecting node at the very center (tight fall-off)
+        col += vec3(0.90, 0.98, 1.12) * coreHot * (0.65 + uAudio * 0.3);
+
+        // 9. Subtle light rays
+        col += vec3(0.50, 0.85, 1.10) * rays * 0.30;
+
+        col *= 1.0 + uAudio * 0.12;
+
+        float alpha = smoothstep(1.18, 0.74, r);
+        alpha = clamp(alpha, 0.0, 1.0);
+
+        gl_FragColor = vec4(col, alpha);
+      }
+    `,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 0;
+  parentGroup.add(mesh);
+
+  function step(t, a) {
+    mat.uniforms.uTime.value  = t;
+    mat.uniforms.uAudio.value = a;
+  }
+  return { mesh, mat, step };
+}
+
+// ============================================================================
+// LAYERED JELLY DISC — replaces the all-in-one shader with mesh-per-layer
+// structure that gave the best form match in the jelly lab.
+//
+// Layers (Z order): bell (0) → fibers (0.015) → neurons (0.02) → dot-cloud
+// (0.025) → rim (0.035) → atom (0.045). Each has its own shader/material,
+// so form + palette are tunable independently.
+// ============================================================================
+function makeJellyDiscLayered(parentGroup, { size = 2.6 } = {}) {
+  const root = new THREE.Group();
+  parentGroup.add(root);
+
+  const uTime  = { value: 0 };
+  const uAudio = { value: 0 };
+  const plane  = new THREE.PlaneGeometry(size, size, 1, 1);
+  const vsCommon = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+
+  // ---------- BELL (deep royal blue body + inner halo + umbrella edge) ----------
+  const bellMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.NormalBlending, depthWrite: false,
+    uniforms: { uTime, uAudio },
+    vertexShader: vsCommon,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      float scallopRadius(vec2 uv){
+        float a = atan(uv.y, uv.x);
+        // Gentle sinusoidal 14-bump wave, subtle amplitude — ref outer edge
+        // is nearly circular with soft undulations, not pronounced petals.
+        float w = 0.5 - 0.5 * cos(a * 8.0 + uTime * 0.03);
+        return 0.86 + (w - 0.5) * 0.032;
+      }
+      void main(){
+        vec2 uv = (vUv - 0.5) * 2.0;
+        float r = length(uv);
+        vec3 midBlue  = vec3(0.010, 0.240, 0.520);
+        vec3 deepBlue = vec3(0.002, 0.045, 0.220);
+        vec3 coreGlow = vec3(0.50, 0.90, 1.05);
+        vec3 color = mix(midBlue, deepBlue, smoothstep(0.15, 0.75, r));
+        float coreSpike    = exp(-r * 11.0);
+        float midHalo      = exp(-r * 5.0) * (1.0 - smoothstep(0.22, 0.42, r));
+        float bodyLift     = (1.0 - smoothstep(0.05, 0.65, r));
+        float umbrellaEdge = smoothstep(0.62, 0.82, r) * (1.0 - smoothstep(0.82, 0.88, r));
+        color += coreGlow * (coreSpike * 0.55 + midHalo * 0.30);
+        color += vec3(0.05, 0.18, 0.28) * bodyLift * 0.60;
+        color += vec3(0.06, 0.22, 0.42) * umbrellaEdge * 0.80;
+        float alpha = 0.62 * smoothstep(0.03, 0.14, r) * (1.0 - smoothstep(0.76, 0.86, r));
+        alpha *= 1.0 - smoothstep(0.14, 0.05, r) * 0.35;
+        float outerR = scallopRadius(uv);
+        alpha *= smoothstep(outerR + 0.020, outerR - 0.015, r);
+        gl_FragColor = vec4(color, alpha);
+      }`,
+  });
+  const bell = new THREE.Mesh(plane, bellMat); bell.position.z = 0; root.add(bell);
+
+  // ---------- FIBERS (40 long curved center-to-rim strands) ----------
+  const fiberGroup = new THREE.Group(); fiberGroup.position.z = 0.015; root.add(fiberGroup);
+  const HALF = size / 2;   // scale bezier positions from unit-space to plane-space
+  for (let i = 0; i < 40; i++) {
+    const a = (i / 40) * Math.PI * 2 + Math.random() * 0.15;
+    const rS = 0.22 + Math.random() * 0.06;
+    const rE = 0.72 + Math.random() * 0.06;
+    const midR = (rS + rE) * 0.5;
+    const midA = a + (Math.random() - 0.5) * 0.35;
+    const cp1A = a + (Math.random() - 0.5) * 0.10;
+    const cp1R = rS + (midR - rS) * 0.4;
+    const curve = new THREE.CubicBezierCurve3(
+      new THREE.Vector3(Math.cos(a)*rS*HALF, Math.sin(a)*rS*HALF, 0),
+      new THREE.Vector3(Math.cos(cp1A)*cp1R*HALF, Math.sin(cp1A)*cp1R*HALF, 0),
+      new THREE.Vector3(Math.cos(midA)*midR*HALF, Math.sin(midA)*midR*HALF, 0),
+      new THREE.Vector3(Math.cos(a)*rE*HALF, Math.sin(a)*rE*HALF, 0),
+    );
+    const g = new THREE.BufferGeometry().setFromPoints(curve.getPoints(28));
+    const m = new THREE.LineBasicMaterial({ color: 0xb8f0ff, transparent: true, opacity: 0.15 + Math.random() * 0.15, blending: THREE.AdditiveBlending, depthWrite: false });
+    fiberGroup.add(new THREE.Line(g, m));
+  }
+
+  // ---------- NEURONS (180 dots, strong center clustering) ----------
+  const neuronGroup = new THREE.Group(); neuronGroup.position.z = 0.02; root.add(neuronGroup);
+  const neurons = [];
+  for (let i = 0; i < 180; i++) {
+    const u = Math.random();
+    const rr = Math.pow(u, 2.5) * 0.78;
+    const aa = Math.random() * Math.PI * 2;
+    const isHub = i < 6;
+    const sz = (isHub ? 0.028 : 0.010 + Math.random() * 0.008) * HALF;
+    const geo = new THREE.CircleGeometry(sz, isHub ? 24 : 12);
+    const mat = new THREE.MeshBasicMaterial({
+      color: isHub ? 0xe6faff : 0x88e8ff,
+      transparent: true, opacity: isHub ? 1.0 : 0.9,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(Math.cos(aa)*rr*HALF, Math.sin(aa)*rr*HALF, 0);
+    mesh.userData = { basePhase: Math.random() * Math.PI * 2, isHub };
+    neuronGroup.add(mesh);
+    neurons.push(mesh);
+  }
+
+  // ---------- DOT CLOUD (110 fine dots in atom-halo annulus) ----------
+  const cloudGroup = new THREE.Group(); cloudGroup.position.z = 0.025; root.add(cloudGroup);
+  const cloudDots = [];
+  for (let i = 0; i < 110; i++) {
+    const rr = 0.15 + Math.random() * 0.28;
+    const aa = Math.random() * Math.PI * 2;
+    const sz = (0.004 + Math.random() * 0.006) * HALF;
+    const geo = new THREE.CircleGeometry(sz, 8);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xd6f6ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(Math.cos(aa)*rr*HALF, Math.sin(aa)*rr*HALF, 0);
+    m.userData = { basePhase: Math.random() * Math.PI * 2 };
+    cloudGroup.add(m);
+    cloudDots.push(m);
+  }
+
+  // ---------- RIM (DOUBLE-RING umbrella edge — inner main + outer secondary) ----------
+  // Reference pixel-sampled: inner ring at r≈0.86 (peak L 130-190),
+  // dark gap at r≈0.90 (L 85-100), outer 2nd ring at r≈0.925 (L 120-150).
+  // This mimics a real jellyfish umbrella's rolled edge.
+  const rimMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: { uTime },
+    vertexShader: vsCommon,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      float scallopRadius(vec2 uv){
+        float a = atan(uv.y, uv.x);
+        float w = 0.5 - 0.5 * cos(a * 8.0 + uTime * 0.03);
+        return 0.86 + (w - 0.5) * 0.032;
+      }
+      float scallopPeak(vec2 uv){
+        float a = atan(uv.y, uv.x);
+        return 0.5 - 0.5 * cos(a * 8.0 + uTime * 0.03);
+      }
+      void main(){
+        vec2 uv = (vUv - 0.5) * 2.0;
+        float r = length(uv);
+        float outerR  = scallopRadius(uv);
+        float outerR2 = outerR + 0.065;
+
+        float ringHot   = smoothstep(outerR + 0.006, outerR + 0.001, r)
+                        * smoothstep(outerR - 0.016, outerR - 0.006, r);
+        float ringSoft  = smoothstep(outerR + 0.014, outerR + 0.003, r)
+                        * smoothstep(outerR - 0.028, outerR - 0.010, r);
+        float ring2Hot  = smoothstep(outerR2 + 0.005, outerR2, r)
+                        * smoothstep(outerR2 - 0.012, outerR2 - 0.004, r);
+        float ring2Soft = smoothstep(outerR2 + 0.010, outerR2 + 0.002, r)
+                        * smoothstep(outerR2 - 0.020, outerR2 - 0.008, r);
+        float bleed     = smoothstep(outerR2 + 0.020, outerR2 + 0.002, r)
+                        * (1.0 - smoothstep(outerR2 + 0.002, outerR2 - 0.006, r));
+        // Subtle blue tint in the gap between the two rings (ref sample at
+        // r=0.91 = sRGB(31,98,187) — not pure black)
+        float gap = smoothstep(outerR + 0.015, outerR + 0.030, r)
+                  * (1.0 - smoothstep(outerR2 - 0.020, outerR2 - 0.008, r));
+
+        float peak = scallopPeak(uv);
+        float peakBoost = 0.75 + 0.60 * peak;
+
+        // Colors derived from ref averaged sRGB, linearized:
+        //   r=0.87-0.89 peak: rich royal-cyan-blue, more blue than white
+        //   r=0.91 gap:       dimmer blue
+        //   r=0.93 outer:     dark blue
+        vec3 ringPeakColor = vec3(0.34, 0.72, 0.93);
+        vec3 ringBaseColor = vec3(0.05, 0.30, 0.72);
+        vec3 outerRingCol  = vec3(0.05, 0.20, 0.48);
+        vec3 gapColor      = vec3(0.02, 0.11, 0.42);
+        vec3 blueBleed     = vec3(0.03, 0.12, 0.38);
+
+        vec3 mainRingColor = mix(ringBaseColor, ringPeakColor, peak);
+
+        // rimGlow ~1.60 baked in (matching lab's winning MSE config)
+        vec3 col = mainRingColor * ringHot   * 1.84
+                 + ringBaseColor * ringSoft  * 0.88
+                 + outerRingCol  * ring2Hot  * 0.88 * peakBoost
+                 + outerRingCol  * ring2Soft * 0.48
+                 + gapColor      * gap       * 0.80
+                 + blueBleed     * bleed     * 0.45;
+        float alpha = clamp(ringHot * 1.0 + ringSoft * 0.40
+                          + ring2Hot * 0.45 + ring2Soft * 0.22
+                          + gap * 0.30 + bleed * 0.20, 0.0, 1.0);
+        gl_FragColor = vec4(col, alpha);
+      }`,
+  });
+  const rim = new THREE.Mesh(plane, rimMat); rim.position.z = 0.035; root.add(rim);
+
+  // ---------- RADIAL CANALS (moon-jelly anatomy: lines from scallop troughs) ----------
+  // 14 canals emerge from between-lobe positions, go inward, fade toward the
+  // manubrium. Bright cyan terminal dot at each trough where canal meets rim.
+  const canalsMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: { uTime },
+    vertexShader: vsCommon,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      void main() {
+        vec2 uv = (vUv - 0.5) * 2.0;
+        float r = length(uv);
+        float a = atan(uv.y, uv.x);
+        // 8-fold symmetry (8 lobes, 8 troughs — matches ref)
+        float aa = a * 8.0 + uTime * 0.03;
+        float toTrough = abs(sin(aa * 0.5));   // 0 at trough, 1 at peak
+        float toPeak   = abs(cos(aa * 0.5));   // 0 at peak,   1 at trough
+        // ---- Primary canals from 8 troughs ----
+        float canalLine = 1.0 - smoothstep(0.02, 0.16, toTrough);
+        float canalRad = smoothstep(0.26, 0.55, r) * (1.0 - smoothstep(0.82, 0.88, r));
+        canalRad *= (0.4 + 0.6 * smoothstep(0.35, 0.78, r));
+        float canal = canalLine * canalRad;
+        // Terminal region — same color as canal, softly blended into rim
+        float terminalFade = 1.0 - smoothstep(0.0, 0.08, toTrough);
+        float terminalR    = smoothstep(0.72, 0.83, r) * (1.0 - smoothstep(0.83, 0.88, r));
+        float terminal     = terminalFade * terminalR;
+        // ---- Mushroom ribs from 8 lobe peaks (shorter, dimmer) ----
+        float ribLine = 1.0 - smoothstep(0.02, 0.12, toPeak);
+        float ribRad  = smoothstep(0.55, 0.72, r) * (1.0 - smoothstep(0.82, 0.87, r));
+        float rib     = ribLine * ribRad;
+
+        vec3 canalCol = vec3(0.28, 0.62, 0.95);
+        vec3 ribCol   = vec3(0.22, 0.55, 0.88);
+        vec3 col = canalCol * canal    * 0.22
+                 + canalCol * terminal * 0.35
+                 + ribCol   * rib      * 0.14;
+        float alpha = clamp(canal * 0.22 + terminal * 0.30 + rib * 0.14, 0.0, 1.0);
+        gl_FragColor = vec4(col, alpha);
+      }`,
+  });
+  const canals = new THREE.Mesh(plane, canalsMat); canals.position.z = 0.030; root.add(canals);
+
+  // ---------- ATOM (thick X: 4 diagonal capsules + end circles) ----------
+  // 4 capsule arms at diagonal (45°/135°/225°/315°) from origin, each with a
+  // big rounded ball at its tip. Smooth-unioned so connecting bits are rounded.
+  // Colorized with our palette (white outline + cyan glow).
+  const atomMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.NormalBlending, depthWrite: false,
+    uniforms: { uTime, uAudio },
+    vertexShader: vsCommon,
+    fragmentShader: `
+      uniform float uTime, uAudio;
+      varying vec2 vUv;
+
+      float smin(float a, float b, float k) {
+        float h = clamp(0.5 + 0.5*(b-a)/k, 0.0, 1.0);
+        return mix(b, a, h) - k*h*(1.0 - h);
+      }
+      float capsuleSDF(vec2 p, vec2 a, vec2 b, float r) {
+        vec2 pa = p - a;
+        vec2 ba = b - a;
+        float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+        return length(pa - ba * h) - r;
+      }
+      float cloverSDF(vec2 uv, float spin) {
+        float d = 1e5;
+        for (int i = 0; i < 4; i++) {
+          float ang = float(i) * 1.5707963 + spin + 0.7853982;
+          vec2 tip = vec2(cos(ang), sin(ang)) * 0.24;
+          float cap  = capsuleSDF(uv, vec2(0.0), tip, 0.065);
+          float ball = length(uv - tip) - 0.12;
+          float arm  = smin(cap, ball, 0.06);
+          d = smin(d, arm, 0.045);
+        }
+        return d;
+      }
+
+      void main(){
+        vec2 uv = (vUv - 0.5) * 2.0;
+        float r = length(uv);
+        float spin = uTime * 0.03;
+
+        float d = cloverSDF(uv, spin);
+        float insideMask  = smoothstep(0.006, -0.020, d);
+        float outlineMask = smoothstep(0.020, 0.008, abs(d - 0.006));
+        float glowMask    = smoothstep(0.18, 0.0, max(d - 0.008, 0.0));
+        float tightGlow   = smoothstep(0.06, 0.0, max(d - 0.010, 0.0));
+
+        vec3 hollowBlue   = vec3(0.05, 0.35, 0.75);
+        vec3 outlineColor = vec3(1.00, 1.00, 1.00);
+        vec3 glowColor    = vec3(0.50, 0.90, 1.05);
+
+        vec3 col = hollowBlue    * insideMask * 0.35
+                 + outlineColor  * outlineMask * 1.25
+                 + glowColor     * tightGlow   * 0.40
+                 + glowColor     * glowMask    * 0.20;
+
+        col *= 1.0 + uAudio * 0.15;
+
+        float alpha = clamp(
+            insideMask * 0.35
+          + outlineMask * 1.00
+          + tightGlow * 0.25
+          + glowMask * 0.14,
+          0.0, 1.0);
+
+        gl_FragColor = vec4(col, alpha);
+      }`,
+  });
+  const atom = new THREE.Mesh(plane, atomMat); atom.position.z = 0.045; root.add(atom);
+
+  function step(t, a) {
+    uTime.value = t;
+    uAudio.value = a;
+    for (const n of neurons) {
+      const tw = 0.6 + 0.4 * Math.sin(t * 1.4 + n.userData.basePhase);
+      n.material.opacity = (n.userData.isHub ? 0.40 : 0.22) * tw + 0.08;
+    }
+    for (const m of cloudDots) {
+      m.material.opacity = 0.18 + 0.15 * Math.sin(t * 2.1 + m.userData.basePhase);
+    }
+  }
+  return { mesh: root, mat: bellMat, step };
+}
+
+// Legacy bell geometry kept for compatibility but unused (was for the previous J/K).
+function makeBellGeometry(radius = 1.2, opts = {}) {
+  const squash = opts.squash !== undefined ? opts.squash : 0.55;   // how much bottom is squished
+  const lobes = opts.lobes || 10;                                  // number of scallops
+  const lobeAmp = opts.lobeAmp || 0.06;                            // scallop depth
+  const geo = new THREE.IcosahedronGeometry(radius, 64);
+  const positions = geo.attributes.position.array;
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i];
+    const y = positions[i+1];
+    const z = positions[i+2];
+    // Below-equator: progressively squash so the bottom flares out and shortens
+    if (y < 0) {
+      const t = -y / radius;   // 0 at equator → 1 at south pole
+      positions[i+1] = y * (1.0 - t * (1.0 - squash));
+    }
+    // Scallop the rim: at the equator (y near 0), add radial ripple
+    const theta = Math.atan2(z, x);
+    const equatorWeight = Math.exp(-Math.pow(y / radius, 2) * 8.0);  // peaks at equator
+    const lobeWobble = Math.cos(theta * lobes) * lobeAmp * equatorWeight;
+    const r = Math.sqrt(x * x + z * z);
+    if (r > 0.0001) {
+      positions[i  ] += (x / r) * lobeWobble;
+      positions[i+2] += (z / r) * lobeWobble;
+    }
+  }
+  geo.attributes.position.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// ===== JELLYFISH BUBBLE (used by J as the whole bell, and by K as the wrapper) =====
+// Custom shader for a soft top-bright / bottom-dim gradient + cyan emissive body so it
+// glows from within like a real moon jellyfish, with a faint inner radial pattern.
+function makeJellyBubble(renderer, scene, parentGroup, { radius = 1.2 } = {}) {
+  // Reuse the same procedural envMap pattern from makeGlassBubble
+  const envScene = new THREE.Scene();
+  envScene.background = new THREE.Color(0x0a1424);
+  const top = new THREE.Mesh(
+    new THREE.PlaneGeometry(14, 14),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 2.8, 4.0) }),
+  );
+  top.position.set(0, 12, 0);
+  top.rotation.x = Math.PI / 2;
+  envScene.add(top);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envMap = pmrem.fromScene(envScene, 0.20).texture;
+  pmrem.dispose();
+  if (!scene.environment) scene.environment = envMap;
+
+  const geo = makeBellGeometry(radius, { squash: 0.58, lobes: 10, lobeAmp: 0.05 });
+
+  // Jellyfish bell material — soft gradient (cyan top → deeper blue bottom),
+  // subtle emissive glow, low transmission so the bell has a soft milky body.
+  const mat = new THREE.MeshPhysicalMaterial({
+    transmission: 0.70,
+    thickness: 0.30,
+    ior: 1.34,
+    roughness: 0.20,
+    metalness: 0.0,
+    iridescence: 0.6,
+    iridescenceIOR: 1.3,
+    iridescenceThicknessRange: [340, 580],
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.15,
+    emissive: new THREE.Color(0x1a4a78),
+    emissiveIntensity: 0.55,
+    envMap,
+    envMapIntensity: 1.2,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    color: new THREE.Color(0x8cc6ff),         // soft cyan-blue
+  });
+
+  // Post-compile injection — vertex-pass world Y to fragment, vary emissive by height
+  mat.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\nvarying float vBellY;`)
+      .replace('#include <fog_vertex>', `#include <fog_vertex>\nvBellY = position.y;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\nvarying float vBellY;`)
+      .replace('#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+         // Soft gradient: top (positive Y) gets the brighter cyan emissive, bottom darker
+         float yGrad = clamp((vBellY + ${(radius * 0.6).toFixed(2)}) / ${(radius * 1.4).toFixed(2)}, 0.0, 1.0);
+         totalEmissiveRadiance *= (0.4 + yGrad * 1.4);`);
+  };
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 10;
+  parentGroup.add(mesh);
+  return { mesh, mat, envMap };
+}
+
+// ===== JELLYFISH CORE GLOW + 4-PETAL PATTERN (for variant J only) =====
+// Bright soft inner blob + 4 small ring orbits that form the iconic moon-jellyfish pattern.
+function makeJellyCore(parentGroup) {
+  // Central white-hot glow
+  const coreGeo = new THREE.SphereGeometry(0.10, 32, 32);
+  const coreMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uAudio: { value: 0 } },
+    vertexShader: `
+      varying vec3 vNormal; varying vec3 vView;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vNormal = normalize(normalMatrix * normal);
+        vView   = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime, uAudio;
+      varying vec3 vNormal, vView;
+      void main() {
+        float fres = pow(1.0 - max(dot(vNormal, vView), 0.0), 1.3);
+        vec3 col = mix(vec3(1.0), vec3(0.55, 0.85, 1.0), fres);
+        float bright = (1.0 + uAudio * 0.6) * (0.85 + 0.15 * sin(uTime * 1.2));
+        gl_FragColor = vec4(col * bright, 1.0);
+      }
+    `,
+  });
+  const core = new THREE.Mesh(coreGeo, coreMat);
+  parentGroup.add(core);
+
+  // 4-petal rings (the jellyfish reproductive pattern)
+  const petals = [];
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2;
+    const rg = new THREE.RingGeometry(0.10, 0.13, 32);
+    const rm = new THREE.MeshBasicMaterial({
+      color: 0xc0e6ff, transparent: true, opacity: 0.55,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
+    });
+    const rmesh = new THREE.Mesh(rg, rm);
+    rmesh.position.set(Math.cos(angle) * 0.16, 0.05, Math.sin(angle) * 0.16);
+    rmesh.rotation.x = Math.PI / 2;
+    parentGroup.add(rmesh);
+    petals.push({ mesh: rmesh, mat: rm, basePhase: i * (Math.PI / 2) });
+  }
+
+  function step(t, a) {
+    coreMat.uniforms.uTime.value  = t;
+    coreMat.uniforms.uAudio.value = a;
+    core.scale.setScalar(1.0 + a * 0.40 + Math.sin(t * 1.0) * 0.05);
+    for (const p of petals) {
+      p.mat.opacity = 0.45 + 0.20 * Math.sin(t * 0.8 + p.basePhase) + a * 0.30;
+    }
+  }
+  return { step, core };
+}
+
+// ===== JELLYFISH TENTACLES (12 wispy curved lines hanging from the bell rim) =====
+function makeJellyTentacles(parentGroup, { count = 12, radius = 1.0, length = 1.4 } = {}) {
+  const tentacles = [];
+  for (let i = 0; i < count; i++) {
+    const theta = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+    const startR = radius * 0.85;
+    const startX = Math.cos(theta) * startR;
+    const startZ = Math.sin(theta) * startR;
+    const startY = -radius * 0.40;       // attach at lower edge of the bell
+    // Two control points drifting outward and down
+    const mid1 = new THREE.Vector3(
+      startX + (Math.random() - 0.5) * 0.18,
+      startY - length * 0.40,
+      startZ + (Math.random() - 0.5) * 0.18,
+    );
+    const mid2 = new THREE.Vector3(
+      startX + (Math.random() - 0.5) * 0.30,
+      startY - length * 0.75,
+      startZ + (Math.random() - 0.5) * 0.30,
+    );
+    const end = new THREE.Vector3(
+      startX + (Math.random() - 0.5) * 0.45,
+      startY - length,
+      startZ + (Math.random() - 0.5) * 0.45,
+    );
+    const ctrl = [new THREE.Vector3(startX, startY, startZ), mid1, mid2, end];
+    const curve = new THREE.CatmullRomCurve3(ctrl);
+    const points = curve.getPoints(40);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0x9cd4ff,
+      transparent: true,
+      opacity: 0.35 + Math.random() * 0.15,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const lineMesh = new THREE.Line(lineGeo, lineMat);
+    parentGroup.add(lineMesh);
+    tentacles.push({
+      mesh: lineMesh, mat: lineMat,
+      basePhase: Math.random() * Math.PI * 2,
+      basePoints: points.map(p => p.clone()),
+      geo: lineGeo,
+    });
+  }
+
+  function step(t, a) {
+    // Subtle drift — each tentacle wobbles a touch along its length
+    for (const tn of tentacles) {
+      const positions = tn.geo.attributes.position.array;
+      for (let i = 0; i < tn.basePoints.length; i++) {
+        const bp = tn.basePoints[i];
+        const tParam = i / (tn.basePoints.length - 1);
+        const wobble = Math.sin(t * 0.8 + tn.basePhase + tParam * 4.0) * 0.03 * tParam;
+        positions[i*3+0] = bp.x + wobble;
+        positions[i*3+2] = bp.z + wobble * 0.7;
+        positions[i*3+1] = bp.y - tParam * 0.05 * Math.sin(t * 0.5 + tn.basePhase);
+      }
+      tn.geo.attributes.position.needsUpdate = true;
+      tn.mat.opacity = 0.35 + a * 0.25 + 0.08 * Math.sin(t * 0.6 + tn.basePhase);
+    }
+  }
+  return { step, count };
+}
+
+function makeParticles(scene, count = 140) {
+  const partPos = new Float32Array(count * 3);
+  const partVel = new Float32Array(count * 3);
+  const partLife = new Float32Array(count);
+  const partSize = new Float32Array(count);
+  function seed(i, fresh) {
+    const a = Math.random() * Math.PI * 2;
+    const startR = fresh ? (0.25 + Math.random() * 0.15) : (0.25 + Math.random() * 1.6);
+    partPos[i*3+0] = Math.cos(a) * startR;
+    partPos[i*3+1] = Math.sin(a) * startR;
+    partPos[i*3+2] = (Math.random() - 0.5) * 0.1;
+    const speed = 0.18 + Math.random() * 0.32;
+    partVel[i*3+0] = Math.cos(a) * speed + -Math.sin(a) * 0.08;
+    partVel[i*3+1] = Math.sin(a) * speed +  Math.cos(a) * 0.08;
+    partVel[i*3+2] = (Math.random() - 0.5) * 0.04;
+    partLife[i] = 1.0 + Math.random() * 1.5;
+    partSize[i] = 0.10 + Math.random() * 0.25;
+  }
+  for (let i = 0; i < count; i++) seed(i, false);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(partPos, 3));
+  geo.setAttribute('aSize',    new THREE.BufferAttribute(partSize, 1));
+  geo.setAttribute('aLife',    new THREE.BufferAttribute(partLife, 1));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uAudio: { value: 0 }, uPixel: { value: window.devicePixelRatio || 1 } },
+    vertexShader: `
+      uniform float uAudio; uniform float uPixel;
+      attribute float aSize, aLife;
+      varying float vLife;
+      void main() {
+        vLife = aLife;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = aSize * uPixel * (1.0 + uAudio * 0.8) * (14.0 / -mv.z);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      varying float vLife;
+      void main() {
+        vec2 uv = gl_PointCoord - vec2(0.5);
+        float d = length(uv); if (d > 0.5) discard;
+        float falloff = smoothstep(0.5, 0.0, d);
+        float age = clamp(vLife, 0.0, 2.5) / 2.5;
+        vec3 col = mix(vec3(0.4, 0.85, 1.0), vec3(1.0), age);
+        gl_FragColor = vec4(col * 0.9, falloff * 0.85);
+      }
+    `,
+  });
+  const points = new THREE.Points(geo, mat);
+  scene.add(points);
+  function step(dt, audio) {
+    for (let i = 0; i < count; i++) {
+      partPos[i*3+0] += partVel[i*3+0] * dt * (1.0 + audio * 1.5);
+      partPos[i*3+1] += partVel[i*3+1] * dt * (1.0 + audio * 1.5);
+      partPos[i*3+2] += partVel[i*3+2] * dt;
+      partLife[i] -= dt * 0.7;
+      const r2 = partPos[i*3+0]**2 + partPos[i*3+1]**2;
+      if (partLife[i] < 0 || r2 > 5.5) seed(i, true);
+    }
+    geo.attributes.position.needsUpdate = true;
+  }
+  return { points, mat, step };
+}
+
+// ===== NEW: NEURAL NETWORK CORE =====
+// 14 nodes in 3D within a sphere; edges to nearest neighbors; pulses travel along edges;
+// when a pulse reaches a node, the node "fires" (briefly bright + scaled). Idle = sparse,
+// Speaking = synchronized waves, Thinking = scattered rapid activity.
+function makeNeuronGraph(scene, opts = {}) {
+  const NODES = opts.nodes || 14;
+  const KNN   = opts.knn   || 2;
+  const MAX_PULSES = opts.maxPulses || 60;
+  const SHELL_RADIUS = opts.shellRadius || 0.95;
+
+  // 1. Position nodes — distribute on/within a sphere, avoid clustering near center
+  const nodes = [];
+  for (let i = 0; i < NODES; i++) {
+    let p;
+    let tries = 0;
+    do {
+      p = new THREE.Vector3(
+        (Math.random() - 0.5) * 2.0,
+        (Math.random() - 0.5) * 2.0,
+        (Math.random() - 0.5) * 1.6
+      );
+      tries++;
+    } while ((p.length() < 0.35 || p.length() > SHELL_RADIUS) && tries < 30);
+    if (p.length() > SHELL_RADIUS) p.setLength(SHELL_RADIUS * 0.95);
+    if (p.length() < 0.35)         p.setLength(0.5);
+
+    const geo = new THREE.SphereGeometry(0.045, 14, 14);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x67e8f9, transparent: true, opacity: 0.75,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(p);
+    scene.add(mesh);
+    nodes.push({ pos: p, mesh, mat, activation: 0 });
+  }
+
+  // 2. Edges — each node → K nearest neighbors, deduped
+  const seen = new Set();
+  const edges = [];
+  for (let i = 0; i < NODES; i++) {
+    const dists = nodes.map((n, j) => ({ j, d: i === j ? Infinity : n.pos.distanceTo(nodes[i].pos) }));
+    dists.sort((a, b) => a.d - b.d);
+    for (let k = 0; k < KNN; k++) {
+      const j = dists[k].j;
+      const key = Math.min(i, j) + ',' + Math.max(i, j);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([nodes[i].pos, nodes[j].pos]);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x3a8fa8, transparent: true, opacity: 0.35,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      const lineMesh = new THREE.Line(lineGeo, lineMat);
+      scene.add(lineMesh);
+      edges.push({ a: i, b: j, mesh: lineMesh, mat: lineMat, activePulses: [] });
+    }
+  }
+
+  // 3. Pulse rendering — one shared Points buffer holds ALL active pulses
+  const pulsePos   = new Float32Array(MAX_PULSES * 3);
+  const pulseAlpha = new Float32Array(MAX_PULSES);
+  for (let i = 0; i < MAX_PULSES; i++) {
+    pulsePos[i*3+0] = 999; pulsePos[i*3+1] = 999; pulsePos[i*3+2] = 999;
+    pulseAlpha[i] = 0;
+  }
+  const pulseGeo = new THREE.BufferGeometry();
+  pulseGeo.setAttribute('position', new THREE.BufferAttribute(pulsePos, 3));
+  pulseGeo.setAttribute('aAlpha',   new THREE.BufferAttribute(pulseAlpha, 1));
+  const pulseMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: { uPixel: { value: window.devicePixelRatio || 1 } },
+    vertexShader: `
+      uniform float uPixel;
+      attribute float aAlpha;
+      varying float vAlpha;
+      void main() {
+        vAlpha = aAlpha;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = uPixel * 4.0 * (14.0 / -mv.z) * (0.5 + aAlpha * 0.8);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      varying float vAlpha;
+      void main() {
+        vec2 uv = gl_PointCoord - vec2(0.5);
+        float d = length(uv); if (d > 0.5) discard;
+        float falloff = smoothstep(0.5, 0.0, d);
+        gl_FragColor = vec4(vec3(0.85, 0.96, 1.0), falloff * vAlpha);
+      }
+    `,
+  });
+  const pulses = new THREE.Points(pulseGeo, pulseMat);
+  scene.add(pulses);
+
+  // 4. Optional core glow at the visual center (a brain "hub")
+  const hub = makeCore(scene, { radiusScale: 0.7 });
+
+  let lastSpawnAcc = 0;
+  let firesThisSecond = 0;
+  let fireWindowStart = 0;
+
+  function step(t, dt, audio, now) {
+    // Pulse spawn rate scales with audio + state
+    let baseRate = 1.5;                                       // pulses/sec idle
+    if (simulatedState === 'speaking') baseRate = 4.0;
+    if (simulatedState === 'thinking') baseRate = 7.0;
+    const spawnRate = baseRate + audio * 12.0;                // up to ~17/s on full audio
+    lastSpawnAcc += dt * spawnRate;
+    while (lastSpawnAcc >= 1.0 && countActivePulses() < MAX_PULSES) {
+      lastSpawnAcc -= 1.0;
+      // Pick a random edge to fire
+      const e = edges[Math.floor(Math.random() * edges.length)];
+      e.activePulses.push({
+        progress: 0,
+        speed: 0.8 + Math.random() * 0.6 + audio * 0.6,
+        intensity: 0.7 + audio * 0.3,
+        // Direction: 50/50 a→b or b→a
+        reverse: Math.random() < 0.5,
+      });
+      firesThisSecond++;
+    }
+
+    // Advance pulses; light up target node when they complete
+    for (const e of edges) {
+      const aPos = nodes[e.a].pos;
+      const bPos = nodes[e.b].pos;
+      e.activePulses = e.activePulses.filter(p => {
+        p.progress += dt * p.speed;
+        if (p.progress >= 1.0) {
+          const targetIdx = p.reverse ? e.a : e.b;
+          nodes[targetIdx].activation = Math.min(1.0, nodes[targetIdx].activation + 0.55);
+          // Chance to chain: when a node fires, schedule a follow-up pulse on another of its edges
+          if (Math.random() < 0.45) {
+            const next = findRandomOutgoingEdge(targetIdx, e);
+            if (next) {
+              next.edge.activePulses.push({
+                progress: 0,
+                speed: 0.8 + Math.random() * 0.6 + audio * 0.6,
+                intensity: p.intensity * 0.85,
+                reverse: next.fromIsA,
+              });
+            }
+          }
+          return false;
+        }
+        return true;
+      });
+      // Edge brightness rides activity + audio
+      const activity = e.activePulses.length;
+      e.mat.opacity = 0.22 + audio * 0.10 + Math.min(activity, 3) * 0.10;
+    }
+
+    // Decay node activations + visual update
+    for (const n of nodes) {
+      n.activation = Math.max(0, n.activation - dt * 1.5);
+      const s = 1.0 + n.activation * 0.7 + audio * 0.08;
+      n.mesh.scale.setScalar(s);
+      n.mat.opacity = 0.55 + n.activation * 0.45 + audio * 0.12;
+    }
+
+    // Update pulse buffer
+    let slot = 0;
+    for (const e of edges) {
+      const a = nodes[e.a].pos, b = nodes[e.b].pos;
+      for (const p of e.activePulses) {
+        if (slot >= MAX_PULSES) break;
+        const prog = p.reverse ? (1.0 - p.progress) : p.progress;
+        pulsePos[slot*3+0] = a.x + (b.x - a.x) * prog;
+        pulsePos[slot*3+1] = a.y + (b.y - a.y) * prog;
+        pulsePos[slot*3+2] = a.z + (b.z - a.z) * prog;
+        pulseAlpha[slot]   = p.intensity * (1.0 - 0.2 * Math.abs(2*p.progress - 1));
+        slot++;
+      }
+      if (slot >= MAX_PULSES) break;
+    }
+    for (let i = slot; i < MAX_PULSES; i++) { pulseAlpha[i] = 0; }
+    pulseGeo.attributes.position.needsUpdate = true;
+    pulseGeo.attributes.aAlpha.needsUpdate = true;
+
+    // Hub gentle breath + audio scale
+    hub.mat.uniforms.uTime.value  = t;
+    hub.mat.uniforms.uAudio.value = audio;
+    hub.mesh.scale.setScalar(1.0 + audio * 0.40 + Math.sin(t * 1.2) * 0.03);
+
+    // Slow whole-graph rotation so it feels 3D
+    scene.userData.neuronRotY = (scene.userData.neuronRotY || 0) + dt * 0.05;
+    scene.userData.neuronRotX = Math.sin(t * 0.13) * 0.10;
+
+    // Fire-rate counter window
+    if (now - fireWindowStart > 1000) {
+      scene.userData.neuronFireRate = firesThisSecond;
+      firesThisSecond = 0;
+      fireWindowStart = now;
+    }
+  }
+
+  function countActivePulses() {
+    let n = 0;
+    for (const e of edges) n += e.activePulses.length;
+    return n;
+  }
+
+  function findRandomOutgoingEdge(nodeIdx, excludeEdge) {
+    const candidates = edges.filter(e => (e.a === nodeIdx || e.b === nodeIdx) && e !== excludeEdge);
+    if (!candidates.length) return null;
+    const ed = candidates[Math.floor(Math.random() * candidates.length)];
+    const fromIsA = ed.a === nodeIdx;
+    return { edge: ed, fromIsA: !fromIsA };  // pulse should head AWAY from this node
+  }
+
+  return { nodes, edges, hub, step, edgeCount: edges.length };
+}
+
+// ===== DENDRITE CELL (variant G) — iteration 2 =====
+// Now uses TubeGeometry per branch with DEPTH-TAPERED radius so trunk branches are thick
+// like axons and deep branches are thin like terminals. Dramatically more terminal dots
+// (every segment gets one) for the "lit-up-tree" reference look. Heavy emissive bright.
+function makeDendriteCell(scene, opts = {}) {
+  const TRUNK_COUNT = opts.trunks || 20;
+  const MAX_DEPTH   = opts.maxDepth || 4;
+  const TRUNK_LEN   = opts.trunkLen || 0.38;
+  const SHELL_R     = opts.shellR   || 0.90;
+
+  const branches = [];    // { path: Vector3[], depth: number }
+  const terminals = [];   // { pos, intensity, basePhase, depth }
+
+  function growBranch(start, dir, length, depth) {
+    const segments = 6 + Math.floor(Math.random() * 4);
+    const stepLen = length / segments;
+    const path = [start.clone()];
+    let pos = start.clone();
+    let d = dir.clone().normalize();
+
+    for (let i = 0; i < segments; i++) {
+      // Wander — more aggressive wandering at deeper depths (terminal twigs are wiry)
+      const wander = 0.45 + depth * 0.20;
+      d.x += (Math.random() - 0.5) * wander;
+      d.y += (Math.random() - 0.5) * wander;
+      d.z += (Math.random() - 0.5) * wander;
+      d.normalize();
+      pos.add(d.clone().multiplyScalar(stepLen));
+      if (pos.length() > SHELL_R * 0.92) pos.setLength(SHELL_R * 0.92);
+      path.push(pos.clone());
+
+      // Bright dot at EVERY segment — gives the "studded with axon terminals" look
+      terminals.push({
+        pos: pos.clone(),
+        intensity: 0.45 + Math.random() * 0.35 + (depth >= MAX_DEPTH - 1 ? 0.20 : 0),
+        basePhase: Math.random() * Math.PI * 2,
+        depth,
+      });
+    }
+    branches.push({ path, depth });
+
+    if (depth < MAX_DEPTH && Math.random() < 0.92) {
+      const childLen = length * (0.55 + Math.random() * 0.20);
+      const ax = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+      const dir1 = d.clone().applyAxisAngle(ax, 0.55 + Math.random() * 0.45);
+      const dir2 = d.clone().applyAxisAngle(ax, -0.55 - Math.random() * 0.45);
+      growBranch(pos.clone(), dir1, childLen, depth + 1);
+      growBranch(pos.clone(), dir2, childLen, depth + 1);
+      // Occasionally a third child for extra density at low depths
+      if (depth <= 1 && Math.random() < 0.35) {
+        const dir3 = d.clone().applyAxisAngle(new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize(), 0.45);
+        growBranch(pos.clone(), dir3, childLen * 0.85, depth + 1);
+      }
+    } else {
+      // Extra-bright terminal tip
+      terminals.push({
+        pos: pos.clone(),
+        intensity: 1.0,
+        basePhase: Math.random() * Math.PI * 2,
+        depth,
+      });
+    }
+  }
+
+  // Spawn TRUNK_COUNT branches from soma using FIBONACCI SPHERE distribution
+  // so we get even spherical coverage instead of random clustering.
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < TRUNK_COUNT; i++) {
+    const y = 1 - (i / (TRUNK_COUNT - 1)) * 2;
+    const r = Math.sqrt(1 - y * y);
+    const theta = golden * i;
+    const dir = new THREE.Vector3(
+      Math.cos(theta) * r,
+      y,
+      Math.sin(theta) * r,
+    );
+    // Mild jitter so it isn't perfectly geometric (still organic)
+    dir.x += (Math.random() - 0.5) * 0.18;
+    dir.y += (Math.random() - 0.5) * 0.18;
+    dir.z += (Math.random() - 0.5) * 0.18;
+    dir.normalize();
+    growBranch(new THREE.Vector3(0, 0, 0), dir, TRUNK_LEN, 0);
+  }
+
+  // Shared additive emissive shader for tube branches — bright, glowy, audio-responsive
+  const branchUniforms = {
+    uTime:  { value: 0 },
+    uAudio: { value: 0 },
+  };
+  const branchVS = `
+    uniform float uTime, uAudio;
+    varying vec3  vPos;
+    varying float vDist;
+    void main() {
+      vPos = position;
+      vDist = length(position);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+  const branchFS = `
+    uniform float uTime, uAudio;
+    varying vec3  vPos;
+    varying float vDist;
+    void main() {
+      // Brighter near soma (vDist small → bright trunk), softer at tips.
+      // Per-pixel brightness intentionally low — bloom + additive overlap of thousands
+      // of tube + dot fragments amplify into the right "lit-up tree" final brightness.
+      float falloff = smoothstep(1.2, 0.1, vDist);
+      vec3 cyan = vec3(0.42, 0.92, 1.0);
+      vec3 hot  = vec3(0.75, 0.95, 1.0);
+      vec3 col  = mix(cyan, hot, falloff * 0.5);
+      float bright = (0.35 + falloff * 0.30) * (1.0 + uAudio * 0.5 + 0.06 * sin(uTime * 1.4 + vDist * 6.0));
+      gl_FragColor = vec4(col * bright, 1.0);
+    }
+  `;
+
+  // Render each branch path as a TubeGeometry with depth-tapered radius
+  const tubeMeshes = [];
+  for (const br of branches) {
+    if (br.path.length < 2) continue;
+    const curve = new THREE.CatmullRomCurve3(br.path);
+    // Trunk radius thicker now (0.020) → terminal radius ~0.0035, matches reference proportions
+    const radius = Math.max(0.0035, 0.020 * Math.pow(0.58, br.depth));
+    const tubeGeo = new THREE.TubeGeometry(curve, br.path.length * 4, radius, 6, false);
+    const tubeMat = new THREE.ShaderMaterial({
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      uniforms: branchUniforms,
+      vertexShader: branchVS,
+      fragmentShader: branchFS,
+    });
+    const mesh = new THREE.Mesh(tubeGeo, tubeMat);
+    scene.add(mesh);
+    tubeMeshes.push({ mesh, mat: tubeMat, depth: br.depth });
+  }
+
+  // Terminal dots — dense, additive, bright
+  const termPos = new Float32Array(terminals.length * 3);
+  const termSize = new Float32Array(terminals.length);
+  const termBaseAlpha = new Float32Array(terminals.length);
+  for (let i = 0; i < terminals.length; i++) {
+    termPos[i*3+0] = terminals[i].pos.x;
+    termPos[i*3+1] = terminals[i].pos.y;
+    termPos[i*3+2] = terminals[i].pos.z;
+    // Tips are bigger than mid-branch dots
+    termSize[i]    = (terminals[i].depth >= MAX_DEPTH - 1 ? 0.55 : 0.30) + Math.random() * 0.30;
+    termBaseAlpha[i] = terminals[i].intensity;
+  }
+  const termGeo = new THREE.BufferGeometry();
+  termGeo.setAttribute('position', new THREE.BufferAttribute(termPos, 3));
+  termGeo.setAttribute('aSize',    new THREE.BufferAttribute(termSize, 1));
+  termGeo.setAttribute('aAlpha',   new THREE.BufferAttribute(termBaseAlpha, 1));
+  const termMat = new THREE.ShaderMaterial({
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    uniforms: {
+      uPixel: { value: window.devicePixelRatio || 1 },
+      uAudio: { value: 0 },
+      uTime:  { value: 0 },
+    },
+    vertexShader: `
+      uniform float uPixel, uAudio, uTime;
+      attribute float aSize, aAlpha;
+      varying float vAlpha;
+      void main() {
+        // Soft per-dot twinkle so the tree feels alive even without audio.
+        // Lower base alpha (0.30 * twinkle) — there are 4000+ terminals so additive
+        // overlap quickly saturates if any single one is bright.
+        float twinkle = 0.55 + 0.45 * sin(uTime * 2.0 + aAlpha * 40.0);
+        vAlpha = aAlpha * twinkle * 0.35 * (1.0 + uAudio * 0.6);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = aSize * uPixel * (13.0 / -mv.z) * (1.0 + uAudio * 0.4);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      varying float vAlpha;
+      void main() {
+        vec2 uv = gl_PointCoord - vec2(0.5);
+        float d = length(uv); if (d > 0.5) discard;
+        float falloff = smoothstep(0.5, 0.0, d);
+        vec3 col = vec3(0.75, 0.95, 1.0);
+        gl_FragColor = vec4(col, falloff * clamp(vAlpha, 0.0, 1.0));
+      }
+    `,
+  });
+  const termsMesh = new THREE.Points(termGeo, termMat);
+  scene.add(termsMesh);
+
+  // Bright soma (cell body) — slightly smaller than v2 so it doesn't dominate the frame
+  const soma = makeCore(scene, { radiusScale: 0.45 });
+
+  function step(t, dt, a) {
+    branchUniforms.uTime.value  = t;
+    branchUniforms.uAudio.value = a;
+    termMat.uniforms.uTime.value  = t;
+    termMat.uniforms.uAudio.value = a;
+    soma.mat.uniforms.uTime.value  = t;
+    soma.mat.uniforms.uAudio.value = a;
+    soma.mesh.scale.setScalar(1.0 + a * 0.50 + Math.sin(t * 1.2) * 0.04);
+  }
+
+  return {
+    step, soma,
+    branches: branches.length,
+    terminals: terminals.length,
+  };
+}
+
+// ===== SUPERNODE GRAPH (variant H) — iteration 2 =====
+// Now: way denser web (KNN=7 regular, hubs connect to many more), MUCH brighter hub
+// "supernovas" with radial spike rays, more visible HUD rings tilted for 3D feel.
+function makeSupernodeGraph(scene, opts = {}) {
+  const NODE_COUNT = opts.nodes || 78;
+  const HUB_COUNT  = opts.hubs  || 4;
+  const RADIUS     = opts.radius || 1.10;
+  const KNN        = opts.knn   || 7;
+  const MAX_EDGE_DIST = opts.maxEdge || 1.30;
+  const MAX_PULSES = 120;
+  const HUB_SCALE  = opts.hubScale || 1.0;     // per-variant hub size modifier (I uses smaller)
+
+  // Hubs at tetrahedron vertices (gives even spatial spread)
+  const hubPositions = [
+    new THREE.Vector3( 0.55,  0.45,  0.30),
+    new THREE.Vector3(-0.55, -0.20,  0.45),
+    new THREE.Vector3( 0.20, -0.55, -0.35),
+    new THREE.Vector3(-0.30,  0.50, -0.50),
+  ].slice(0, HUB_COUNT);
+
+  // Regular nodes — random within sphere, biased toward hubs
+  const allNodes = []; // {pos, isHub, mesh, mat, activation}
+  for (const hp of hubPositions) {
+    allNodes.push({ pos: hp.clone(), isHub: true, activation: 0.5 });
+  }
+  for (let i = 0; i < NODE_COUNT; i++) {
+    let p;
+    let tries = 0;
+    do {
+      // Bias position toward a randomly-chosen hub for cluster feel
+      const hub = hubPositions[Math.floor(Math.random() * hubPositions.length)];
+      const offset = new THREE.Vector3(
+        (Math.random() - 0.5) * 1.4,
+        (Math.random() - 0.5) * 1.4,
+        (Math.random() - 0.5) * 1.0,
+      );
+      p = hub.clone().add(offset);
+      tries++;
+    } while ((p.length() < 0.25 || p.length() > RADIUS) && tries < 30);
+    if (p.length() > RADIUS) p.setLength(RADIUS * 0.95);
+    allNodes.push({ pos: p, isHub: false, activation: 0 });
+  }
+
+  // Hub meshes — bright supernova spheres with radial fresnel glow + spike rays
+  // Regular node meshes — small bright spheres
+  for (const n of allNodes) {
+    if (n.isHub) {
+      // Inner bright core sphere (scaled by HUB_SCALE for per-variant size)
+      const coreGeo = new THREE.SphereGeometry(0.045 * HUB_SCALE, 24, 24);
+      const coreMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+      coreMesh.position.copy(n.pos);
+      scene.add(coreMesh);
+
+      // Outer fresnel halo sphere (scaled by HUB_SCALE)
+      const haloGeo = new THREE.SphereGeometry(0.13 * HUB_SCALE, 32, 32);
+      const haloMat = new THREE.ShaderMaterial({
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        uniforms: { uAudio: { value: 0 } },
+        vertexShader: `
+          varying vec3 vNormal; varying vec3 vView;
+          void main() {
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vNormal = normalize(normalMatrix * normal);
+            vView   = normalize(-mv.xyz);
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: `
+          uniform float uAudio;
+          varying vec3 vNormal; varying vec3 vView;
+          void main() {
+            float f = pow(1.0 - max(dot(vNormal, vView), 0.0), 1.5);
+            // Bright white-hot center fading to cyan rim
+            vec3 col = mix(vec3(1.0), vec3(0.42, 0.92, 1.0), f);
+            float bright = (1.6 + uAudio * 1.2) * (1.0 - f * 0.4);
+            gl_FragColor = vec4(col * bright, (1.0 - f) * 0.9);
+          }
+        `,
+      });
+      const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+      haloMesh.position.copy(n.pos);
+      scene.add(haloMesh);
+
+      // Spike rays — 16 thin lines radiating from hub, more variation in length
+      // Ray length scales with HUB_SCALE so smaller hubs get proportionally shorter rays
+      const rayGeometries = [];
+      const rayMats = [];
+      const RAYS = 16;
+      for (let k = 0; k < RAYS; k++) {
+        const theta = (k / RAYS) * Math.PI * 2 + Math.random() * 0.3;
+        const phi = (Math.random() - 0.5) * 0.9;
+        const len = (0.16 + Math.random() * 0.20) * HUB_SCALE;
+        const end = new THREE.Vector3(
+          Math.cos(theta) * Math.cos(phi) * len,
+          Math.sin(theta) * Math.cos(phi) * len,
+          Math.sin(phi) * len,
+        ).add(n.pos);
+        const rg = new THREE.BufferGeometry().setFromPoints([n.pos.clone(), end]);
+        const rm = new THREE.LineBasicMaterial({
+          color: 0xc0eaff,
+          transparent: true,
+          opacity: 0.50,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        const rl = new THREE.Line(rg, rm);
+        scene.add(rl);
+        rayGeometries.push(rg);
+        rayMats.push(rm);
+      }
+
+      n.mesh = coreMesh;
+      n.mat  = coreMat;
+      n.haloMat = haloMat;
+      n.rayMats = rayMats;
+    } else {
+      const r = 0.028;
+      const geo = new THREE.SphereGeometry(r, 10, 10);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x67e8f9,
+        transparent: true,
+        opacity: 0.75,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(n.pos);
+      scene.add(mesh);
+      n.mesh = mesh;
+      n.mat  = mat;
+    }
+  }
+
+  // Edges: each node → K nearest (within MAX_EDGE_DIST), deduped.
+  // Each edge is a Bezier curve sampled to a polyline → THREE.Line.
+  const edgeKey = new Set();
+  const edges = [];
+  const SAMPLES = 14;
+  for (let i = 0; i < allNodes.length; i++) {
+    const dists = allNodes.map((n, j) => ({ j, d: i === j ? Infinity : n.pos.distanceTo(allNodes[i].pos) }));
+    dists.sort((a, b) => a.d - b.d);
+    const limit = allNodes[i].isHub ? 28 : KNN;   // hubs broadcast to many
+    for (let k = 0; k < limit; k++) {
+      if (dists[k].d > MAX_EDGE_DIST && !allNodes[i].isHub) continue;
+      const j = dists[k].j;
+      const key = Math.min(i, j) + ',' + Math.max(i, j);
+      if (edgeKey.has(key)) continue;
+      edgeKey.add(key);
+
+      const a = allNodes[i].pos;
+      const b = allNodes[j].pos;
+      // Control point: midpoint offset perpendicular-ish for arc curvature
+      const mid = a.clone().add(b).multiplyScalar(0.5);
+      const perp = new THREE.Vector3(
+        (Math.random() - 0.5),
+        (Math.random() - 0.5),
+        (Math.random() - 0.5),
+      ).normalize().multiplyScalar(0.20 + Math.random() * 0.15);
+      const cp = mid.clone().add(perp);
+      const curve = new THREE.QuadraticBezierCurve3(a, cp, b);
+      const points = curve.getPoints(SAMPLES);
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+      const isHubEdge = allNodes[i].isHub || allNodes[j].isHub;
+      const lineMat = new THREE.LineBasicMaterial({
+        color: isHubEdge ? 0x80e0ff : 0x67e8f9,
+        transparent: true,
+        opacity: isHubEdge ? 0.55 : 0.32,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const lineMesh = new THREE.Line(lineGeo, lineMat);
+      scene.add(lineMesh);
+      edges.push({
+        a: i, b: j, isHubEdge,
+        curve, points,
+        mesh: lineMesh, mat: lineMat,
+        activePulses: [],
+      });
+    }
+  }
+
+  // Pulses (shared Points buffer)
+  const pulsePos   = new Float32Array(MAX_PULSES * 3);
+  const pulseAlpha = new Float32Array(MAX_PULSES);
+  for (let i = 0; i < MAX_PULSES; i++) {
+    pulsePos[i*3+0] = 999; pulsePos[i*3+1] = 999; pulsePos[i*3+2] = 999;
+    pulseAlpha[i] = 0;
+  }
+  const pulseGeo = new THREE.BufferGeometry();
+  pulseGeo.setAttribute('position', new THREE.BufferAttribute(pulsePos, 3));
+  pulseGeo.setAttribute('aAlpha',   new THREE.BufferAttribute(pulseAlpha, 1));
+  const pulseMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: { uPixel: { value: window.devicePixelRatio || 1 } },
+    vertexShader: `
+      uniform float uPixel;
+      attribute float aAlpha;
+      varying float vAlpha;
+      void main() {
+        vAlpha = aAlpha;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = uPixel * 3.5 * (14.0 / -mv.z) * (0.5 + aAlpha * 0.8);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      varying float vAlpha;
+      void main() {
+        vec2 uv = gl_PointCoord - vec2(0.5);
+        float d = length(uv); if (d > 0.5) discard;
+        float falloff = smoothstep(0.5, 0.0, d);
+        gl_FragColor = vec4(vec3(0.9, 0.97, 1.0), falloff * vAlpha);
+      }
+    `,
+  });
+  const pulses = new THREE.Points(pulseGeo, pulseMat);
+  scene.add(pulses);
+
+  // Background HUD rings — concentric circles tilted in 3D, more visible than v1
+  const hudRings = [];
+  for (let i = 0; i < 6; i++) {
+    const r = 1.30 + i * 0.20;
+    const g = new THREE.RingGeometry(r, r + 0.010 + i * 0.002, 160);
+    const m = new THREE.MeshBasicMaterial({
+      color: 0x22d3ee,
+      transparent: true,
+      opacity: 0.18 + (5 - i) * 0.030,        // brighter than before
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(g, m);
+    mesh.rotation.x = Math.PI / 5;   // more tilt for stronger 3D feel
+    mesh.rotation.z = i * 0.10;
+    scene.add(mesh);
+    hudRings.push({ mesh, mat: m });
+  }
+
+  // Pulse spawn accumulator
+  let spawnAcc = 0;
+  let firesThisSecond = 0;
+  let fireWindowStart = 0;
+
+  function countActivePulses() {
+    let n = 0;
+    for (const e of edges) n += e.activePulses.length;
+    return n;
+  }
+
+  function step(t, dt, a, now) {
+    // Spawn rate: idle low, speaking heavy, thinking medium-high
+    let baseRate = 2.0;
+    if (simulatedState === 'speaking') baseRate = 6.0;
+    if (simulatedState === 'thinking') baseRate = 10.0;
+    spawnAcc += dt * (baseRate + a * 18.0);
+    while (spawnAcc >= 1.0 && countActivePulses() < MAX_PULSES) {
+      spawnAcc -= 1.0;
+      // Prefer hub-edges so pulses look like hub-to-hub broadcasts
+      let e;
+      if (Math.random() < 0.65) {
+        const hubEdges = edges.filter(ed => ed.isHubEdge);
+        e = hubEdges[Math.floor(Math.random() * hubEdges.length)];
+      } else {
+        e = edges[Math.floor(Math.random() * edges.length)];
+      }
+      if (!e) continue;
+      e.activePulses.push({
+        progress: 0,
+        speed: 0.7 + Math.random() * 0.5 + a * 0.5,
+        intensity: 0.7 + a * 0.3,
+        reverse: Math.random() < 0.5,
+      });
+      firesThisSecond++;
+    }
+
+    // Advance pulses; light up the destination node when complete
+    for (const e of edges) {
+      const aPos = allNodes[e.a].pos;
+      const bPos = allNodes[e.b].pos;
+      e.activePulses = e.activePulses.filter(p => {
+        p.progress += dt * p.speed;
+        if (p.progress >= 1.0) {
+          const targetIdx = p.reverse ? e.a : e.b;
+          allNodes[targetIdx].activation = Math.min(1.0, allNodes[targetIdx].activation + (allNodes[targetIdx].isHub ? 0.30 : 0.55));
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Decay node activations; visual update
+    for (const n of allNodes) {
+      n.activation = Math.max(0, n.activation - dt * 1.4);
+      if (n.isHub) {
+        // Hubs always glow; activation makes them brighter+bigger
+        const s = 1.0 + n.activation * 0.6 + a * 0.25;
+        n.mesh.scale.setScalar(s);
+        n.mat.opacity = 0.90 + n.activation * 0.10;
+        if (n.haloMat) {
+          n.haloMat.uniforms.uAudio.value = a + n.activation * 0.5;
+        }
+        if (n.rayMats) {
+          // Spike rays brighten with audio + activation
+          for (const rm of n.rayMats) {
+            rm.opacity = 0.30 + a * 0.45 + n.activation * 0.35;
+          }
+        }
+      } else {
+        const s = 1.0 + n.activation * 0.6 + a * 0.08;
+        n.mesh.scale.setScalar(s);
+        n.mat.opacity = 0.60 + n.activation * 0.40 + a * 0.10;
+      }
+    }
+
+    // Update pulse buffer — sample curve at progress for accurate arc travel
+    let slot = 0;
+    for (const e of edges) {
+      for (const p of e.activePulses) {
+        if (slot >= MAX_PULSES) break;
+        const prog = p.reverse ? (1.0 - p.progress) : p.progress;
+        const pt = e.curve.getPoint(prog);
+        pulsePos[slot*3+0] = pt.x;
+        pulsePos[slot*3+1] = pt.y;
+        pulsePos[slot*3+2] = pt.z;
+        pulseAlpha[slot]   = p.intensity * (1.0 - 0.25 * Math.abs(2*p.progress - 1));
+        slot++;
+      }
+      if (slot >= MAX_PULSES) break;
+    }
+    for (let i = slot; i < MAX_PULSES; i++) { pulseAlpha[i] = 0; }
+    pulseGeo.attributes.position.needsUpdate = true;
+    pulseGeo.attributes.aAlpha.needsUpdate = true;
+
+    // HUD rings — very subtle audio breath
+    for (const r of hudRings) {
+      r.mat.opacity = r.mat.userData?.base || (r.mat.opacity);
+      // small breath: opacity wobble
+    }
+
+    // Whole-graph slow rotation so it reads as 3D
+    scene.userData.supernodeRotY = (scene.userData.supernodeRotY || 0) + dt * 0.04;
+    scene.userData.supernodeRotX = Math.sin(t * 0.10) * 0.08;
+
+    if (now - fireWindowStart > 1000) {
+      scene.userData.supernodeFireRate = firesThisSecond;
+      firesThisSecond = 0;
+      fireWindowStart = now;
+    }
+  }
+
+  // Expose hubs so insight-burst code (in updateSupernode) can target them
+  const hubs = allNodes.filter(n => n.isHub);
+
+  return {
+    step,
+    nodeCount: allNodes.length - HUB_COUNT,
+    hubCount: HUB_COUNT,
+    edgeCount: edges.length,
+    hubs,
+  };
+}
+
+// ===== NEW: RADIAL HUB NETWORK (variant I — G + old H hybrid) =====
+// White-hot soma at center → curved trunks radiate to N hub-supernodes. Each hub has
+// a satellite cluster around it. Hubs also connect to each other via curved arcs.
+// Pulses fire OUT from soma + hop hub-to-hub. Reads as "intelligent nodes" not anatomy.
+function makeRadialHubNetwork(scene, opts = {}) {
+  const HUB_COUNT     = opts.hubs || 12;          // dialed back so the orbs aren't too crowded
+  const SATS_PER_HUB  = opts.satsPerHub || 7;
+  const HUB_RADIUS    = opts.hubRadius || 0.78;
+  const WAYPOINTS_PER_TRUNK = 5;
+  const ARC_NEIGHBORS = 7;                        // more H-like web density (was 4)
+  const MAX_PULSES    = 160;
+
+  // Central soma — reused factory makes a bright white-hot core
+  const soma = makeCore(scene, { radiusScale: 0.65 });
+
+  // HUBS placed via Fibonacci sphere, but each hub gets a slightly different RADIUS
+  // so the pattern is rotationally ASYMMETRIC — rotation is now visible because each
+  // hub traces a different-sized circle around the camera axis.
+  // First hub is designated PRIMARY (bigger + brighter) so it's trackable during rotation.
+  const hubs = [];
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < HUB_COUNT; i++) {
+    const y = 1 - (i / (HUB_COUNT - 1)) * 2;
+    const r = Math.sqrt(1 - y * y);
+    const theta = golden * i;
+    // Per-hub radius variation — 0.55–0.92 range. Breaks rotational symmetry.
+    const radJitter = 0.55 + ((i * 0.37) % 1.0) * 0.37;
+    const hubR = HUB_RADIUS * radJitter;
+    const pos = new THREE.Vector3(
+      Math.cos(theta) * r * hubR,
+      y * hubR,
+      Math.sin(theta) * r * hubR,
+    );
+
+    const isPrimary = (i === 0);   // ONE primary hub — bigger, brighter, easy to track
+    // Inner bright core
+    const coreRadius = isPrimary ? 0.045 : 0.022;
+    const coreGeo = new THREE.SphereGeometry(coreRadius, 18, 18);
+    const coreMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: isPrimary ? 1.0 : 0.80,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    coreMesh.position.copy(pos);
+    scene.add(coreMesh);
+
+    // Outer fresnel halo — primary's halo is significantly bigger so it's the tracked element
+    const haloRadius = isPrimary ? 0.120 : 0.060;
+    const haloGeo = new THREE.SphereGeometry(haloRadius, 24, 24);
+    const haloMat = new THREE.ShaderMaterial({
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+      uniforms: { uAudio: { value: 0 } },
+      vertexShader: `
+        varying vec3 vNormal; varying vec3 vView;
+        void main() {
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vNormal = normalize(normalMatrix * normal);
+          vView   = normalize(-mv.xyz);
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: `
+        uniform float uAudio;
+        varying vec3 vNormal; varying vec3 vView;
+        void main() {
+          float f = pow(1.0 - max(dot(vNormal, vView), 0.0), 1.5);
+          vec3 col = mix(vec3(1.0), vec3(0.42, 0.92, 1.0), f);
+          float bright = (0.85 + uAudio * 0.6) * (1.0 - f * 0.4);
+          gl_FragColor = vec4(col * bright, (1.0 - f) * 0.65);
+        }
+      `,
+    });
+    const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+    haloMesh.position.copy(pos);
+    scene.add(haloMesh);
+
+    hubs.push({ pos, mesh: coreMesh, mat: coreMat, haloMat, activation: 0.3 });
+  }
+
+  // SATELLITES — small cyan dots clustered around each hub
+  const sats = [];
+  for (const h of hubs) {
+    for (let s = 0; s < SATS_PER_HUB; s++) {
+      const dir = new THREE.Vector3(
+        Math.random() - 0.5,
+        Math.random() - 0.5,
+        Math.random() - 0.5,
+      ).normalize();
+      const offset = dir.clone().multiplyScalar(0.13 + Math.random() * 0.10);
+      const pos = h.pos.clone().add(offset);
+      const geo = new THREE.SphereGeometry(0.018, 10, 10);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x67e8f9,
+        transparent: true,
+        opacity: 0.45,            // dimmer satellites
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(pos);
+      scene.add(mesh);
+      sats.push({ pos, mesh, mat, parentHub: h, activation: 0 });
+
+      // Thin satellite-to-hub line — dim, just a hint of cluster membership
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([pos, h.pos]);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x67e8f9, transparent: true, opacity: 0.18,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      scene.add(new THREE.Line(lineGeo, lineMat));
+    }
+  }
+
+  // INNER-SHELL DENSITY CLOUD — small nodes biased toward the center (radius 0.10–0.50)
+  // so the network is dense in the middle and sparse near the bubble edge.
+  // Some of these get thin connecting lines between nearby neighbors → "central mesh."
+  const innerNodes = [];
+  const INNER_COUNT = 35;
+  for (let i = 0; i < INNER_COUNT; i++) {
+    // Bias toward center: pow distribution favors small radius values.
+    const u = Math.random();
+    const radius = 0.10 + Math.pow(u, 2.2) * 0.42;   // most points end up near 0.10–0.30
+    const phi   = Math.acos(2 * Math.random() - 1);  // uniform on sphere
+    const theta = Math.random() * Math.PI * 2;
+    const pos = new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta) * radius,
+      Math.sin(phi) * Math.sin(theta) * radius,
+      Math.cos(phi) * radius,
+    );
+    const dotGeo = new THREE.SphereGeometry(0.012 + Math.random() * 0.008, 8, 8);
+    const dotMat = new THREE.MeshBasicMaterial({
+      color: 0xb0e8ff,
+      transparent: true,
+      opacity: 0.55 + Math.random() * 0.25,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(dotGeo, dotMat);
+    mesh.position.copy(pos);
+    scene.add(mesh);
+    innerNodes.push({ pos, mesh, mat: dotMat, basePhase: Math.random() * Math.PI * 2 });
+  }
+  // Inner-mesh: short lines between near neighbors (each inner node connects to its 2 closest)
+  for (let i = 0; i < innerNodes.length; i++) {
+    const dists = innerNodes.map((n, j) => ({ j, d: i === j ? Infinity : n.pos.distanceTo(innerNodes[i].pos) }));
+    dists.sort((a, b) => a.d - b.d);
+    for (let k = 0; k < 2; k++) {
+      if (dists[k].d > 0.35) continue;
+      const j = dists[k].j;
+      if (j <= i) continue;   // dedupe (each pair only once)
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([innerNodes[i].pos, innerNodes[j].pos]);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x67e8f9, transparent: true, opacity: 0.18,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      scene.add(new THREE.Line(lineGeo, lineMat));
+    }
+  }
+
+  // TRUNKS — organic swooping curves from SOMA to each HUB using CatmullRomCurve3
+  // with several jittered intermediate waypoints (more H-like sweeping arcs vs the
+  // tight quadratic curve from v1). Each trunk gets bright waypoint dots.
+  const trunks = [];
+  const waypointDots = [];     // {pos, mesh, mat, basePhase}
+  for (const h of hubs) {
+    const a = new THREE.Vector3(0, 0, 0);
+    const b = h.pos;
+    // 4 intermediate control points with larger jitter — visibly more wiggly/organic
+    const ctrl = [a.clone()];
+    for (let s = 1; s <= 4; s++) {
+      const t = s / 5;
+      const p = a.clone().lerp(b, t);
+      // Bigger jitter — sin shape concentrates wobble in mid-path
+      const jitterMag = 0.14 + 0.22 * Math.sin(t * Math.PI);
+      const perp = new THREE.Vector3(
+        Math.random() - 0.5,
+        Math.random() - 0.5,
+        Math.random() - 0.5,
+      ).normalize().multiplyScalar(jitterMag);
+      ctrl.push(p.add(perp));
+    }
+    ctrl.push(b.clone());
+    const curve = new THREE.CatmullRomCurve3(ctrl);
+    const points = curve.getPoints(48);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0x67e8f9,
+      transparent: true,
+      opacity: 0.42,             // dimmer so the chrome bubble color stays dominant
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Line(lineGeo, lineMat);
+    scene.add(mesh);
+    trunks.push({ hub: h, curve, mesh, mat: lineMat, activePulses: [] });
+
+    // Sample WAYPOINTS_PER_TRUNK positions along the curve and place a bright dot at each
+    for (let w = 1; w <= WAYPOINTS_PER_TRUNK; w++) {
+      const tParam = (w / (WAYPOINTS_PER_TRUNK + 1));
+      const pos = curve.getPoint(tParam);
+      const geo = new THREE.SphereGeometry(0.016, 8, 8);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xb0e8ff,
+        transparent: true,
+        opacity: 0.70,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const dotMesh = new THREE.Mesh(geo, mat);
+      dotMesh.position.copy(pos);
+      scene.add(dotMesh);
+      waypointDots.push({ mesh: dotMesh, mat, basePhase: Math.random() * Math.PI * 2 });
+    }
+  }
+
+  // INTER-HUB ARCS — connect each hub to its ARC_NEIGHBORS nearest hubs with curved bezier
+  const arcs = [];
+  const seenKey = new Set();
+  for (let i = 0; i < hubs.length; i++) {
+    const dists = hubs.map((h, j) => ({ j, d: i === j ? Infinity : h.pos.distanceTo(hubs[i].pos) }));
+    dists.sort((a, b) => a.d - b.d);
+    for (let k = 0; k < ARC_NEIGHBORS; k++) {
+      const j = dists[k].j;
+      const key = Math.min(i, j) + ',' + Math.max(i, j);
+      if (seenKey.has(key)) continue;
+      seenKey.add(key);
+      const a = hubs[i].pos;
+      const b = hubs[j].pos;
+      // CatmullRom with 3 jittered intermediate points → wigglier organic arc (H-flavor)
+      const ctrl = [a.clone()];
+      for (let s = 1; s <= 3; s++) {
+        const t = s / 4;
+        const p = a.clone().lerp(b, t);
+        const jitterMag = 0.22 + 0.20 * Math.sin(t * Math.PI);
+        const perp = new THREE.Vector3(
+          Math.random() - 0.5,
+          Math.random() - 0.5,
+          Math.random() - 0.5,
+        ).normalize().multiplyScalar(jitterMag);
+        ctrl.push(p.add(perp));
+      }
+      ctrl.push(b.clone());
+      const curve = new THREE.CatmullRomCurve3(ctrl);
+      const points = curve.getPoints(36);
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x4ab8d4,
+        transparent: true,
+        opacity: 0.30,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Line(lineGeo, lineMat);
+      scene.add(mesh);
+      arcs.push({ a: i, b: j, curve, mesh, mat: lineMat, activePulses: [] });
+    }
+  }
+
+  // PULSE buffer — shared across trunks + arcs
+  const pulsePos = new Float32Array(MAX_PULSES * 3);
+  const pulseAlpha = new Float32Array(MAX_PULSES);
+  for (let i = 0; i < MAX_PULSES; i++) {
+    pulsePos[i*3+0] = 999; pulsePos[i*3+1] = 999; pulsePos[i*3+2] = 999;
+    pulseAlpha[i] = 0;
+  }
+  const pulseGeo = new THREE.BufferGeometry();
+  pulseGeo.setAttribute('position', new THREE.BufferAttribute(pulsePos, 3));
+  pulseGeo.setAttribute('aAlpha',   new THREE.BufferAttribute(pulseAlpha, 1));
+  const pulseMat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    uniforms: { uPixel: { value: window.devicePixelRatio || 1 } },
+    vertexShader: `
+      uniform float uPixel;
+      attribute float aAlpha;
+      varying float vAlpha;
+      void main() {
+        vAlpha = aAlpha;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        // Bigger pulse points (6.5 vs 4.0) so the "lights traveling down paths" reads visibly
+        gl_PointSize = uPixel * 6.5 * (14.0 / -mv.z) * (0.5 + aAlpha * 0.8);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      varying float vAlpha;
+      void main() {
+        vec2 uv = gl_PointCoord - vec2(0.5);
+        float d = length(uv); if (d > 0.5) discard;
+        float falloff = smoothstep(0.5, 0.0, d);
+        // Pure white-hot — pops against the cyan paths
+        gl_FragColor = vec4(vec3(1.0, 1.0, 1.0), falloff * vAlpha);
+      }
+    `,
+  });
+  const pulses = new THREE.Points(pulseGeo, pulseMat);
+  scene.add(pulses);
+
+  // BACKGROUND HUD RINGS — same family as variant H
+  for (let i = 0; i < 5; i++) {
+    const r = 1.20 + i * 0.18;
+    const g = new THREE.RingGeometry(r, r + 0.008, 128);
+    const m = new THREE.MeshBasicMaterial({
+      color: 0x22d3ee, transparent: true,
+      opacity: 0.18 + (4 - i) * 0.025,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide, depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(g, m);
+    mesh.rotation.x = Math.PI / 5;
+    mesh.rotation.z = i * 0.10;
+    scene.add(mesh);
+  }
+
+  let spawnAcc = 0;
+  let firesThisSecond = 0;
+  let fireWindowStart = 0;
+
+  function step(t, dt, audio, now) {
+    // Bumped: idle 2.5→5, speaking 6→9, thinking 8.5→11. Always visible traffic.
+    let baseRate = 5.0;
+    if (simulatedState === 'speaking') baseRate = 9.0;
+    if (simulatedState === 'thinking') baseRate = 11.0;
+    spawnAcc += dt * (baseRate + audio * 16.0);
+    while (spawnAcc >= 1.0) {
+      spawnAcc -= 1.0;
+      // 85% spawn on a trunk (soma→hub flow); 15% on an inter-hub arc
+      if (Math.random() < 0.85) {
+        const tr = trunks[Math.floor(Math.random() * trunks.length)];
+        tr.activePulses.push({
+          progress: 0,
+          speed: 0.9 + Math.random() * 0.5 + audio * 0.5,
+          intensity: 0.90 + audio * 0.20,        // brighter pulses
+        });
+      } else {
+        const arc = arcs[Math.floor(Math.random() * arcs.length)];
+        arc.activePulses.push({
+          progress: 0,
+          speed: 0.8 + Math.random() * 0.4 + audio * 0.4,
+          intensity: 0.80 + audio * 0.25,
+          reverse: Math.random() < 0.5,
+        });
+      }
+      firesThisSecond++;
+    }
+
+    // Advance trunk pulses; hubs flare on arrival + cascade to their satellites
+    for (const tr of trunks) {
+      tr.activePulses = tr.activePulses.filter(p => {
+        p.progress += dt * p.speed;
+        if (p.progress >= 1.0) {
+          tr.hub.activation = Math.min(1.0, tr.hub.activation + 0.50);
+          // Cascade: each satellite of this hub has 50% chance to light up
+          for (const s of sats) {
+            if (s.parentHub === tr.hub && Math.random() < 0.55) {
+              s.activation = Math.min(1.0, s.activation + 0.50);
+            }
+          }
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Advance arc pulses; destination hub flares
+    for (const arc of arcs) {
+      arc.activePulses = arc.activePulses.filter(p => {
+        p.progress += dt * p.speed;
+        if (p.progress >= 1.0) {
+          const targetIdx = p.reverse ? arc.a : arc.b;
+          hubs[targetIdx].activation = Math.min(1.0, hubs[targetIdx].activation + 0.35);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Decay + visual update — smaller scale swing so hubs don't dominate
+    for (const h of hubs) {
+      h.activation = Math.max(0, h.activation - dt * 1.4);
+      h.mesh.scale.setScalar(1.0 + h.activation * 0.4 + audio * 0.10);
+      h.mat.opacity = 0.70 + h.activation * 0.25;
+      if (h.haloMat) h.haloMat.uniforms.uAudio.value = audio + h.activation * 0.4;
+    }
+    for (const s of sats) {
+      s.activation = Math.max(0, s.activation - dt * 1.5);
+      s.mesh.scale.setScalar(1.0 + s.activation * 0.55 + audio * 0.08);
+      s.mat.opacity = 0.35 + s.activation * 0.40 + audio * 0.10;   // dimmer baseline
+    }
+
+    // Soma
+    soma.mat.uniforms.uTime.value  = t;
+    soma.mat.uniforms.uAudio.value = audio;
+    soma.mesh.scale.setScalar(1.0 + audio * 0.55 + Math.sin(t * 1.3) * 0.04);
+
+    // Trunk + arc opacity (dimmed — let chrome bubble color stay dominant)
+    for (const tr of trunks) {
+      tr.mat.opacity = 0.38 + audio * 0.25 + Math.min(tr.activePulses.length, 3) * 0.06;
+    }
+    for (const arc of arcs) {
+      arc.mat.opacity = 0.18 + audio * 0.18 + Math.min(arc.activePulses.length, 3) * 0.05;
+    }
+
+    // Waypoint dots twinkle but dimmer than v1
+    for (const w of waypointDots) {
+      const twinkle = 0.55 + 0.45 * Math.sin(t * 2.2 + w.basePhase);
+      w.mat.opacity = 0.35 * twinkle + audio * 0.25;
+      w.mesh.scale.setScalar(1.0 + audio * 0.30 + 0.10 * Math.sin(t * 1.8 + w.basePhase));
+    }
+
+    // Update shared pulse buffer
+    let slot = 0;
+    for (const tr of trunks) {
+      for (const p of tr.activePulses) {
+        if (slot >= MAX_PULSES) break;
+        const pt = tr.curve.getPoint(p.progress);
+        pulsePos[slot*3+0] = pt.x;
+        pulsePos[slot*3+1] = pt.y;
+        pulsePos[slot*3+2] = pt.z;
+        pulseAlpha[slot] = p.intensity * (1.0 - 0.25 * Math.abs(2*p.progress - 1));
+        slot++;
+      }
+      if (slot >= MAX_PULSES) break;
+    }
+    for (const arc of arcs) {
+      for (const p of arc.activePulses) {
+        if (slot >= MAX_PULSES) break;
+        const prog = p.reverse ? (1.0 - p.progress) : p.progress;
+        const pt = arc.curve.getPoint(prog);
+        pulsePos[slot*3+0] = pt.x;
+        pulsePos[slot*3+1] = pt.y;
+        pulsePos[slot*3+2] = pt.z;
+        pulseAlpha[slot] = p.intensity * (1.0 - 0.25 * Math.abs(2*p.progress - 1));
+        slot++;
+      }
+      if (slot >= MAX_PULSES) break;
+    }
+    for (let i = slot; i < MAX_PULSES; i++) pulseAlpha[i] = 0;
+    pulseGeo.attributes.position.needsUpdate = true;
+    pulseGeo.attributes.aAlpha.needsUpdate = true;
+
+    // Rotation around the camera-facing Z axis is visibly an "orbit" on screen.
+    // ~23°/sec — fast enough that you read the spin in 2–3 seconds of watching.
+    scene.userData.hybridRotZ = (scene.userData.hybridRotZ || 0) + dt * 0.40;
+    scene.userData.hybridRotY = (scene.userData.hybridRotY || 0) + dt * 0.08;
+    scene.userData.hybridRotX = Math.sin(t * 0.18) * 0.08;
+
+    if (now - fireWindowStart > 1000) {
+      scene.userData.hybridFireRate = firesThisSecond;
+      firesThisSecond = 0;
+      fireWindowStart = now;
+    }
+  }
+
+  return {
+    step, hubs, soma,
+    hubCount: hubs.length,
+    satCount: sats.length,
+    trunkCount: trunks.length,
+    arcCount: arcs.length,
+  };
+}
+
+// ===== BUILDER: Energy reactor (COMBO + E share this) =====
+function buildEnergyReactor(canvas, { includeShell = false } = {}) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 1);
+  renderer.toneMapping = THREE.NoToneMapping;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+  camera.position.set(0, 0, 6.5);
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.45, 0.40, 0.85);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  const im = includeShell ? 0.70 : 1.0;
+  const rings = [
+    makeWavyRing(scene, { radius: 2.10, tube: 0.022, color: 0x22d3ee, intensity: 0.55 * im, spinSec: 12, direction: +1, freq: 5,  wobble: 0.050 }),
+    makeWavyRing(scene, { radius: 1.70, tube: 0.026, color: 0x67e8f9, intensity: 0.70 * im, spinSec:  8, direction: -1, freq: 7,  wobble: 0.060 }),
+    makeWavyRing(scene, { radius: 1.30, tube: 0.024, color: 0x80e0ff, intensity: 0.80 * im, spinSec:  6, direction: +1, freq: 6,  wobble: 0.065 }),
+    makeWavyRing(scene, { radius: 0.95, tube: 0.020, color: 0xa0eaff, intensity: 0.90 * im, spinSec:  4, direction: -1, freq: 8,  wobble: 0.055 }),
+    makeWavyRing(scene, { radius: 0.60, tube: 0.018, color: 0xd0f4ff, intensity: 1.05 * im, spinSec:  3, direction: +1, freq: 10, wobble: 0.042 }),
+  ];
+  const core = makeCore(scene);
+  const halos = [];
+  for (let i = 0; i < 3; i++) {
+    const r = 0.28 + i * 0.10;
+    const g = new THREE.RingGeometry(r, r + 0.012, 96);
+    const m = new THREE.MeshBasicMaterial({
+      color: 0xb0e8ff, transparent: true, opacity: 0.35,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(g, m);
+    scene.add(mesh);
+    halos.push({ mesh, mat: m, baseR: r, phase: i * 1.3 });
+  }
+  const particles = makeParticles(scene, 140);
+  let shell = null;
+  if (includeShell) shell = makeChromeShell(scene, { radius: 2.05 });
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    renderer.setSize(r.width, r.height, false);
+    composer.setSize(r.width, r.height);
+    camera.aspect = r.width / r.height;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(canvas);
+
+  return { renderer, scene, camera, composer, bloom, rings, core, halos, particles, shell };
+}
+
+// ===== BUILDER: D — chrome shell only over an HTML SVG reactor =====
+function buildDChrome(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 0);
+  renderer.toneMapping = THREE.NoToneMapping;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, 0, 2.6);
+  const shell = makeChromeShell(scene, { radius: 1.0 });
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    renderer.setSize(r.width, r.height, false);
+    camera.aspect = r.width / r.height;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(canvas);
+  return { renderer, scene, camera, shell };
+}
+
+// ===== BUILDER: F (NEURAL) — neuron graph + chrome shell + bloom =====
+function buildNeural(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 1);
+  renderer.toneMapping = THREE.NoToneMapping;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+  camera.position.set(0, 0, 4.2);
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.45, 0.70);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  // Hold the neuron + chrome inside a Group so we can rotate the whole assembly together
+  const group = new THREE.Group();
+  scene.add(group);
+  const neuron = makeNeuronGraph(group, { nodes: 14, knn: 2, shellRadius: 0.85 });
+  const shell  = makeChromeShell(group, { radius: 1.20 });
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    renderer.setSize(r.width, r.height, false);
+    composer.setSize(r.width, r.height);
+    camera.aspect = r.width / r.height;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(canvas);
+
+  return { renderer, scene, camera, composer, bloom, group, neuron, shell };
+}
+
+// ===== BUILDER: G — dendrite cell in chrome shell =====
+function buildDendrite(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 1);
+  renderer.toneMapping = THREE.NoToneMapping;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+  camera.position.set(0, 0, 4.0);
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  // Lower bloom + higher threshold — only bright peaks bloom; the tube/dot stack
+  // doesn't blow the frame white anymore.
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.45, 0.78);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  const group = new THREE.Group();
+  scene.add(group);
+  const dendrite = makeDendriteCell(group, { trunks: 20, maxDepth: 4, trunkLen: 0.40, shellR: 0.88 });
+  const shell    = makeChromeShell(group, { radius: 1.20 });
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    renderer.setSize(r.width, r.height, false);
+    composer.setSize(r.width, r.height);
+    camera.aspect = r.width / r.height;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(canvas);
+
+  return { renderer, scene, camera, composer, bloom, group, dendrite, shell };
+}
+
+// ===== BUILDER: H — supernode graph + HUD rings (NO chrome shell) =====
+function buildSupernode(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 1);
+  renderer.toneMapping = THREE.NoToneMapping;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+  camera.position.set(0, 0, 4.5);
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  // Restored to the previous H look: NO bubble shell, dense graph, just HUD rings bg
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 1.00, 0.55, 0.40);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  const group = new THREE.Group();
+  scene.add(group);
+  const supernode = makeSupernodeGraph(group, { nodes: 78, hubs: 4, radius: 1.10, knn: 7 });
+  const shell = null;
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    renderer.setSize(r.width, r.height, false);
+    composer.setSize(r.width, r.height);
+    camera.aspect = r.width / r.height;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(canvas);
+
+  return { renderer, scene, camera, composer, bloom, group, supernode, shell };
+}
+
+// ===== BUILDER: I — radial hub network INSIDE chrome bubble (like G) =====
+function buildHybrid(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 1);
+  renderer.toneMapping = THREE.NoToneMapping;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+  camera.position.set(0, 0, 4.0);
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  // Lower bloom + higher threshold so the chrome bubble color reads clearly, not cloudy
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.30, 0.45, 0.85);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  // Outer group (parent) holds the shell — STATIONARY.
+  // Inner group holds the network — rotates inside the stationary bubble.
+  const group = new THREE.Group();
+  scene.add(group);
+  const networkGroup = new THREE.Group();
+  group.add(networkGroup);
+  // Use H's exact supernode graph factory as I's core — smaller hubScale (0.70)
+  // and a slightly tighter radius so it fits comfortably inside the bubble.
+  const hybrid = makeSupernodeGraph(networkGroup, {
+    nodes: 78, hubs: 4, radius: 0.95, knn: 7,
+    hubScale: 0.70,
+  });
+  // REAL GLASS BUBBLE — MeshPhysicalMaterial with PBR transmission + iridescence.
+  // Replaces the old fresnel-tinted ShaderMaterial that was reading as emission.
+  // (Renderer/scene needed for PMREMGenerator and scene.environment hookup.)
+  const shell  = makeGlassBubble(renderer, scene, group, { radius: 1.15 });
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    renderer.setSize(r.width, r.height, false);
+    composer.setSize(r.width, r.height);
+    camera.aspect = r.width / r.height;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(canvas);
+
+  return { renderer, scene, camera, composer, bloom, group, networkGroup, hybrid, shell };
+}
+
+// ===== BUILDER: J — top-down moon-jellyfish disc (matches kFoImWQU reference) =====
+function buildJelly(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x00040a, 1);   // deep navy background
+  renderer.toneMapping = THREE.NoToneMapping;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1.3, 1.3, 1.3, -1.3, 0.1, 10);
+  camera.position.set(0, 0, 3);
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  // Per lab MSE tuning: strength 0.40, radius 0.55, threshold 0.60
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.40, 0.55, 0.60);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  const group = new THREE.Group();
+  scene.add(group);
+  const disc = makeJellyDiscLayered(group, { size: 2.6 });
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    renderer.setSize(r.width, r.height, false);
+    composer.setSize(r.width, r.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(canvas);
+
+  return { renderer, scene, camera, composer, bloom, group, disc };
+}
+
+// ===== BUILDER: K — supernode network LAYERED on the jellyfish disc =====
+function buildJellyHybrid(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x00040a, 1);
+  renderer.toneMapping = THREE.NoToneMapping;
+
+  const scene = new THREE.Scene();
+  // Same orthographic top-down framing as J
+  const camera = new THREE.OrthographicCamera(-1.3, 1.3, 1.3, -1.3, 0.1, 10);
+  camera.position.set(0, 0, 3);
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.38, 0.55, 0.60);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  const group = new THREE.Group();
+  scene.add(group);
+
+  // The disc is the BACKGROUND layer for K — sits at z=-0.1 behind the network
+  const discGroup = new THREE.Group();
+  discGroup.position.z = -0.1;
+  group.add(discGroup);
+  const disc = makeJellyDiscLayered(discGroup, { size: 2.6 });
+
+  // The supernode network sits IN FRONT of the disc, scaled to fit comfortably
+  const networkGroup = new THREE.Group();
+  networkGroup.scale.setScalar(0.55);     // fit inside the cloverleaf zone
+  group.add(networkGroup);
+  const network = makeSupernodeGraph(networkGroup, {
+    nodes: 78, hubs: 4, radius: 0.85, knn: 7,
+    hubScale: 0.55,
+  });
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    renderer.setSize(r.width, r.height, false);
+    composer.setSize(r.width, r.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(canvas);
+
+  return { renderer, scene, camera, composer, bloom, group, networkGroup, network, disc };
+}
+
+// ===== Build all NINE reactors =====
+const combo    = buildEnergyReactor(document.getElementById('canvasCombo'), { includeShell: true });
+const eOnly    = buildEnergyReactor(document.getElementById('canvasE'),     { includeShell: false });
+const dChrome  = buildDChrome(document.getElementById('canvasD'));
+const neural   = buildNeural(document.getElementById('canvasF'));
+const dendrite = buildDendrite(document.getElementById('canvasG'));
+const supernode = buildSupernode(document.getElementById('canvasH'));
+const hybrid   = buildHybrid(document.getElementById('canvasI'));
+const jelly    = buildJelly(document.getElementById('canvasJ'));
+const jellyHybrid = buildJellyHybrid(document.getElementById('canvasK'));
+
+trySetupMic(document.getElementById('canvasCombo'));
+trySetupMic(document.getElementById('canvasD'));
+trySetupMic(document.getElementById('canvasE'));
+trySetupMic(document.getElementById('canvasF'));
+trySetupMic(document.getElementById('canvasG'));
+trySetupMic(document.getElementById('canvasH'));
+trySetupMic(document.getElementById('canvasI'));
+trySetupMic(document.getElementById('canvasJ'));
+trySetupMic(document.getElementById('canvasK'));
+
+// DOM refs
+const ampCombo = document.getElementById('ampCombo');
+const ampD     = document.getElementById('ampD');
+const ampE     = document.getElementById('ampE');
+const ampF     = document.getElementById('ampF');
+const ampG     = document.getElementById('ampG');
+const ampH     = document.getElementById('ampH');
+const ampI     = document.getElementById('ampI');
+const lvlE     = document.getElementById('lvlE');
+const edgesF   = document.getElementById('edgesF');
+const fireF    = document.getElementById('fireF');
+const branchesG = document.getElementById('branchesG');
+const termG     = document.getElementById('termG');
+const nodesH    = document.getElementById('nodesH');
+const edgesH    = document.getElementById('edgesH');
+const fireH     = document.getElementById('fireH');
+const nodesI    = document.getElementById('nodesI');
+const edgesI    = document.getElementById('edgesI');
+const fireI     = document.getElementById('fireI');
+const ampJ      = document.getElementById('ampJ');
+const tentJ     = document.getElementById('tentJ');
+const ampK      = document.getElementById('ampK');
+const nodesK    = document.getElementById('nodesK');
+const edgesK    = document.getElementById('edgesK');
+const tentK     = document.getElementById('tentK');
+const dStage   = document.getElementById('dStage');
+
+edgesF.textContent    = String(neural.neuron.edgeCount);
+branchesG.textContent = String(dendrite.dendrite.branches);
+termG.textContent     = String(dendrite.dendrite.terminals);
+nodesH.textContent    = String(supernode.supernode.nodeCount);
+edgesH.textContent    = String(supernode.supernode.edgeCount);
+nodesI.textContent    = String(hybrid.hybrid.nodeCount);
+edgesI.textContent    = String(hybrid.hybrid.edgeCount);
+tentJ.textContent     = '—';                                      // disc has no tentacles
+nodesK.textContent    = String(jellyHybrid.network.nodeCount);
+edgesK.textContent    = String(jellyHybrid.network.edgeCount);
+tentK.textContent     = '—';
+
+let frame = 0;
+
+function updateEnergy(r, t, dt, a) {
+  for (const ring of r.rings) {
+    const baseSpin = (Math.PI * 2) / ring.spinSec;
+    const boost = 1.0 + a * 1.6
+                + (simulatedState === 'speaking' ? 0.4 : 0)
+                + (simulatedState === 'thinking' ? 0.2 : 0);
+    ring.mesh.rotation.z += baseSpin * boost * ring.direction * 0.016;
+    ring.mat.uniforms.uTime.value  = t;
+    ring.mat.uniforms.uAudio.value = a;
+    const s = 1.0 + a * 0.05;
+    ring.mesh.scale.set(s, s, 1);
+  }
+  r.core.mat.uniforms.uTime.value  = t;
+  r.core.mat.uniforms.uAudio.value = a;
+  r.core.mesh.scale.setScalar(1.0 + a * 0.55 + Math.sin(t * 1.3) * 0.04);
+  r.halos.forEach((h, i) => {
+    const ph = h.phase + t * 1.4;
+    h.mesh.scale.setScalar(1.0 + (0.05 + a * 0.30) * (0.6 + 0.4 * Math.sin(ph)));
+    h.mat.opacity = 0.30 + a * 0.45 + 0.10 * Math.sin(ph * 1.7);
+  });
+  r.particles.step(dt, a);
+  r.particles.mat.uniforms.uTime.value  = t;
+  r.particles.mat.uniforms.uAudio.value = a;
+  if (r.shell) {
+    r.shell.mat.uniforms.uTime.value  = t;
+    r.shell.mat.uniforms.uAudio.value = a;
+  }
+  r.bloom.strength = 0.40 + a * 0.50;
+  r.composer.render();
+}
+
+function updateD(t, a, rotY) {
+  dChrome.shell.mat.uniforms.uTime.value  = t;
+  dChrome.shell.mat.uniforms.uAudio.value = a;
+  dChrome.shell.mesh.rotation.y = t * 0.10;
+  dChrome.shell.mesh.rotation.x = Math.sin(t * 0.15) * 0.10;
+  dChrome.renderer.render(dChrome.scene, dChrome.camera);
+
+  // CYAN→BLUE band (matches shell shader): 0.48 → 0.66
+  const rawHue = (0.50 + a * 0.30 + t * 0.012) % 1.0;
+  const hue = (0.48 + rawHue * 0.18) * 360;
+  const tint = `hsl(${hue.toFixed(1)}, 70%, ${(62 + a * 12).toFixed(1)}%)`;
+  const tintLow = `hsla(${hue.toFixed(1)}, 70%, ${(62 + a * 12).toFixed(1)}%, 0.18)`;
+  dStage.style.setProperty('--vd-scale', (1 + a * 0.06).toFixed(3));
+  dStage.style.setProperty('--vd-rot', ((-rotY * 12) + Math.sin(t * 0.7) * 1.5).toFixed(2) + 'deg');
+  dStage.style.setProperty('--vd-tint', tint);
+  dStage.style.setProperty('--vd-octa-fill', tintLow);
+  dStage.style.setProperty('--vd-lit-alpha', (0.4 + a * 0.45).toFixed(3));
+  dStage.style.setProperty('--vd-shadow', (8 + a * 18).toFixed(1) + 'px');
+  dStage.style.setProperty('--vd-core-glow', (6 + a * 16).toFixed(1) + 'px');
+  dStage.style.setProperty('--vd-core-opacity', (0.75 + a * 0.25).toFixed(3));
+}
+
+function updateNeural(t, dt, a, now) {
+  neural.neuron.step(t, dt, a, now);
+  neural.shell.mat.uniforms.uTime.value  = t;
+  neural.shell.mat.uniforms.uAudio.value = a;
+  // Drive rotation from t directly (same userData scope bug — fix here too)
+  neural.group.rotation.y = t * 0.05;
+  neural.group.rotation.x = Math.sin(t * 0.13) * 0.10;
+  neural.bloom.strength = 0.45 + a * 0.50;
+  neural.composer.render();
+}
+
+function updateDendrite(t, dt, a) {
+  dendrite.dendrite.step(t, dt, a);
+  dendrite.shell.mat.uniforms.uTime.value  = t;
+  dendrite.shell.mat.uniforms.uAudio.value = a;
+  // Whole-group slow rotation so it reads as 3D
+  dendrite.group.rotation.y = (dendrite.group.rotation.y || 0) + 0.016 * 0.05;
+  dendrite.group.rotation.x = Math.sin(t * 0.13) * 0.07;
+  // C1 BUBBLE BREATH: 2% idle oscillation + scale with audio peaks (up to ~+5%).
+  // The whole assembly breathes — gives the "alive organism" feel.
+  const breath = 1.0 + 0.02 * Math.sin(t * 1.0) + a * 0.04;
+  dendrite.group.scale.setScalar(breath);
+  dendrite.bloom.strength = 0.55 + a * 0.45;
+  dendrite.composer.render();
+}
+
+// Insight burst tracker — fires every 3–7s in thinking mode (still useful for H even
+// without the bubble; lets a random hub flare up dramatically)
+let lastInsightBurst = 0;
+let nextInsightInterval = 4000;
+function updateJelly(t, dt, a) {
+  // Disc shader handles all motion via uTime; very slow rotation makes the whole pattern drift
+  jelly.disc.step(t, a);
+  jelly.group.rotation.z = t * 0.015;
+  jelly.bloom.strength = 0.30 + a * 0.30;
+  jelly.composer.render();
+}
+
+function updateJellyHybrid(t, dt, a, now) {
+  jellyHybrid.disc.step(t, a);
+  // Disc drifts slowly behind; network spins in front at H's slow pace
+  jellyHybrid.network.step(t, dt, a, now);
+  jellyHybrid.networkGroup.rotation.z = t * 0.025;
+  jellyHybrid.group.rotation.z = t * 0.005;            // very subtle whole-disc drift
+  jellyHybrid.bloom.strength = 0.28 + a * 0.30;
+  jellyHybrid.composer.render();
+}
+
+function updateHybrid(t, dt, a, now) {
+  hybrid.hybrid.step(t, dt, a, now);
+  // ONLY the inner network rotates — bubble stays still.
+  // Slower than H — about 1.4°/sec for a gentle meditative drift.
+  hybrid.networkGroup.rotation.y = t * 0.025;
+  hybrid.networkGroup.rotation.x = Math.sin(t * 0.08) * 0.06;
+  hybrid.networkGroup.rotation.z = 0;
+  // Subtle breath on the whole assembly (network breathes, bubble follows audio)
+  const breath = 1.0 + 0.018 * Math.sin(t * 0.9) + a * 0.035;
+  hybrid.group.scale.setScalar(breath);
+  // I's bubble is now MeshPhysicalMaterial (no uTime/uAudio uniforms). No-op intentional.
+  hybrid.bloom.strength = 0.25 + a * 0.40;
+  hybrid.composer.render();
+}
+
+function updateSupernode(t, dt, a, now) {
+  supernode.supernode.step(t, dt, a, now);
+
+  if (simulatedState === 'thinking' && (now - lastInsightBurst) > nextInsightInterval) {
+    const hubs = supernode.supernode.hubs;
+    if (hubs && hubs.length) {
+      const target = hubs[Math.floor(Math.random() * hubs.length)];
+      target.activation = 1.0;
+    }
+    lastInsightBurst = now;
+    nextInsightInterval = 3000 + Math.random() * 4000;
+  }
+
+  // Drive rotation from t directly (same userData scope bug — fix here too)
+  supernode.group.rotation.y = t * 0.04;
+  supernode.group.rotation.x = Math.sin(t * 0.10) * 0.08;
+
+  supernode.bloom.strength = 0.55 + a * 0.45;
+  supernode.composer.render();
+}
+
+function tick(now) {
+  const t = now * 0.001;
+  const raw = readAudio(t);
+  audioSmooth += (raw - audioSmooth) * 0.16;
+  const a = audioSmooth;
+  const dt = 0.016;
+
+  updateEnergy(combo, t, dt, a);
+  updateEnergy(eOnly, t, dt, a);
+  updateD(t, a, combo.rings[0].mesh.rotation.z);
+  updateNeural(t, dt, a, now);
+  updateDendrite(t, dt, a);
+  updateSupernode(t, dt, a, now);
+  updateHybrid(t, dt, a, now);
+  updateJelly(t, dt, a);
+  updateJellyHybrid(t, dt, a, now);
+
+  if ((frame++ % 8) === 0) {
+    const aStr = a.toFixed(2);
+    ampCombo.textContent = aStr;
+    ampD.textContent     = aStr;
+    ampE.textContent     = aStr;
+    ampF.textContent     = aStr;
+    ampG.textContent     = aStr;
+    ampH.textContent     = aStr;
+    ampI.textContent     = aStr;
+    ampJ.textContent     = aStr;
+    ampK.textContent     = aStr;
+    lvlE.textContent     = String(Math.round(a * 99)).padStart(2, '0');
+    const fr = neural.scene.userData.neuronFireRate;
+    if (fr !== undefined) fireF.textContent = String(fr);
+    const fh = supernode.scene.userData.supernodeFireRate;
+    if (fh !== undefined) fireH.textContent = String(fh);
+    // I now uses makeSupernodeGraph internally — fire rate field is supernodeFireRate,
+    // and the factory writes it on the group/networkGroup it was passed (not the scene).
+    const fi = hybrid.networkGroup.userData.supernodeFireRate;
+    if (fi !== undefined) fireI.textContent = String(fi);
+  }
+
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+
+</body>
+</html>

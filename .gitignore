@@ -19,6 +19,10 @@ test-results/
 # we adopt other prefixes.
 verify-*.png
 verify-*.jpeg
+iter-*.png
+jelly-lab-*.png
+jarvis-*.png
+lab-*.png
 
 # Session logs written by /compress for AI recall via /resume. Local-only
 # memory; not meaningful to commit. Two earlier files (2026-06-03 and

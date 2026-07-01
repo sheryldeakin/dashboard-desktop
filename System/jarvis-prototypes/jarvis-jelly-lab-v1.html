@@ -1,0 +1,1223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Jarvis · Jellyfish Lab (with live pixel diff)</title>
+<meta name="viewport" content="width=1900" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-base: #02060f;
+    --bg-deep: #000206;
+    --cyan: #22d3ee;
+    --cyan-bright: #67e8f9;
+    --text: #cbe9ee;
+    --text-mid: #6c92a0;
+    --text-mute: #3d5763;
+    --hairline: rgba(34, 211, 238, 0.18);
+    --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    --ui: -apple-system, 'Inter', BlinkMacSystemFont, system-ui, sans-serif;
+  }
+  html, body {
+    font-family: var(--ui);
+    color: var(--text);
+    overflow: auto;
+    background: #000;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(900px 700px at 50% 30%, rgba(34, 211, 238, 0.04) 0%, transparent 60%),
+      linear-gradient(160deg, var(--bg-base) 0%, var(--bg-deep) 100%);
+    background-attachment: fixed;
+  }
+
+  .lab {
+    width: 1900px;
+    padding: 20px 24px;
+    margin: 0 auto;
+  }
+
+  .topbar {
+    display: flex; align-items: baseline; gap: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--hairline);
+    margin-bottom: 18px;
+  }
+  .topbar h1 { font-family: var(--mono); font-size: 15px; letter-spacing: 0.20em; color: var(--cyan); font-weight: 600; }
+  .topbar .desc { font-size: 12px; color: var(--text-mute); }
+  .topbar .score {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--cyan-bright);
+    text-shadow: 0 0 6px rgba(34, 211, 238, 0.4);
+    padding: 6px 14px;
+    background: rgba(34, 211, 238, 0.08);
+    border: 1px solid rgba(34, 211, 238, 0.30);
+  }
+
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  .panel {
+    border: 1px solid rgba(34, 211, 238, 0.12);
+    background: rgba(4, 8, 12, 0.55);
+    padding: 12px;
+  }
+  .panel .lbl {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--cyan);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .panel .frame {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #000;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel .frame canvas,
+  .panel .frame img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+    image-rendering: -webkit-optimize-contrast;
+  }
+
+  .controls {
+    margin-top: 18px;
+    padding: 12px 14px;
+    border: 1px solid rgba(34, 211, 238, 0.15);
+    background: rgba(4, 8, 12, 0.60);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .controls .row { display: flex; align-items: center; gap: 6px; }
+  .controls label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-mid);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .controls input[type=range] {
+    width: 120px;
+  }
+  .controls .val {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--cyan-bright);
+    width: 42px;
+    text-align: right;
+  }
+  .controls button {
+    background: rgba(34, 211, 238, 0.06);
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    color: var(--cyan);
+    padding: 5px 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .controls button:hover {
+    background: rgba(34, 211, 238, 0.15);
+    color: var(--cyan-bright);
+  }
+
+  .breakdown {
+    margin-top: 14px;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-mid);
+    line-height: 1.7;
+    background: rgba(4, 8, 12, 0.40);
+    border: 1px solid rgba(34, 211, 238, 0.10);
+  }
+  .breakdown .metric {
+    color: var(--cyan-bright);
+    font-weight: 600;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three":         "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="lab">
+  <header class="topbar">
+    <h1>JELLYFISH LAB</h1>
+    <span class="desc">live render · reference image · pixel diff heatmap · MSE score</span>
+    <span class="score" id="score">MSE: —</span>
+  </header>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="lbl">Live render (variant J)</div>
+      <div class="frame"><canvas id="jellyCanvas" width="720" height="720"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="lbl">Pixel diff heatmap (red = mismatch)</div>
+      <div class="frame"><canvas id="diffCanvas" width="720" height="720"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="lbl">Reference (kFoImWQU)</div>
+      <div class="frame"><img id="refImg" src="ref-jelly.jpg" alt="reference" crossorigin="anonymous"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="row"><label>Bloom strength</label><input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="0.40"><span class="val" id="bloomStrengthVal">0.40</span></div>
+    <div class="row"><label>Bloom threshold</label><input type="range" id="bloomThreshold" min="0" max="1" step="0.02" value="0.60"><span class="val" id="bloomThresholdVal">0.60</span></div>
+    <div class="row"><label>Bell alpha</label><input type="range" id="bellAlpha" min="0" max="1" step="0.02" value="0.62"><span class="val" id="bellAlphaVal">0.62</span></div>
+    <div class="row"><label>Striations</label><input type="range" id="striations" min="0" max="1" step="0.05" value="0.30"><span class="val" id="striationsVal">0.30</span></div>
+    <div class="row"><label>Rim glow</label><input type="range" id="rimGlow" min="0" max="3" step="0.05" value="1.60"><span class="val" id="rimGlowVal">1.60</span></div>
+    <button id="reseedBtn">Reseed network</button>
+    <button id="captureBtn">Capture PNG</button>
+    <div class="row" style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.15); gap:6px;">
+      <label style="min-width:auto; opacity:0.85;">Voice sim</label>
+      <button id="voiceOffBtn"    style="padding:4px 8px;">Off</button>
+      <button id="voiceListenBtn" style="padding:4px 8px;">Listen</button>
+      <button id="voiceThinkBtn"  style="padding:4px 8px;">Think</button>
+      <button id="voiceSpeakBtn"  style="padding:4px 8px;">Speak</button>
+    </div>
+    <div class="row" style="opacity:0.7; font-size:11px;">
+      <span id="voiceStateLabel">state: off</span>
+      &nbsp;·&nbsp; <span id="voiceEnvLabel">env: 0.00</span>
+    </div>
+  </div>
+
+  <div class="breakdown" id="breakdown">
+    <span class="metric">MSE:</span> mean squared error per pixel (0 = identical, 65025 = maximum). Lower is better.
+    &nbsp;·&nbsp; <span class="metric">Bright match:</span> % of pixels within 20 units of reference in luminance.
+    &nbsp;·&nbsp; <span class="metric">Color match:</span> avg color similarity (0..1).
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer }   from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass }       from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass }  from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass }       from 'three/addons/postprocessing/OutputPass.js';
+
+// ============================================================================
+// LAYERED JELLYFISH per the nano-banana spec:
+//   Layer A: neural connectome (back, z=-0.30)
+//   Layer B: radial striations (middle, z=-0.20)
+//   Layer C: translucent bell with radial gradient (top, z=0)
+//   Layer D: outer rim glow (very top, z=0.05)
+// + UnrealBloomPass + ACES tone mapping
+// ============================================================================
+
+const canvas = document.getElementById('jellyCanvas');
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
+renderer.setPixelRatio(2);
+renderer.setSize(720, 720, false);
+renderer.setClearColor(0x000000, 1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 10);
+camera.position.set(0, 0, 4);
+
+// ------- Uniforms (mutated by sliders) -------
+const uniforms = {
+  uTime:       { value: 0 },
+  uBellAlpha:  { value: 0.62 },
+  uStriations: { value: 0.30 },
+  uRimGlow:    { value: 1.60 },
+};
+
+// ------- LAYER A: neural connectome (nodes + curved bezier pathways) -------
+// Radially distributed, denser near center, sparser at edges.
+const neuronGroup = new THREE.Group();
+neuronGroup.position.z = 0.02;    // ABOVE bell (z=0), BELOW rim (z=0.05) + atom (z=0.06)
+scene.add(neuronGroup);
+
+let nodePositions = [];   // array of THREE.Vector2, base positions
+let hubIndices = [];      // which nodes are the bright "star" hotspots
+let pathwayLines = [];    // {mesh, mat} entries
+
+function generateNeuronField() {
+  while (neuronGroup.children.length) neuronGroup.remove(neuronGroup.children[0]);
+  nodePositions = [];
+  hubIndices = [];
+  pathwayLines = [];
+
+  // Distribution: mix of THREE bands so dots read across the whole bell,
+  // not blown out under the atom halo. Reference has fairly even spread.
+  //   - INNER halo (r 0.18..0.36): 60 nodes hugging atom
+  //   - MID band  (r 0.36..0.62): 90 nodes — the main visible network
+  //   - OUTER band (r 0.62..0.80): 50 nodes near rim
+  const bands = [
+    { count: 55, rMin: 0.18, rMax: 0.36 },
+    { count: 120, rMin: 0.36, rMax: 0.62 },  // densest — matches ref's mid-band
+    { count: 55, rMin: 0.62, rMax: 0.80 },
+  ];
+  for (const band of bands) {
+    for (let i = 0; i < band.count; i++) {
+      // Uniform-area sampling within band (sqrt for even density)
+      const r = Math.sqrt(band.rMin * band.rMin + Math.random() * (band.rMax * band.rMax - band.rMin * band.rMin));
+      const a = Math.random() * Math.PI * 2;
+      // Small radial jitter so bands don't read as hard rings
+      const jitter = (Math.random() - 0.5) * 0.03;
+      nodePositions.push(new THREE.Vector2(Math.cos(a) * (r + jitter), Math.sin(a) * (r + jitter)));
+    }
+  }
+  const NODE_COUNT = nodePositions.length;
+
+  // Pick 12 "star hotspots" scattered across the field (biased slightly outward
+  // so they don't all fall into the atom's glow).
+  const outerCandidates = nodePositions
+    .map((p, i) => ({ i, r: p.length() }))
+    .filter(o => o.r > 0.28)
+    .sort(() => Math.random() - 0.5);
+  hubIndices = outerCandidates.slice(0, 12).map(o => o.i);
+
+  // Render nodes — 4 size tiers: dust / small / medium / hotspot
+  for (let i = 0; i < NODE_COUNT; i++) {
+    const isHub = hubIndices.includes(i);
+    let size, color, opacity;
+    if (isHub) {
+      size = 0.020 + Math.random() * 0.010;
+      color = 0xffffff;                     // white-hot star
+      opacity = 1.0;
+    } else {
+      const tier = Math.random();
+      if (tier < 0.35) {                    // ~35% dust
+        size = 0.004 + Math.random() * 0.003;
+        color = 0x9de4ff;
+        opacity = 0.55 + Math.random() * 0.25;
+      } else if (tier < 0.80) {             // ~45% small
+        size = 0.008 + Math.random() * 0.004;
+        color = 0xb0ecff;
+        opacity = 0.80 + Math.random() * 0.15;
+      } else {                              // ~20% medium bright
+        size = 0.013 + Math.random() * 0.005;
+        color = 0xdaf5ff;
+        opacity = 0.95;
+      }
+    }
+    const geo = new THREE.CircleGeometry(size, isHub ? 24 : 10);
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(nodePositions[i].x, nodePositions[i].y, 0);
+    mesh.userData = {
+      basePhase: Math.random() * Math.PI * 2,
+      isHub,
+      baseSize: size,
+      baseOpacity: opacity,
+    };
+    neuronGroup.add(mesh);
+  }
+
+  // Line generation — reference has a MIX of short/medium/long spans with
+  // serpentine curves, not a triangulated nearest-neighbor mesh.
+  // Per node: 1 nearest link + 1 mid-distance link + occasionally 1 long span.
+  // Serpentine cubic curves for organic wispy feel.
+  const usedPairs = new Set();
+  function pairKey(a, b) { return a < b ? `${a}-${b}` : `${b}-${a}`; }
+
+  function addLine(iA, iB, style) {
+    if (iA === iB) return;
+    const key = pairKey(iA, iB);
+    if (usedPairs.has(key)) return;
+    usedPairs.add(key);
+    const a = nodePositions[iA];
+    const b = nodePositions[iB];
+    // Skip lines fully inside the atom-opaque zone
+    if (a.length() < 0.18 && b.length() < 0.18) return;
+
+    const dist = a.distanceTo(b);
+    const dir  = new THREE.Vector2().subVectors(b, a).normalize();
+    const perp = new THREE.Vector2(-dir.y, dir.x);
+    // Curve amplitude depends on span — longer spans allow more arc
+    const maxArc = Math.min(0.28, dist * 0.35);
+    // Cubic bezier with TWO control points at 1/3 and 2/3 along the segment,
+    // each offset perpendicularly by an independent random amount → serpentine.
+    const t1 = 0.30 + Math.random() * 0.10;
+    const t2 = 0.60 + Math.random() * 0.10;
+    const off1 = (Math.random() - 0.5) * 2 * maxArc;
+    const off2 = (Math.random() - 0.5) * 2 * maxArc;
+    // 60% chance both offsets align (simple arc), 40% they oppose (S-curve)
+    const sCurve = Math.random() < 0.40;
+    const off2Final = sCurve ? -Math.sign(off1) * Math.abs(off2) : off2;
+
+    const p1 = new THREE.Vector3(
+      a.x + dir.x * dist * t1 + perp.x * off1,
+      a.y + dir.y * dist * t1 + perp.y * off1,
+      0
+    );
+    const p2 = new THREE.Vector3(
+      a.x + dir.x * dist * t2 + perp.x * off2Final,
+      a.y + dir.y * dist * t2 + perp.y * off2Final,
+      0
+    );
+    const curve = new THREE.CubicBezierCurve3(
+      new THREE.Vector3(a.x, a.y, 0),
+      p1, p2,
+      new THREE.Vector3(b.x, b.y, 0),
+    );
+    // Segment count grows with length so long serpentines stay smooth
+    const segs = Math.max(14, Math.min(48, Math.floor(dist * 60)));
+    const points = curve.getPoints(segs);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+
+    // Opacity spread — pow-biased so MOST lines are faint background wisps,
+    // a few are prominent foreground. Creates the depth/dimensionality feel.
+    //   depth^2.2 → heavy skew toward faint: ~70% below 0.35, ~10% above 0.75
+    const depth = Math.pow(Math.random(), 2.2);
+    let color, opacity;
+    if (style === 'long') {
+      color = 0x5ec6ff;
+      opacity = 0.06 + depth * 0.40;              // 0.06..0.46, mostly very faint
+    } else if (style === 'mid') {
+      color = 0x8ad9ff;
+      opacity = 0.10 + depth * 0.60;              // 0.10..0.70
+    } else { // 'short'
+      // 15% of shorts get a "hot" boost — the visible active pathways
+      const isBright = Math.random() < 0.15;
+      color = isBright ? 0xe8faff : 0x9be6ff;
+      opacity = isBright ? (0.75 + Math.random() * 0.20)
+                         : (0.15 + depth * 0.55); // 0.15..0.70 with depth bias
+    }
+    const lineMat = new THREE.LineBasicMaterial({
+      color, transparent: true, opacity,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const lineMesh = new THREE.Line(lineGeo, lineMat);
+    neuronGroup.add(lineMesh);
+    pathwayLines.push({ mesh: lineMesh, mat: lineMat, style });
+  }
+
+  // Pre-compute sorted-neighbor list per node once
+  const sortedNeighbors = nodePositions.map((p, i) =>
+    nodePositions
+      .map((q, j) => ({ j, d: i === j ? Infinity : p.distanceTo(q) }))
+      .sort((a, b) => a.d - b.d)
+  );
+
+  // Denser now — opacity pow-bias keeps most lines faint (atmospheric),
+  // so more lines add depth without cluttering.
+  for (let i = 0; i < NODE_COUNT; i++) {
+    const neighbors = sortedNeighbors[i];
+    // SHORT — nearest neighbor (90%) + 2nd nearest (45%)
+    if (Math.random() < 0.90 && neighbors[0].d > 0.02) {
+      addLine(i, neighbors[0].j, 'short');
+    }
+    if (Math.random() < 0.45 && neighbors[1] && neighbors[1].d > 0.02 && neighbors[1].d < 0.20) {
+      addLine(i, neighbors[1].j, 'short');
+    }
+    // MID (65%) — pick from neighbors 3..10
+    if (Math.random() < 0.65) {
+      const midIdx = 3 + Math.floor(Math.random() * 8);
+      if (neighbors[midIdx] && neighbors[midIdx].d < 0.35) {
+        addLine(i, neighbors[midIdx].j, 'mid');
+      }
+    }
+    // MID-2 (30%) — a second mid connection
+    if (Math.random() < 0.30) {
+      const midIdx = 8 + Math.floor(Math.random() * 6);
+      if (neighbors[midIdx] && neighbors[midIdx].d < 0.40) {
+        addLine(i, neighbors[midIdx].j, 'mid');
+      }
+    }
+    // LONG span (40%) — random distant node across the bell
+    if (Math.random() < 0.40) {
+      const longIdx = 30 + Math.floor(Math.random() * 40);
+      if (neighbors[longIdx] && neighbors[longIdx].d > 0.30 && neighbors[longIdx].d < 0.95) {
+        addLine(i, neighbors[longIdx].j, 'long');
+      }
+    }
+  }
+}
+generateNeuronField();
+
+// ------- LAYER A2: long curved neural fibers from atom halo out to the rim -------
+// The reference has ~24 curved organic strands streaming from center to scalloped
+// rim like neural axons. Each is a cubic bezier with an off-axis mid control point
+// so it curves through the body instead of running straight radially.
+const fiberGroup = new THREE.Group();
+fiberGroup.position.z = 0.015;   // just above bell so fibers draw on top of the body
+scene.add(fiberGroup);
+
+const FIBER_COUNT = 40;
+for (let i = 0; i < FIBER_COUNT; i++) {
+  const a = (i / FIBER_COUNT) * Math.PI * 2 + Math.random() * 0.15;
+  const rStart = 0.22 + Math.random() * 0.06;   // near atom halo boundary
+  const rEnd   = 0.72 + Math.random() * 0.06;   // out to scalloped rim
+  const start = new THREE.Vector3(Math.cos(a) * rStart, Math.sin(a) * rStart, 0);
+  const end   = new THREE.Vector3(Math.cos(a) * rEnd,   Math.sin(a) * rEnd,   0);
+  // Two control points: mid-arc offset perpendicular, and a jitter near start
+  const midR = (rStart + rEnd) * 0.5;
+  const midA = a + (Math.random() - 0.5) * 0.35;   // angular deflection mid-strand
+  const cpMid = new THREE.Vector3(Math.cos(midA) * midR, Math.sin(midA) * midR, 0);
+  // Near-start control that hugs the atom halo
+  const cp1A = a + (Math.random() - 0.5) * 0.10;
+  const cp1R = rStart + (midR - rStart) * 0.4;
+  const cp1  = new THREE.Vector3(Math.cos(cp1A) * cp1R, Math.sin(cp1A) * cp1R, 0);
+  const curve = new THREE.CubicBezierCurve3(start, cp1, cpMid, end);
+  const points = curve.getPoints(28);
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({
+    color: 0xb8f0ff,
+    transparent: true,
+    opacity: 0.15 + Math.random() * 0.15,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  fiberGroup.add(new THREE.Line(geo, mat));
+}
+
+// ------- LAYER A3: fine bright dot cloud in the atom halo zone -------
+// Reference has ~100 tiny cyan pinpoints between r≈0.15 and r≈0.40 that read as
+// texture around the bright center. Rendered as their own group above the bell.
+const dotCloudGroup = new THREE.Group();
+dotCloudGroup.position.z = 0.025;
+scene.add(dotCloudGroup);
+
+const CLOUD_DOT_COUNT = 110;
+const cloudDots = [];
+for (let i = 0; i < CLOUD_DOT_COUNT; i++) {
+  const rr = 0.15 + Math.random() * 0.28;      // annulus r∈[0.15, 0.43]
+  const aa = Math.random() * Math.PI * 2;
+  const size = 0.004 + Math.random() * 0.006;
+  const geo = new THREE.CircleGeometry(size, 8);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xd6f6ff,
+    transparent: true,
+    opacity: 0.75 + Math.random() * 0.25,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(Math.cos(aa) * rr, Math.sin(aa) * rr, 0);
+  m.userData.basePhase = Math.random() * Math.PI * 2;
+  dotCloudGroup.add(m);
+  cloudDots.push(m);
+}
+
+// ------- LAYER B: radial striations (10 thin glowing lines from center to edge) -------
+const striationGroup = new THREE.Group();
+striationGroup.position.z = -0.20;
+scene.add(striationGroup);
+
+const STRIATION_COUNT = 12;
+const striationLines = [];
+for (let i = 0; i < STRIATION_COUNT; i++) {
+  const angle = (i / STRIATION_COUNT) * Math.PI * 2;
+  const inner = 0.05;
+  const outer = 0.78;
+  // A gentle sine-modulated curve, not a straight radial line — organic feel
+  const points = [];
+  const SEG = 30;
+  for (let s = 0; s <= SEG; s++) {
+    const t = s / SEG;
+    const r = inner + (outer - inner) * t;
+    // Modulate the angle slightly by t so the striation curves gently
+    const wobble = Math.sin(t * Math.PI * 2 + i * 1.7) * 0.025 * t;
+    const finalAngle = angle + wobble;
+    points.push(new THREE.Vector3(Math.cos(finalAngle) * r, Math.sin(finalAngle) * r, 0));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({
+    color: 0xa8f2ff,
+    transparent: true,
+    opacity: 0.90 * uniforms.uStriations.value,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Line(geo, mat);
+  striationGroup.add(mesh);
+  striationLines.push({ mesh, mat });
+}
+
+// ------- LAYER C: translucent bell with radial gradient (custom shader) -------
+const bellGeo = new THREE.PlaneGeometry(2, 2, 1, 1);
+const bellMat = new THREE.ShaderMaterial({
+  transparent: true,
+  blending: THREE.NormalBlending,
+  depthWrite: false,
+  uniforms: {
+    uTime:      uniforms.uTime,
+    uBellAlpha: uniforms.uBellAlpha,
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform float uBellAlpha;
+    varying vec2 vUv;
+
+    float scallopRadius(vec2 uv) {
+      float a = atan(uv.y, uv.x);
+      // Base 8-lobe scallop wave (the big shape — unchanged)
+      float wave = 0.5 - 0.5 * cos(a * 8.0 + uTime * 0.03);
+      float base = 0.86 + (wave - 0.5) * 0.032;
+      // 8 V-notches at lobe EDGES (troughs between lobes). Aligned with rim.
+      float notch = pow(max(0.0, cos(a * 8.0 + uTime * 0.03)), 20.0);
+      return base - notch * 0.018;
+    }
+    float scallopPeak(vec2 uv) {
+      // Peak factor still tracks the BIG 8-lobe scallops (used for color),
+      // not the small V notches
+      float a = atan(uv.y, uv.x);
+      return 0.5 - 0.5 * cos(a * 8.0 + uTime * 0.03);
+    }
+
+    void main() {
+      vec2 uv = (vUv - 0.5) * 2.0;
+      float r = length(uv);
+
+      vec3 midBlue   = vec3(0.010, 0.240, 0.520);
+      vec3 deepBlue  = vec3(0.002, 0.045, 0.220);
+      vec3 coreGlow  = vec3(0.50,  0.90,  1.05);
+
+      vec3 color = mix(midBlue, deepBlue, smoothstep(0.15, 0.75, r));
+
+      float coreSpike    = exp(-r * 11.0);
+      float midHalo      = exp(-r * 5.0) * (1.0 - smoothstep(0.22, 0.42, r));
+      float bodyLift     = (1.0 - smoothstep(0.05, 0.65, r));
+      float umbrellaEdge = smoothstep(0.62, 0.82, r) * (1.0 - smoothstep(0.82, 0.88, r));
+      color += coreGlow * (coreSpike * 0.55 + midHalo * 0.30);
+      color += vec3(0.05, 0.18, 0.28) * bodyLift * 0.60;
+      color += vec3(0.06, 0.22, 0.42) * umbrellaEdge * 0.80;
+
+      float alpha = uBellAlpha * (
+        smoothstep(0.03, 0.14, r)
+        * (1.0 - smoothstep(0.74, 0.84, r))
+      );
+      alpha *= 1.0 - smoothstep(0.14, 0.05, r) * 0.35;
+
+      float outerR = scallopRadius(uv);
+      alpha *= smoothstep(outerR + 0.020, outerR - 0.015, r);
+
+      gl_FragColor = vec4(color, alpha);
+    }
+  `,
+});
+const bellMesh = new THREE.Mesh(bellGeo, bellMat);
+bellMesh.position.z = 0;
+scene.add(bellMesh);
+
+// ------- LAYER D: outer rim glow — bright scalloped ring outline -------
+const rimMat = new THREE.ShaderMaterial({
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+  uniforms: {
+    uTime:    uniforms.uTime,
+    uRimGlow: uniforms.uRimGlow,
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform float uRimGlow;
+    varying vec2 vUv;
+
+    float scallopRadius(vec2 uv) {
+      float a = atan(uv.y, uv.x);
+      // Base 8-lobe scallop wave (big shape — unchanged)
+      float wave = 0.5 - 0.5 * cos(a * 8.0 + uTime * 0.03);
+      float base = 0.86 + (wave - 0.5) * 0.032;
+      // 8 V-notches — one at the EDGE of each lobe (aligned with wave troughs,
+      // i.e. the valleys between adjacent lobes). At troughs, cos(a*8+phase) = 1.
+      // Lower exponent = wider V dip.
+      float notch = pow(max(0.0, cos(a * 8.0 + uTime * 0.03)), 20.0);
+      return base - notch * 0.018;
+    }
+    // Peak factor (1 at scallop peaks, 0 at valleys) — tracks BIG scallops only
+    float scallopPeak(vec2 uv) {
+      float a = atan(uv.y, uv.x);
+      return 0.5 - 0.5 * cos(a * 8.0 + uTime * 0.03);
+    }
+
+    void main() {
+      vec2 uv = (vUv - 0.5) * 2.0;
+      float r = length(uv);
+      float outerR = scallopRadius(uv);
+      // DOUBLE-RING umbrella edge — reference sampling shows two concentric
+      // scalloped rings with a darker band between them:
+      //   inner main ring at r≈0.86 (L 130-190)
+      //   dark band       at r≈0.90 (L 85-100)
+      //   outer 2nd ring  at r≈0.925 (L 120-150)
+      //   void            at r>0.935 (near black)
+      //
+      // The outer ring's radius = outerR + gap. Same scallop phase, same amplitude.
+      float outerR2 = outerR + 0.065;   // second ring ~0.065 further out
+
+      // ---- Inner (main) ring layers ----
+      float ringHot   = smoothstep(outerR + 0.006, outerR + 0.001, r)
+                      * smoothstep(outerR - 0.016, outerR - 0.006, r);
+      float ringSoft  = smoothstep(outerR + 0.014, outerR + 0.003, r)
+                      * smoothstep(outerR - 0.028, outerR - 0.010, r);
+
+      // ---- Outer secondary ring layers ----
+      float ring2Hot  = smoothstep(outerR2 + 0.005, outerR2, r)
+                      * smoothstep(outerR2 - 0.012, outerR2 - 0.004, r);
+      float ring2Soft = smoothstep(outerR2 + 0.010, outerR2 + 0.002, r)
+                      * smoothstep(outerR2 - 0.020, outerR2 - 0.008, r);
+
+      // ---- Void beyond the outer ring (very tight, doesn't leak into black) ----
+      float bleed     = smoothstep(outerR2 + 0.020, outerR2 + 0.002, r)
+                      * (1.0 - smoothstep(outerR2 + 0.002, outerR2 - 0.006, r));
+
+      // Gap fill: subtle blue tint between the two rings — averaged ref sample
+      // at r=0.91 = sRGB(31,98,187), not pure dark. Prevents the gap reading
+      // as a hard black notch.
+      float gap = smoothstep(outerR + 0.015, outerR + 0.030, r)
+                * (1.0 - smoothstep(outerR2 - 0.020, outerR2 - 0.008, r));
+
+      float peak = scallopPeak(uv);
+      float peakBoost = 0.75 + 0.60 * peak;
+
+      // Colors derived from ref averaged sRGB (linearized ~gamma 2.2):
+      //   r=0.87-0.89 peak: (56,154,227) → vec3(0.046,0.34,0.75)
+      //   r=0.91 gap:       (31, 98,187) → vec3(0.014,0.14,0.51)
+      //   r=0.93 outer:     (33, 80,140) → vec3(0.017,0.09,0.27)
+      // Peaks: single-angle sample gave (126,217,252) → vec3(0.44,0.82,0.97)
+      vec3 ringPeakColor = vec3(0.34, 0.72, 0.93);
+      vec3 ringBaseColor = vec3(0.05, 0.30, 0.72);
+      vec3 outerRingCol  = vec3(0.05, 0.20, 0.48);
+      vec3 gapColor      = vec3(0.02, 0.11, 0.42);
+      vec3 blueBleed     = vec3(0.03, 0.12, 0.38);
+
+      // Mix peak+base color based on the scallop peak factor
+      vec3 mainRingColor = mix(ringBaseColor, ringPeakColor, peak);
+
+      // Outer secondary ring dimmed — ref shows only a subtle secondary presence
+      vec3 col = mainRingColor * ringHot   * 1.15
+               + ringBaseColor * ringSoft  * 0.55
+               + outerRingCol  * ring2Hot  * 0.55 * peakBoost
+               + outerRingCol  * ring2Soft * 0.30
+               + gapColor      * gap       * 0.50
+               + blueBleed     * bleed     * 0.28;
+      col *= uRimGlow;
+
+      float alpha = clamp(ringHot * 1.0 + ringSoft * 0.40
+                        + ring2Hot * 0.45 + ring2Soft * 0.22
+                        + gap * 0.30 + bleed * 0.20, 0.0, 1.0);
+      gl_FragColor = vec4(col, alpha);
+    }
+  `,
+});
+const rimMesh = new THREE.Mesh(bellGeo, rimMat);
+rimMesh.position.z = 0.05;
+scene.add(rimMesh);
+
+// ------- LAYER D2: RADIAL CANALS from scallop troughs -------
+// Moon jellyfish anatomy: 14 canals emerge from the scalloped rim's troughs
+// (between-lobe positions), go inward toward the manubrium, and fade.
+// At each trough, a small bright cyan terminal dot marks the canal's entry.
+const canalsMat = new THREE.ShaderMaterial({
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+  uniforms: { uTime: uniforms.uTime },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    varying vec2 vUv;
+
+    // Match the rim shader's scallopRadius — same 8-lobe wave + 8 V-notches.
+    // Used to make canals terminate exactly at the notch bottom.
+    float scallopRadius(vec2 uv) {
+      float a = atan(uv.y, uv.x);
+      float wave = 0.5 - 0.5 * cos(a * 8.0 + uTime * 0.03);
+      float base = 0.86 + (wave - 0.5) * 0.032;
+      float notch = pow(max(0.0, cos(a * 8.0 + uTime * 0.03)), 20.0);
+      return base - notch * 0.018;
+    }
+
+    void main() {
+      vec2 uv = (vUv - 0.5) * 2.0;
+      float r = length(uv);
+      float a = atan(uv.y, uv.x);
+
+      // 8-fold symmetry (matches 8-lobe scallop, not 14)
+      float aa = a * 8.0 + uTime * 0.03;
+      // toTrough = 0 at trough, 1 at peak (halfway between troughs)
+      float toTrough = abs(sin(aa * 0.5));
+      // toPeak = 0 at peak, 1 at trough (complementary)
+      float toPeak = abs(cos(aa * 0.5));
+
+      // Local scallop radius (INCLUDES notches) — canal must stop before this
+      // so the line appears to emerge FROM the notch, not cross the ring.
+      float sr = scallopRadius(uv);
+
+      // ---- PRIMARY CANALS from 8 troughs ----
+      // Terminate at the notch inner edge: canalRad fades out between (sr - 0.028)
+      // and (sr - 0.012). At trough angles, sr is at the V bottom, so the canal
+      // ends right where the notch begins.
+      float canalLine = 1.0 - smoothstep(0.02, 0.16, toTrough);
+      float canalRad = smoothstep(0.26, 0.55, r) * (1.0 - smoothstep(sr - 0.028, sr - 0.012, r));
+      canalRad *= (0.4 + 0.6 * smoothstep(0.35, sr - 0.030, r));
+      float canal = canalLine * canalRad;
+
+      // Terminal region — small bright brightening right AT the notch bottom
+      // (just inside the ring, so the notch reads as "canal emerges here").
+      float terminalFade = 1.0 - smoothstep(0.0, 0.08, toTrough);
+      float terminalR    = smoothstep(sr - 0.045, sr - 0.020, r) * (1.0 - smoothstep(sr - 0.020, sr - 0.008, r));
+      float terminal     = terminalFade * terminalR;
+
+      // ---- MUSHROOM RIBS from 8 lobe PEAKS ----
+      // Also cut off at the ring's inner face so they don't cross either.
+      float ribLine = 1.0 - smoothstep(0.02, 0.12, toPeak);
+      float ribRad  = smoothstep(0.55, 0.72, r) * (1.0 - smoothstep(sr - 0.035, sr - 0.020, r));
+      float rib     = ribLine * ribRad;
+
+      // ---- FINE HAIRS from ALL edges of the inner ring ----
+      // 60 small faint canals distributed around the full 360° of the ring.
+      // Each is a narrow radial spike that emerges from the ring inner edge
+      // and fades quickly going inward. Together they read as "every part of
+      // the ring shoots a small canal inward".
+      float hairPhase = a * 60.0 + uTime * 0.03;
+      float hairLine  = pow(max(0.0, cos(hairPhase)), 22.0);   // narrow radial spike
+      // Length varies per hair (some slightly longer than others) via a slow modulator
+      float hairLen   = 0.09 + 0.04 * (0.5 + 0.5 * sin(a * 17.0));
+      float hairR     = smoothstep(sr - hairLen, sr - hairLen * 0.55, r)
+                      * (1.0 - smoothstep(sr - 0.025, sr - 0.010, r));
+      float hair      = hairLine * hairR;
+
+      // ---- INNER-RING INWARD BLEED ----
+      // Matches ref profile (sampled): bright cyan-white peak right at ring inner
+      // face, drops sharply within ~0.10 radial units to a darker "moat" band
+      // before the atom's halo brightens things again.
+      float ringInner   = 1.0 - smoothstep(sr - 0.012, sr - 0.002, r);   // 1 inside ring, 0 in ring
+      // BRIGHT NARROW bleed — peaks right at ring inner edge
+      float bleedNarrow = smoothstep(sr - 0.08, sr - 0.020, r);
+      bleedNarrow = pow(bleedNarrow, 2.2);
+      // SOFT WIDER bleed — a fainter halo extending further into the body
+      float bleedWide   = smoothstep(sr - 0.20, sr - 0.02, r);
+      bleedWide = pow(bleedWide, 3.5);
+      float innerBleed  = (bleedNarrow * 0.85 + bleedWide * 0.35) * ringInner;
+
+      vec3 canalCol = vec3(0.28, 0.62, 0.95);   // rich blue-cyan (used for canal + terminal)
+      vec3 ribCol   = vec3(0.22, 0.55, 0.88);   // slightly dimmer for secondary ribs
+      vec3 hairCol  = vec3(0.35, 0.68, 0.98);
+      // Bleed color — matches ref pixel sample at ring inner peak: (108,198,247)
+      // slightly boosted since it's additive on top of the bell body
+      vec3 bleedCol = vec3(0.55, 0.88, 1.10);
+
+      vec3 col = canalCol * canal    * 0.42
+               + canalCol * terminal * 0.55
+               + ribCol   * rib      * 0.24
+               + hairCol  * hair     * 0.22
+               + bleedCol * innerBleed * 0.45;
+      float alpha = clamp(canal * 0.45 + terminal * 0.50 + rib * 0.24 + hair * 0.22 + innerBleed * 0.28, 0.0, 1.0);
+      gl_FragColor = vec4(col, alpha);
+    }
+  `,
+});
+const canalsMesh = new THREE.Mesh(bellGeo, canalsMat);
+canalsMesh.position.z = 0.04;   // between neurons (0.02) and rim (0.05)
+scene.add(canalsMesh);
+
+// ------- LAYER E: atom center — SDF 4 kissing spheres + white outline + glow -------
+const atomMat = new THREE.ShaderMaterial({
+  transparent: true,
+  blending: THREE.NormalBlending,
+  depthWrite: false,
+  uniforms: {
+    uTime: uniforms.uTime,
+    uAudioLevel: { value: 0.0 },   // 0..1 smoothed TTS envelope → breathing/reaching
+    uPhoneme:    { value: 0.0 },   // 0..1 short-burst emphasis → outline/glow flash
+    uState:      { value: 2.0 },   // 0=listening, 1=thinking, 2=speaking
+    uAtomTime:   { value: 0.0 },   // independent of frozen uTime → arms wobble even when spin is frozen
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform float uAudioLevel;
+    uniform float uPhoneme;
+    uniform float uState;
+    uniform float uAtomTime;
+    varying vec2 vUv;
+
+    float smin(float a, float b, float k) {
+      float h = clamp(0.5 + 0.5*(b-a)/k, 0.0, 1.0);
+      return mix(b, a, h) - k*h*(1.0 - h);
+    }
+    // Distance from point p to line segment a→b, minus radius r → CAPSULE SDF
+    float capsuleSDF(vec2 p, vec2 a, vec2 b, float r) {
+      vec2 pa = p - a;
+      vec2 ba = b - a;
+      float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+      return length(pa - ba * h) - r;
+    }
+    // Thick X: 4 diagonal capsule arms + circles at tips.
+    // Reactive params: breathe inflates cap+ball radii; reach pushes tips outward;
+    // wobT drives independent per-arm jitter so the shape feels alive.
+    // morph = amplified per-arm distortion at high envelope (speaking = big shape changes).
+    float cloverSDF(vec2 uv, float spin, float breathe, float reach, float wobT) {
+      float d = 1e5;
+      // Non-linear morph curve — base wobble stays subtle in Off/Listen/Think,
+      // but scales up hard when speaking (breathe > 0.3).
+      float morph = smoothstep(0.05, 0.6, breathe);   // 0..1 speaking-only amplifier
+      for (int i = 0; i < 4; i++) {
+        float fi = float(i);
+        // Per-arm phase offsets (different freq per arm so no arm mirrors another)
+        float phA = fi * 2.1;
+        float phB = fi * 1.3;
+        float phC = fi * 3.7;
+        // Radial wobble — tip pushes in/out along the arm axis
+        float wob = 0.010 * sin(wobT * 3.7 + phA) * (0.6 + 0.8 * breathe)
+                  + 0.045 * sin(wobT * 2.3 + phC) * morph;
+        // Angular wobble — arm swings side to side (bigger swing when speaking)
+        float angJ = 0.030 * sin(wobT * 1.9 + phB) * (0.4 + 1.2 * breathe)
+                   + 0.140 * sin(wobT * 1.4 + phA * 0.7) * morph;
+        // Per-arm capsule+ball size wobble — each arm inflates/deflates independently
+        float perArmBreathe = 0.5 + 0.5 * sin(wobT * 2.1 + phB * 1.7);
+        float ang = fi * 1.5707963 + spin + 0.7853982 + angJ;
+        vec2 tip = vec2(cos(ang), sin(ang)) * (0.24 + reach + wob);
+        float capR  = 0.065 + breathe * 0.022 + morph * 0.020 * perArmBreathe;
+        float ballR = 0.12  + breathe * 0.055 + morph * 0.045 * perArmBreathe;
+        float cap  = capsuleSDF(uv, vec2(0.0), tip, capR);
+        float ball = length(uv - tip) - ballR;
+        // Blend radius grows with speaking too — arms look "gooier" / more liquid
+        float bk = 0.06 + morph * 0.03;
+        float arm  = smin(cap, ball, bk);
+        d = smin(d, arm, 0.045 + morph * 0.020);
+      }
+      return d;
+    }
+
+    void main() {
+      vec2 uv = (vUv - 0.5) * 2.0;
+      float r = length(uv);
+      float spin = uTime * 0.03;
+
+      // Reactive drivers — phoneme kicks fold into breathe so syllables also pop the shape
+      float breathe = clamp(uAudioLevel + uPhoneme * 0.35, 0.0, 1.0);
+      float reach   = breathe * 0.075 + uPhoneme * 0.030;
+      float d = cloverSDF(uv, spin, breathe, reach, uAtomTime);
+
+      // Masks — outline threshold widens slightly on breathe so arms feel fuller
+      float outlineWidth = 0.013 + breathe * 0.004;
+      float insideMask  = smoothstep(0.006, -0.020, d);
+      float outlineMask = smoothstep(outlineWidth, 0.005, abs(d - 0.006));
+      float glowRadius  = 0.18 + breathe * 0.05 + uPhoneme * 0.05;
+      float glowMask    = smoothstep(glowRadius, 0.0, max(d - 0.008, 0.0));
+      float tightGlow   = smoothstep(0.06, 0.0, max(d - 0.010, 0.0));
+
+      // HOLLOW interior — same blue as the bell body, showing through
+      vec3 hollowBlue   = vec3(0.05, 0.35, 0.75);
+      // State palette: listening=cool cyan, thinking=violet shimmer, speaking=warm white
+      vec3 listenTint = vec3(0.55, 0.90, 1.10);
+      vec3 thinkTint  = vec3(0.75, 0.60, 1.15);
+      vec3 speakTint  = vec3(1.00, 1.00, 1.00);
+      // mix listening→thinking by saturating uState in [0,1], then thinking→speaking in [1,2]
+      vec3 outlineColor = mix(
+        mix(listenTint, thinkTint, clamp(uState, 0.0, 1.0)),
+        speakTint,
+        clamp(uState - 1.0, 0.0, 1.0)
+      );
+      vec3 glowColor    = vec3(0.50, 0.90, 1.05);
+
+      // Phoneme kick brightens the outline + tight glow briefly
+      float outlineBoost = 1.25 + uPhoneme * 0.85;
+      float tightBoost   = 0.40 + uPhoneme * 0.35;
+
+      // Dial back the outer glow so the neuron network reads through the halo
+      // (was 0.20 — masked all the dots around the atom)
+      vec3 col = hollowBlue    * insideMask * 0.35
+               + outlineColor  * outlineMask * outlineBoost
+               + glowColor     * tightGlow   * tightBoost
+               + glowColor     * glowMask    * (0.08 + breathe * 0.06);
+
+      // Alpha: LOW inside (bell shows through — hollow feel), FULL at outline
+      float alpha = clamp(
+          insideMask * 0.35
+        + outlineMask * 1.00
+        + tightGlow * 0.25
+        + glowMask * 0.14,
+        0.0, 1.0);
+
+      gl_FragColor = vec4(col, alpha);
+    }
+  `,
+});
+const atomMesh = new THREE.Mesh(bellGeo, atomMat);
+atomMesh.position.z = 0.06;
+scene.add(atomMesh);
+
+// ------- Post-processing: UnrealBloomPass + ACES tone mapping (already set) -------
+const composer = new EffectComposer(renderer);
+composer.setPixelRatio(2);
+composer.setSize(720, 720);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(720, 720), 0.40, 0.80, 0.60);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+// ============================================================================
+// PIXEL DIFF ENGINE
+// ============================================================================
+const refImg = document.getElementById('refImg');
+const diffCanvas = document.getElementById('diffCanvas');
+const diffCtx = diffCanvas.getContext('2d');
+
+let refImageData = null;
+const RES = 720;   // work at 720x720 for the diff
+
+// Offscreen canvases to sample from
+const refBufferCanvas = document.createElement('canvas');
+refBufferCanvas.width = RES; refBufferCanvas.height = RES;
+const refBufferCtx = refBufferCanvas.getContext('2d');
+
+const liveBufferCanvas = document.createElement('canvas');
+liveBufferCanvas.width = RES; liveBufferCanvas.height = RES;
+const liveBufferCtx = liveBufferCanvas.getContext('2d');
+
+function initRefImage() {
+  if (!refImg.complete || refImg.naturalWidth === 0) {
+    refImg.addEventListener('load', initRefImage, { once: true });
+    return;
+  }
+  // Draw ref image at RES x RES, cropped square
+  const s = Math.min(refImg.naturalWidth, refImg.naturalHeight);
+  const sx = (refImg.naturalWidth - s) / 2;
+  const sy = (refImg.naturalHeight - s) / 2;
+  refBufferCtx.drawImage(refImg, sx, sy, s, s, 0, 0, RES, RES);
+  refImageData = refBufferCtx.getImageData(0, 0, RES, RES);
+}
+initRefImage();
+
+const scoreEl = document.getElementById('score');
+let lastDiffTime = 0;
+
+function computeDiff() {
+  if (!refImageData) return;
+  // Sample the live canvas into the buffer
+  liveBufferCtx.drawImage(canvas, 0, 0, RES, RES);
+  const liveData = liveBufferCtx.getImageData(0, 0, RES, RES);
+  const rd = refImageData.data;
+  const ld = liveData.data;
+
+  // Build diff image + compute metrics
+  const diffData = diffCtx.createImageData(RES, RES);
+  const dd = diffData.data;
+  let sumSq = 0;
+  let brightMatch = 0;
+  let colorSim = 0;
+  const pixCount = RES * RES;
+  for (let i = 0; i < ld.length; i += 4) {
+    const dr = ld[i]   - rd[i];
+    const dg = ld[i+1] - rd[i+1];
+    const db = ld[i+2] - rd[i+2];
+    const sq = dr*dr + dg*dg + db*db;
+    sumSq += sq;
+    const magnitude = Math.min(255, Math.sqrt(sq));
+    // Diff heatmap: darker = closer match, red = mismatch
+    dd[i]   = magnitude;         // red channel = magnitude
+    dd[i+1] = magnitude * 0.3;
+    dd[i+2] = magnitude * 0.3;
+    dd[i+3] = 255;
+    // Luminance-based bright match
+    const lumL = 0.299 * ld[i] + 0.587 * ld[i+1] + 0.114 * ld[i+2];
+    const lumR = 0.299 * rd[i] + 0.587 * rd[i+1] + 0.114 * rd[i+2];
+    if (Math.abs(lumL - lumR) < 20) brightMatch++;
+    // Color similarity 0..1
+    colorSim += 1.0 - Math.min(1.0, Math.sqrt(sq) / 441.673);   // 441.673 = max color distance
+  }
+  const mse = sumSq / (pixCount * 3);   // per-channel-per-pixel MSE
+  const brightPct = (brightMatch / pixCount) * 100;
+  const colorPct  = (colorSim / pixCount) * 100;
+  diffCtx.putImageData(diffData, 0, 0);
+  scoreEl.textContent =
+    `MSE: ${mse.toFixed(1)}   ·   brightness match: ${brightPct.toFixed(1)}%   ·   color sim: ${colorPct.toFixed(1)}%`;
+}
+
+// ============================================================================
+// Controls (sliders + buttons)
+// ============================================================================
+function bindSlider(id, uniform, format = v => v.toFixed(2)) {
+  const el = document.getElementById(id);
+  const valEl = document.getElementById(id + 'Val');
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    uniform.value = v;
+    valEl.textContent = format(v);
+    if (id === 'bloomStrength') bloomPass.strength = v;
+    if (id === 'bloomThreshold') bloomPass.threshold = v;
+    if (id === 'striations') {
+      striationLines.forEach(sl => { sl.mat.opacity = 0.90 * v; });
+    }
+  });
+  valEl.textContent = format(uniform.value);
+}
+bindSlider('bloomStrength', { get value() { return bloomPass.strength; }, set value(v) { bloomPass.strength = v; } });
+bindSlider('bloomThreshold', { get value() { return bloomPass.threshold; }, set value(v) { bloomPass.threshold = v; } });
+bindSlider('bellAlpha', uniforms.uBellAlpha);
+bindSlider('striations', uniforms.uStriations);
+bindSlider('rimGlow', uniforms.uRimGlow);
+document.getElementById('bloomStrength').value = 0.40;
+document.getElementById('bloomStrengthVal').textContent = '0.40';
+document.getElementById('bloomThreshold').value = 0.60;
+document.getElementById('bloomThresholdVal').textContent = '0.60';
+
+document.getElementById('reseedBtn').addEventListener('click', () => {
+  generateNeuronField();
+});
+document.getElementById('captureBtn').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = 'jelly-render.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+// ============================================================================
+// Voice-reactive simulator (fake driver until real TTS envelope wired)
+// ============================================================================
+// State: -1 = off (frozen), 0 = listening, 1 = thinking, 2 = speaking
+let voiceState = -1;
+let audioEnvelope = 0;
+let phonemeKick = 0;
+let lastPhonemeAt = 0;
+let lastFrameSec = 0;
+
+const voiceStateLabel = document.getElementById('voiceStateLabel');
+const voiceEnvLabel   = document.getElementById('voiceEnvLabel');
+function setVoiceState(next) {
+  voiceState = next;
+  const names = ['listening', 'thinking', 'speaking'];
+  voiceStateLabel.textContent = 'state: ' + (next < 0 ? 'off' : names[next]);
+  // When off → freeze bell rotation for pixel-diff. When live → let uTime run.
+  window.__frozenTime = (next < 0) ? 0.0 : null;
+  // Also nudge atom shader state
+  atomMat.uniforms.uState.value = (next < 0) ? 2.0 : next;
+}
+document.getElementById('voiceOffBtn')   .addEventListener('click', () => setVoiceState(-1));
+document.getElementById('voiceListenBtn').addEventListener('click', () => setVoiceState(0));
+document.getElementById('voiceThinkBtn') .addEventListener('click', () => setVoiceState(1));
+document.getElementById('voiceSpeakBtn') .addEventListener('click', () => setVoiceState(2));
+
+function updateVoiceSim(nowSec) {
+  const dt = Math.min(0.1, nowSec - lastFrameSec);
+  lastFrameSec = nowSec;
+  let target = 0;
+  if (voiceState === 2) {
+    // Speaking: layered sine so the envelope doesn't feel loopy (incommensurate freqs)
+    const base = 0.35 + 0.25 * Math.sin(nowSec * 2.7);
+    const rip  = 0.15 * Math.sin(nowSec * 5.3 + 1.1) * Math.sin(nowSec * 0.9);
+    target = Math.max(0.08, base + rip);
+    // Phoneme bursts every ~0.25-0.50s
+    if (nowSec - lastPhonemeAt > 0.25 + Math.random() * 0.25) {
+      phonemeKick = 1.0;
+      lastPhonemeAt = nowSec;
+    }
+  } else if (voiceState === 1) {
+    // Thinking: shimmer, no pulse (voice-UX rule #4)
+    target = 0.10 + 0.03 * Math.sin(nowSec * 0.6);
+  } else if (voiceState === 0) {
+    // Listening: almost still (rule #5)
+    target = 0.04;
+  }
+  // Envelope follows target with ~8Hz low-pass smoothing (rule #1)
+  audioEnvelope += (target - audioEnvelope) * Math.min(1, dt * 8);
+  // Phoneme kick decays fast (~150ms half-life)
+  phonemeKick *= Math.pow(0.02, dt);
+
+  atomMat.uniforms.uAudioLevel.value = audioEnvelope;
+  atomMat.uniforms.uPhoneme.value    = phonemeKick;
+  atomMat.uniforms.uAtomTime.value   = nowSec;
+
+  voiceEnvLabel.textContent = 'env: ' + audioEnvelope.toFixed(2)
+    + (phonemeKick > 0.05 ? ' · kick!' : '');
+}
+
+// ============================================================================
+// Main render loop
+// ============================================================================
+let frame = 0;
+// Rotation is FROZEN — uTime clamped to window.__frozenTime so ref-vs-live
+// diff has a stable target. Set window.__frozenTime = null (or delete) to
+// resume live rotation.
+window.__frozenTime = 0.0;
+function tick(now) {
+  const nowSec = now * 0.001;
+  const t = (window.__frozenTime !== null && window.__frozenTime !== undefined)
+    ? window.__frozenTime
+    : nowSec;
+  uniforms.uTime.value = t;
+
+  updateVoiceSim(nowSec);
+
+  // Twinkle — sparkle rate varies by size class; hubs pulse strongly, dust barely moves
+  neuronGroup.children.forEach(child => {
+    if (!child.userData || child.userData.baseSize === undefined) return;
+    const base = child.userData.baseOpacity ?? 0.6;
+    if (child.userData.isHub) {
+      // Bright hotspot — big envelope, occasional flare
+      const flicker = 0.55 + 0.45 * Math.sin(t * 2.1 + child.userData.basePhase)
+                    + 0.15 * Math.sin(t * 5.7 + child.userData.basePhase * 1.7);
+      child.material.opacity = Math.min(1.0, base * flicker);
+    } else {
+      // Regular nodes — gentle twinkle keeps them alive without being distracting
+      const twinkle = 0.75 + 0.25 * Math.sin(t * 1.4 + child.userData.basePhase);
+      child.material.opacity = base * twinkle;
+    }
+  });
+  // Twinkle fine cloud dots
+  cloudDots.forEach(m => {
+    const tw = 0.18 + 0.15 * Math.sin(t * 2.1 + m.userData.basePhase);
+    m.material.opacity = tw;
+  });
+
+  composer.render();
+
+  // Compute pixel diff every ~250ms so it doesn't drag frame rate too much
+  if (now - lastDiffTime > 250) {
+    computeDiff();
+    lastDiffTime = now;
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
