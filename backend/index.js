@@ -58,6 +58,63 @@ app.use(compression());
 // deferred per memory note.
 app.use(express.json({ limit: "5mb" }));
 
+// ── Access control ──────────────────────────────────────────────────────
+// Shared-secret token. When API_TOKEN is set, sensitive routes require
+// `Authorization: Bearer <token>`. When UNSET, auth is disabled (fail-open)
+// so local dev and the current deploy keep working until the token is
+// provisioned on Railway + Vercel + the sync scripts. Activate by setting
+// API_TOKEN (backend), VITE_API_TOKEN (frontend), and the scripts' env.
+const apiToken = process.env.API_TOKEN?.trim() || "";
+if (!apiToken) {
+  console.warn(
+    "⚠ API_TOKEN not set — /api/content is UNAUTHENTICATED. Set API_TOKEN " +
+      "(backend) + VITE_API_TOKEN (frontend) + the sync scripts to enable auth.",
+  );
+}
+
+// Constant-time compare so a wrong token can't be recovered via timing.
+function tokensMatch(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function requireAuth(req, res, next) {
+  if (!apiToken) return next(); // fail-open when unconfigured
+  if (req.method === "OPTIONS") return next(); // never block CORS preflight
+  const m = (req.get("authorization") || "").match(/^Bearer\s+(.+)$/i);
+  if (m && tokensMatch(m[1], apiToken)) return next();
+  return res.status(401).json({ error: "Unauthorized." });
+}
+
+// Local-machine features (read ~/.claude transcripts, focus local terminal
+// windows) are meaningless off this host and leak private data / spawn
+// processes. Reject non-loopback callers regardless of bind address. NOTE:
+// CORS does NOT do this — it's browser-only; this is the real server-side
+// gate. Override with ALLOW_LAN_LOCAL_ROUTES=1 if you know what you're doing.
+function requireLoopback(req, res, next) {
+  if (process.env.ALLOW_LAN_LOCAL_ROUTES === "1") return next();
+  const ip = req.socket?.remoteAddress || "";
+  if (ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1") return next();
+  return res.status(403).json({ error: "Local-only endpoint." });
+}
+
+// Minimal in-memory per-IP rate limiter for mutating routes. A backstop
+// against PUT / focus-terminal spam, not a primary control.
+const rateBuckets = new Map();
+function rateLimit(maxPerMinute) {
+  return (req, res, next) => {
+    const ip = req.socket?.remoteAddress || "unknown";
+    const now = Date.now();
+    const hits = (rateBuckets.get(ip) || []).filter((t) => now - t < 60000);
+    if (hits.length >= maxPerMinute) return res.status(429).json({ error: "Too many requests." });
+    hits.push(now);
+    rateBuckets.set(ip, hits);
+    return next();
+  };
+}
+
 // MongoClient is a long-lived singleton. If its internal topology gets
 // wedged (e.g., the cluster does a primary failover the driver doesn't
 // recover from cleanly — which took down /api/content for 45+ min on
@@ -182,7 +239,7 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.get("/api/content/schema", async (_req, res) => {
+app.get("/api/content/schema", requireAuth, async (_req, res) => {
   try {
     const normalized = await withCollection((collection) => readNormalizedContent(collection));
     res.json({
@@ -196,7 +253,7 @@ app.get("/api/content/schema", async (_req, res) => {
   }
 });
 
-app.get("/api/content", async (_req, res) => {
+app.get("/api/content", requireAuth, async (_req, res) => {
   try {
     const payload = await withCollection(async (collection) => {
       const normalized = await readNormalizedContent(collection);
@@ -266,7 +323,10 @@ function mergeWorkSessions(existing, incoming, deletes, validProjectIds, project
       // (2) projectId preserve — only when existing is still valid AND
       // there's no explicit move override for this id.
       const moveTarget = moves[e.id];
-      if (typeof moveTarget === "string" && moveTarget) {
+      // Only honor a move to a project that actually exists in this PUT's
+      // post-merge project set — otherwise a crafted/stale move could orphan
+      // a session onto a bogus id.
+      if (typeof moveTarget === "string" && moveTarget && validPids.has(moveTarget)) {
         next = { ...next, projectId: moveTarget };
       } else if (
         cur.projectId &&
@@ -417,7 +477,7 @@ function mergeDailyTop3(existing, incoming) {
   };
 }
 
-app.put("/api/content", async (req, res) => {
+app.put("/api/content", requireAuth, rateLimit(60), async (req, res) => {
   const payload = req.body;
   if (!isContentPayload(payload)) {
     return res.status(400).json({ error: "Invalid content payload." });
@@ -491,7 +551,7 @@ app.put("/api/content", async (req, res) => {
   }
 });
 
-app.post("/api/content/migrate", async (_req, res) => {
+app.post("/api/content/migrate", requireAuth, rateLimit(6), async (_req, res) => {
   try {
     const result = await withCollection(async (collection) => {
       const normalized = await readNormalizedContent(collection);
@@ -618,7 +678,7 @@ async function summarizeSessionFile(filePath) {
   };
 }
 
-app.get("/api/chats-live", async (_req, res) => {
+app.get("/api/chats-live", requireLoopback, async (_req, res) => {
   try {
     const cutoff = Date.now() - CHATS_LIVE_WINDOW_MS;
     let projectDirs = [];
@@ -698,7 +758,11 @@ app.get("/api/chats-live", async (_req, res) => {
 // localhost-origin requests via the existing CORS allowlist.
 const FOCUS_TERMINAL_SCRIPT = String.raw`
 $ErrorActionPreference = "Stop"
-$needle = $args[0]
+# Read the needle from the environment, NOT from an argument after -Command.
+# Passing untrusted text after -Command is not a clean argv boundary and is a
+# brittle/unsafe pattern (PowerShell may treat it as command text). The env
+# var is passed as data by the Node parent and never parsed as code.
+$needle = $env:FOCUS_NEEDLE
 if (-not $needle) { Write-Output "NO_NEEDLE"; exit 1 }
 
 Add-Type @"
@@ -747,7 +811,7 @@ function focusNeedleFromCwd(cwd) {
   return segments[segments.length - 1] || "";
 }
 
-app.post("/api/focus-terminal", async (req, res) => {
+app.post("/api/focus-terminal", requireLoopback, rateLimit(30), async (req, res) => {
   try {
     const cwd = typeof req.body?.cwd === "string" ? req.body.cwd : "";
     const needle = focusNeedleFromCwd(cwd);
@@ -760,8 +824,8 @@ app.post("/api/focus-terminal", async (req, res) => {
 
     const { stdout } = await execFileAsync(
       "powershell.exe",
-      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", FOCUS_TERMINAL_SCRIPT, needle],
-      { timeout: 5000, windowsHide: true },
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", FOCUS_TERMINAL_SCRIPT],
+      { timeout: 5000, windowsHide: true, env: { ...process.env, FOCUS_NEEDLE: needle } },
     );
 
     const trimmed = stdout.trim();
@@ -777,8 +841,10 @@ app.post("/api/focus-terminal", async (req, res) => {
     }
     return res.json({ matched: false, needle, reason: trimmed || "Unknown result." });
   } catch (error) {
+    // Log detail server-side; return a generic message so we don't leak
+    // command-line / parser internals to the caller.
     console.error("Focus terminal failed:", error);
-    return res.status(500).json({ error: error.message || "Focus request failed." });
+    return res.status(500).json({ error: "Focus request failed." });
   }
 });
 

@@ -882,6 +882,9 @@ export function normalizeChatLinks(value) {
     const label = typeof item.label === "string" ? item.label.trim() : "";
     const url = typeof item.url === "string" ? item.url.trim() : "";
     if (!url) continue;
+    // Only http(s) — mirror of backend. Rendered as href, so non-http
+    // schemes (javascript:/data:) would be a clickable XSS vector.
+    if (!/^https?:\/\//i.test(url)) continue;
     seenIds.add(id);
     out.push({ id, label, url });
   }
@@ -1072,11 +1075,19 @@ function getApiUrl(path) {
   return `${API_BASE_URL}${path}`;
 }
 
+// Bearer token, sent only when VITE_API_TOKEN is configured. Backward-
+// compatible: unset → no header → works against a fail-open (unauth) backend.
+// Set it once the backend has API_TOKEN provisioned to require auth.
+const API_TOKEN = (import.meta.env.VITE_API_TOKEN || "").trim();
+function withAuth(headers = {}) {
+  return API_TOKEN ? { ...headers, Authorization: `Bearer ${API_TOKEN}` } : headers;
+}
+
 async function fetchRemoteContent() {
   if (!API_BASE_URL) return null;
 
   try {
-    const response = await fetch(getApiUrl("/api/content"));
+    const response = await fetch(getApiUrl("/api/content"), { headers: withAuth() });
     if (!response.ok) {
       throw new Error(`Failed to fetch content (${response.status})`);
     }
@@ -1106,9 +1117,7 @@ async function saveRemoteContent(nextContent) {
   try {
     const response = await fetch(getApiUrl("/api/content"), {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: withAuth({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     });
 
@@ -1142,17 +1151,21 @@ export async function requestManualSync(triggerKey, currentContent) {
     throw new Error("API_BASE_URL not configured");
   }
   const triggerIso = new Date().toISOString();
-  const payload = normalizeContentRecord({
+  const normalized = normalizeContentRecord({
     ...currentContent,
     manualSyncTriggers: {
       ...(currentContent?.manualSyncTriggers || {}),
       [triggerKey]: triggerIso,
     },
   });
+  // Strip vault snapshot fields for the same reason as saveRemoteContent:
+  // the normalizer always emits them (null / []), and sending them would
+  // clobber the sync-vault.py snapshot on the backend.
+  const { dailyNote, inbox, recentVaultEdits, ...payload } = normalized;
   try {
     const response = await fetch(getApiUrl("/api/content"), {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: withAuth({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!response.ok) {

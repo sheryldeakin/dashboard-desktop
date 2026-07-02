@@ -768,6 +768,10 @@ function normalizeChatLinks(value) {
     const label = typeof item.label === "string" ? item.label.trim() : "";
     const url = typeof item.url === "string" ? item.url.trim() : "";
     if (!url) continue;
+    // Only http(s). The card renders these as `href`, so a stored
+    // `javascript:`/`data:` URL (e.g. via a direct PUT bypassing the add
+    // form) would be a clickable XSS vector. Drop anything else.
+    if (!/^https?:\/\//i.test(url)) continue;
     seenIds.add(id);
     out.push({ id, label, url });
   }
