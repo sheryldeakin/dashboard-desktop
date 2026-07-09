@@ -21,6 +21,14 @@ dotenv.config();
 
 const app = express();
 
+// Railway terminates TLS at its edge proxy, so the socket peer is always the
+// internal load-balancer IP. Trust exactly ONE proxy hop so req.ip reflects the
+// real client (from the X-Forwarded-For value Railway sets, which a client
+// can't forge past the trusted hop). Used for per-client rate limiting below.
+// NOTE: requireLoopback deliberately keeps req.socket.remoteAddress, NOT req.ip
+// — a security gate must use the real TCP peer, never a spoofable header.
+app.set("trust proxy", 1);
+
 const port = Number(process.env.PORT || 4000);
 const mongoUri = process.env.MONGODB_URI;
 const mongoDbName = process.env.MONGODB_DB || "dashboard_display";
@@ -105,7 +113,9 @@ function requireLoopback(req, res, next) {
 const rateBuckets = new Map();
 function rateLimit(maxPerMinute) {
   return (req, res, next) => {
-    const ip = req.socket?.remoteAddress || "unknown";
+    // req.ip resolves to the real client via trust-proxy (see app.set above),
+    // so rate-limit buckets are per-caller instead of one shared LB bucket.
+    const ip = req.ip || req.socket?.remoteAddress || "unknown";
     const now = Date.now();
     const hits = (rateBuckets.get(ip) || []).filter((t) => now - t < 60000);
     if (hits.length >= maxPerMinute) return res.status(429).json({ error: "Too many requests." });

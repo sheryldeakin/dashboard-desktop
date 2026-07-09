@@ -23,6 +23,12 @@ iter-*.png
 jelly-lab-*.png
 jarvis-*.png
 lab-*.png
+# velo HUD screenshots land here when velo verification runs from this cwd
+velo-*.jpeg
+velo-*.png
+
+# velo pointer/scratch under System/ — machine-local, not this repo's content
+System/velo/
 
 # Session logs written by /compress for AI recall via /resume. Local-only
 # memory; not meaningful to commit. Two earlier files (2026-06-03 and
